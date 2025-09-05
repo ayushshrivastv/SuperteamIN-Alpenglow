@@ -1,0 +1,24 @@
+# Development files and directories
+states/
+specs/states/
+*.log
+*.tmp
+*.bak
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build and dependency directories
+target/
+node_modules/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Other temporary files
+*.out
+*.err
