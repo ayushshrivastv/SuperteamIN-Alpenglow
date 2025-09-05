@@ -17,10 +17,10 @@ use crate::{
     TlaCompatible, Verifiable,
 };
 use reed_solomon_erasure::galois_8::ReedSolomon;
+use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use serde::{Deserialize, Serialize};
 use crate::stateright::{Actor, Id};
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::time::{Duration, Instant};
 
 /// Shred identifier for non-equivocation tracking - mirrors TLA+ ShredId
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -39,7 +39,7 @@ impl ShredId {
 }
 
 /// Erasure-coded block shred containing a piece of the original block - mirrors TLA+ shred structure
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Shred {
     /// Block identifier this shred belongs to
     pub block_id: BlockHash,
@@ -105,7 +105,7 @@ impl Shred {
 }
 
 /// Block with erasure coding metadata
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct ErasureBlock {
     /// Block hash identifier
     pub hash: BlockHash,
@@ -129,7 +129,7 @@ pub struct ErasureBlock {
     pub timestamp: u64,
     
     /// Transaction set
-    pub transactions: HashSet<Vec<u8>>,
+    pub transactions: Vec<Vec<u8>>,
     
     /// Total number of shreds (K + parity)
     pub total_shreds: u32,
@@ -153,10 +153,10 @@ impl ErasureBlock {
             slot,
             view: 0,
             proposer,
-            parent: [0u8; 32], // Genesis parent
+            parent: 0, // Genesis parent
             data,
             timestamp: 0, // Will be set by clock
-            transactions: HashSet::new(),
+            transactions: Vec::new(),
             total_shreds,
             data_shreds,
         }
@@ -169,7 +169,7 @@ impl ErasureBlock {
 }
 
 /// Repair request for missing shreds
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct RepairRequest {
     /// Validator requesting repair
     pub requester: ValidatorId,
@@ -178,7 +178,7 @@ pub struct RepairRequest {
     pub block_id: BlockHash,
     
     /// Set of missing shred indices
-    pub missing_pieces: HashSet<u32>,
+    pub missing_pieces: Vec<u32>,
     
     /// Request timestamp for timeout handling
     pub timestamp: u64,
@@ -188,8 +188,8 @@ pub struct RepairRequest {
 }
 
 /// Relay path for stake-weighted propagation
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
-pub struct RelayPath {
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RepairState {
     /// Source validator
     pub source: ValidatorId,
     
@@ -204,7 +204,7 @@ pub struct RelayPath {
 }
 
 /// Reconstruction state for a block
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ReconstructionState {
     /// Block being reconstructed
     pub block_id: BlockHash,
@@ -223,7 +223,7 @@ pub struct ReconstructionState {
 }
 
 /// Rotor actor state - mirrors TLA+ Rotor variables exactly
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RotorState {
     /// Validator ID
     pub validator_id: ValidatorId,
@@ -287,11 +287,24 @@ pub struct RotorState {
     pub n: u32,
 }
 
+impl Hash for RotorState {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Hash only the key identifying fields to avoid issues with collections
+        self.validator_id.hash(state);
+        self.clock.hash(state);
+        self.bandwidth_limit.hash(state);
+        self.retry_timeout.hash(state);
+        self.max_retries.hash(state);
+        self.k.hash(state);
+        self.n.hash(state);
+    }
+}
+
 impl RotorState {
     /// Create new Rotor state
     pub fn new(validator_id: ValidatorId, config: Config) -> Self {
-        let validator_count = config.validator_count;
-        let bandwidth_limit = 1000000; // 1MB per validator
+        let _validator_count = config.validator_count;
+        let bandwidth_limit = config.bandwidth_limit;
         
         // Use erasure coding parameters from config
         let k = config.k;
@@ -306,7 +319,7 @@ impl RotorState {
         
         Self {
             validator_id,
-            config,
+            config: config.clone(),
             block_shreds: HashMap::new(),
             relay_assignments: HashMap::new(),
             reconstruction_state: HashMap::new(),
@@ -531,10 +544,10 @@ impl RotorState {
             slot,
             view: 0, // Will be set from metadata
             proposer: 0, // Will be determined from context
-            parent: [0u8; 32],
+            parent: 0,
             data: reconstructed_data,
             timestamp: self.clock,
-            transactions: HashSet::new(),
+            transactions: Vec::new(),
             total_shreds: self.n,
             data_shreds: self.k,
         };
@@ -549,7 +562,7 @@ impl RotorState {
         // Calculate total stake - mirrors TLA+ SumStake
         let total_stake: StakeAmount = validators
             .iter()
-            .map(|v| self.config.stake_distribution.get(v).unwrap_or(&0))
+            .map(|_v| self.config.stake_distribution.get(_v).unwrap_or(&0))
             .sum();
         
         if total_stake == 0 {
@@ -701,13 +714,887 @@ impl RotorState {
     /// Get honest validators (non-Byzantine)
     pub fn honest_validators(&self) -> Vec<ValidatorId> {
         (0..self.config.validator_count as ValidatorId)
-            .filter(|&v| {
+            .filter(|&_v| {
                 // In practice, would check Byzantine validator set
                 // For now, assume all validators are honest
                 true
             })
             .collect()
     }
+    
+    /// Helper method to parse shred from JSON for TLA+ import
+    fn parse_shred_from_json(&self, shred_json: &serde_json::Value) -> AlpenglowResult<Option<Shred>> {
+        let block_id_str = shred_json.get("blockId")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| AlpenglowError::ProtocolViolation("Missing blockId in shred JSON".to_string()))?;
+        
+        let slot = shred_json.get("slot")
+            .and_then(|v| v.as_u64())
+            .ok_or_else(|| AlpenglowError::ProtocolViolation("Missing slot in shred JSON".to_string()))?;
+        
+        let index = shred_json.get("index")
+            .and_then(|v| v.as_u64())
+            .map(|n| n as u32)
+            .ok_or_else(|| AlpenglowError::ProtocolViolation("Missing index in shred JSON".to_string()))?;
+        
+        let data = shred_json.get("data")
+            .and_then(|v| v.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_u64().map(|n| n as u8)).collect::<Vec<u8>>())
+            .unwrap_or_default();
+        
+        let is_parity = shred_json.get("isParity")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        
+        let signature = shred_json.get("signature")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        
+        let size = shred_json.get("size")
+            .and_then(|v| v.as_u64())
+            .map(|n| n as usize)
+            .unwrap_or(data.len() + 64); // Default size calculation
+        
+        let block_id = self.parse_block_id_from_string(block_id_str)?;
+        
+        let shred = Shred {
+            block_id,
+            slot,
+            index,
+            data,
+            is_parity,
+            signature,
+            size,
+        };
+        
+        Ok(Some(shred))
+    }
+    
+    /// Helper method to parse block ID from string representation
+    fn parse_block_id_from_string(&self, block_id_str: &str) -> AlpenglowResult<BlockHash> {
+        // For simplicity, create a deterministic block ID from the string hash
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        use std::hash::{Hash, Hasher};
+        block_id_str.hash(&mut hasher);
+        let hash = hasher.finish();
+        Ok(hash)
+    }
+    
+    /// Helper method to parse shred ID from string representation
+    fn parse_shred_id_from_string(&self, shred_id_str: &str) -> Option<ShredId> {
+        if let Some(captures) = shred_id_str.strip_prefix("slot_") {
+            if let Some(index_pos) = captures.find("_index_") {
+                let slot_str = &captures[..index_pos];
+                let index_str = &captures[index_pos + 7..];
+                if let (Ok(slot), Ok(index)) = (slot_str.parse::<u64>(), index_str.parse::<u32>()) {
+                    return Some(ShredId::new(slot, index));
+                }
+            }
+        }
+        None
+    }
+    
+    /// Helper method to parse reconstruction state from JSON
+    fn parse_reconstruction_state_from_json(&self, state_json: &serde_json::Value) -> AlpenglowResult<Option<ReconstructionState>> {
+        let block_id_str = state_json.get("blockId")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| AlpenglowError::ProtocolViolation("Missing blockId in reconstruction state JSON".to_string()))?;
+        
+        let collected_pieces = state_json.get("collectedPieces")
+            .and_then(|v| v.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_u64().map(|n| n as u32)).collect::<HashSet<u32>>())
+            .unwrap_or_default();
+        
+        let complete = state_json.get("complete")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        
+        let start_time = state_json.get("startTime")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        
+        let repair_requests_sent = state_json.get("repairRequestsSent")
+            .and_then(|v| v.as_u64())
+            .map(|n| n as u32)
+            .unwrap_or(0);
+        
+        let block_id = self.parse_block_id_from_string(block_id_str)?;
+        
+        let reconstruction_state = ReconstructionState {
+            block_id,
+            collected_pieces,
+            complete,
+            start_time,
+            repair_requests_sent,
+        };
+        
+        Ok(Some(reconstruction_state))
+    }
+    
+    /// Helper method to parse repair request from JSON
+    fn parse_repair_request_from_json(&self, request_json: &serde_json::Value) -> AlpenglowResult<Option<RepairRequest>> {
+        let requester = request_json.get("requester")
+            .and_then(|v| v.as_u64())
+            .map(|n| n as ValidatorId)
+            .ok_or_else(|| AlpenglowError::ProtocolViolation("Missing requester in repair request JSON".to_string()))?;
+        
+        let block_id_str = request_json.get("blockId")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| AlpenglowError::ProtocolViolation("Missing blockId in repair request JSON".to_string()))?;
+        
+        let missing_pieces = request_json.get("missingPieces")
+            .and_then(|v| v.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_u64().map(|n| n as u32)).collect::<HashSet<u32>>())
+            .unwrap_or_default();
+        
+        let timestamp = request_json.get("timestamp")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        
+        let retry_count = request_json.get("retryCount")
+            .and_then(|v| v.as_u64())
+            .map(|n| n as u32)
+            .unwrap_or(0);
+        
+        let block_id = self.parse_block_id_from_string(block_id_str)?;
+        
+        let repair_request = RepairRequest {
+            requester,
+            block_id,
+            missing_pieces: missing_pieces.into_iter().collect(),
+            timestamp,
+            retry_count,
+        };
+        
+        Ok(Some(repair_request))
+    }
+    
+    /// Helper method to parse erasure block from JSON
+    fn parse_erasure_block_from_json(&self, block_json: &serde_json::Value) -> AlpenglowResult<Option<ErasureBlock>> {
+        let hash_str = block_json.get("hash")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| AlpenglowError::ProtocolViolation("Missing hash in erasure block JSON".to_string()))?;
+        
+        let slot = block_json.get("slot")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        
+        let view = block_json.get("view")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        
+        let proposer = block_json.get("proposer")
+            .and_then(|v| v.as_u64())
+            .map(|n| n as ValidatorId)
+            .unwrap_or(0);
+        
+        let parent_str = block_json.get("parent")
+            .and_then(|v| v.as_str())
+            .unwrap_or("[0; 32]");
+        
+        let data = block_json.get("data")
+            .and_then(|v| v.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_u64().map(|n| n as u8)).collect::<Vec<u8>>())
+            .unwrap_or_default();
+        
+        let timestamp = block_json.get("timestamp")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        
+        let total_shreds = block_json.get("totalShreds")
+            .and_then(|v| v.as_u64())
+            .map(|n| n as u32)
+            .unwrap_or(self.n);
+        
+        let data_shreds = block_json.get("dataShreds")
+            .and_then(|v| v.as_u64())
+            .map(|n| n as u32)
+            .unwrap_or(self.k);
+        
+        let hash = self.parse_block_id_from_string(hash_str)?;
+        let parent = self.parse_block_id_from_string(parent_str)?;
+        
+        let erasure_block = ErasureBlock {
+            hash,
+            slot,
+            view,
+            proposer,
+            parent,
+            data,
+            timestamp,
+            transactions: Vec::new(), // Transactions not included in basic JSON
+            total_shreds,
+            data_shreds,
+        };
+        
+        Ok(Some(erasure_block))
+    }
+    
+    /// Validate imported state consistency
+    fn validate_imported_state(&self) -> AlpenglowResult<()> {
+        // Check that all validators in various maps are valid
+        let max_validator = self.config.validator_count as ValidatorId;
+        
+        for &validator in self.bandwidth_usage.keys() {
+            if validator >= max_validator {
+                return Err(AlpenglowError::ProtocolViolation(
+                    format!("Invalid validator {} in bandwidth_usage", validator)
+                ));
+            }
+        }
+        
+        for &validator in self.delivered_blocks.keys() {
+            if validator >= max_validator {
+                return Err(AlpenglowError::ProtocolViolation(
+                    format!("Invalid validator {} in delivered_blocks", validator)
+                ));
+            }
+        }
+        
+        // Check that erasure coding parameters are consistent
+        if self.k >= self.n || self.k == 0 || self.n == 0 {
+            return Err(AlpenglowError::InvalidConfig(
+                format!("Invalid erasure coding parameters: k={}, n={}", self.k, self.n)
+            ));
+        }
+        
+        // Check that all shreds have valid indices
+        for validator_shreds in self.block_shreds.values() {
+            for shreds in validator_shreds.values() {
+                for shred in shreds {
+                    if shred.index < 1 || shred.index > self.n {
+                        return Err(AlpenglowError::ProtocolViolation(
+                            format!("Invalid shred index {} not in range 1..{}", shred.index, self.n)
+                        ));
+                    }
+                }
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Get data shred count for a block (helper for repair logic)
+    fn get_data_shred_count(&self, _block_id: &BlockHash) -> u32 {
+        self.k // All blocks use the same K parameter
+    }
+    
+    /// Propose a new block - mirrors TLA+ ProposeBlock action
+    pub fn propose_block(&mut self, leader: ValidatorId, slot: u64, block: ErasureBlock) -> AlpenglowResult<()> {
+        // Validate leader and block
+        if leader != block.proposer {
+            return Err(AlpenglowError::ProtocolViolation(
+                "Block proposer does not match leader".to_string(),
+            ));
+        }
+        
+        if slot != block.slot {
+            return Err(AlpenglowError::ProtocolViolation(
+                "Block slot does not match proposed slot".to_string(),
+            ));
+        }
+        
+        // Check if block already exists
+        if self.block_shreds.contains_key(&block.hash) {
+            return Err(AlpenglowError::ProtocolViolation(
+                "Block already exists".to_string(),
+            ));
+        }
+        
+        // Validate block integrity
+        if !self.validate_block_integrity(&block) {
+            return Err(AlpenglowError::ProtocolViolation(
+                "Invalid block integrity".to_string(),
+            ));
+        }
+        
+        // Store block for shredding
+        self.block_shreds.insert(block.hash, HashMap::new());
+        self.advance_clock();
+        
+        Ok(())
+    }
+    
+    /// Shred a block into erasure-coded pieces - mirrors TLA+ ShredBlock action
+    pub fn shred_block(&mut self, block: &ErasureBlock) -> AlpenglowResult<Vec<Shred>> {
+        // Check if block exists
+        if !self.block_shreds.contains_key(&block.hash) {
+            return Err(AlpenglowError::ProtocolViolation(
+                "Block not found for shredding".to_string(),
+            ));
+        }
+        
+        // Encode block into shreds
+        let shreds = self.erasure_encode(block)?;
+        
+        // Create shred map for storage
+        let mut shred_map = HashMap::new();
+        for i in 1..=self.n {
+            if let Some(shred) = shreds.iter().find(|s| s.index == i) {
+                shred_map.insert(i, shred.clone());
+            }
+        }
+        
+        // Store shreds in block_shreds structure
+        if let Some(block_entry) = self.block_shreds.get_mut(&block.hash) {
+            block_entry.insert(self.validator_id, shreds.iter().cloned().collect());
+        }
+        
+        self.advance_clock();
+        Ok(shreds)
+    }
+    
+    /// Broadcast shreds to selected recipients - mirrors TLA+ BroadcastShred action
+    pub fn broadcast_shred(&mut self, relay: ValidatorId, shred: &Shred, recipients: &[ValidatorId]) -> AlpenglowResult<()> {
+        // Validate relay
+        if relay != self.validator_id {
+            return Err(AlpenglowError::ProtocolViolation(
+                "Invalid relay validator".to_string(),
+            ));
+        }
+        
+        // Check if shred exists in our collection
+        let has_shred = self.block_shreds
+            .get(&shred.block_id)
+            .and_then(|bs| bs.get(&relay))
+            .map_or(false, |shreds| shreds.contains(shred));
+        
+        if !has_shred {
+            return Err(AlpenglowError::ProtocolViolation(
+                "Shred not found for broadcasting".to_string(),
+            ));
+        }
+        
+        // Check bandwidth limits
+        let bandwidth_needed = shred.size as u64 * recipients.len() as u64;
+        if !self.check_bandwidth_limit(relay, bandwidth_needed) {
+            return Err(AlpenglowError::ProtocolViolation(
+                "Bandwidth limit exceeded".to_string(),
+            ));
+        }
+        
+        // Broadcast to recipients
+        for &recipient in recipients {
+            if recipient != relay {
+                // Add shred to recipient's received shreds
+                self.received_shreds
+                    .entry(recipient)
+                    .or_insert_with(HashSet::new)
+                    .insert(shred.clone());
+                
+                // Also add to block_shreds for the recipient
+                self.block_shreds
+                    .entry(shred.block_id)
+                    .or_insert_with(HashMap::new)
+                    .entry(recipient)
+                    .or_insert_with(HashSet::new)
+                    .insert(shred.clone());
+            }
+        }
+        
+        // Update bandwidth usage
+        self.update_bandwidth_usage(relay, bandwidth_needed);
+        self.advance_clock();
+        
+        Ok(())
+    }
+    
+    /// Create a shred from block data - mirrors TLA+ CreateShred
+    pub fn create_shred(&self, block: &ErasureBlock, index: u32, merkle_path: Vec<u8>) -> AlpenglowResult<Shred> {
+        if index < 1 || index > self.n {
+            return Err(AlpenglowError::ProtocolViolation(
+                format!("Invalid shred index {} not in range 1..{}", index, self.n),
+            ));
+        }
+        
+        // Determine if this is a parity shred
+        let is_parity = index > self.k;
+        
+        // Create shred data (simplified - in practice would contain actual block data chunk)
+        let data = if is_parity {
+            // Parity data computation
+            vec![0u8; 1024] // Placeholder parity data
+        } else {
+            // Data chunk from block
+            let chunk_size = (block.data.len() + self.k as usize - 1) / self.k as usize;
+            let start = ((index - 1) as usize) * chunk_size;
+            let end = std::cmp::min(start + chunk_size, block.data.len());
+            block.data[start..end].to_vec()
+        };
+        
+        let shred = Shred {
+            block_id: block.hash,
+            slot: block.slot,
+            index,
+            data,
+            is_parity,
+            signature: block.proposer as u64, // Simplified signature
+            size: 1024 + merkle_path.len(), // Base size + merkle proof
+        };
+        
+        Ok(shred)
+    }
+    
+    /// Validate shred integrity - mirrors TLA+ ValidateShred
+    pub fn validate_shred(&self, shred: &Shred, merkle_root: &[u8]) -> bool {
+        // Basic validation
+        if shred.index < 1 || shred.index > self.n {
+            return false;
+        }
+        
+        // Check parity flag consistency
+        if shred.is_parity && shred.index <= self.k {
+            return false;
+        }
+        if !shred.is_parity && shred.index > self.k {
+            return false;
+        }
+        
+        // Validate data is not empty
+        if shred.data.is_empty() {
+            return false;
+        }
+        
+        // Simplified merkle validation (in practice would verify actual merkle proof)
+        if merkle_root.is_empty() {
+            return false;
+        }
+        
+        // Signature validation (simplified)
+        if shred.signature == 0 {
+            return false;
+        }
+        
+        true
+    }
+    
+    /// Validate reconstructed block - mirrors TLA+ ValidateReconstructedBlock
+    pub fn validate_reconstructed_block(&self, block: &ErasureBlock, expected_hash: BlockHash) -> bool {
+        block.hash == expected_hash && self.validate_block_integrity(block)
+    }
+    
+    /// Request missing shreds for incomplete block - mirrors TLA+ RequestMissingShreds
+    pub fn request_missing_shreds(&mut self, validator: ValidatorId, slot: u64, missing_indices: &[u32]) -> AlpenglowResult<()> {
+        if validator != self.validator_id {
+            return Err(AlpenglowError::ProtocolViolation(
+                "Invalid validator for repair request".to_string(),
+            ));
+        }
+        
+        if missing_indices.is_empty() {
+            return Ok(()); // Nothing to request
+        }
+        
+        // Validate missing indices
+        for &index in missing_indices {
+            if index < 1 || index > self.n {
+                return Err(AlpenglowError::ProtocolViolation(
+                    format!("Invalid missing index {} not in range 1..{}", index, self.n),
+                ));
+            }
+        }
+        
+        // Find block ID for this slot (simplified - assumes one block per slot)
+        let block_id = slot; // Simplified mapping
+        
+        // Check bandwidth for repair request
+        let repair_bandwidth = self.compute_repair_bandwidth(&HashSet::new()) + (missing_indices.len() as u64 * 50);
+        if !self.check_bandwidth_limit(validator, repair_bandwidth) {
+            return Err(AlpenglowError::ProtocolViolation(
+                "Bandwidth limit exceeded for repair request".to_string(),
+            ));
+        }
+        
+        // Create repair request
+        let repair_request = RepairRequest {
+            requester: validator,
+            block_id,
+            missing_pieces: missing_indices.to_vec(),
+            timestamp: self.clock,
+            retry_count: 0,
+        };
+        
+        self.repair_requests.insert(repair_request);
+        self.update_bandwidth_usage(validator, repair_bandwidth);
+        self.advance_clock();
+        
+        Ok(())
+    }
+    
+    /// Respond to repair request by sending missing shreds - mirrors TLA+ RespondToRepairRequest
+    pub fn respond_to_repair_request(&mut self, validator: ValidatorId, request: &RepairRequest) -> AlpenglowResult<Vec<Shred>> {
+        if validator != self.validator_id {
+            return Err(AlpenglowError::ProtocolViolation(
+                "Invalid validator for repair response".to_string(),
+            ));
+        }
+        
+        if !self.repair_requests.contains(request) {
+            return Err(AlpenglowError::ProtocolViolation(
+                "Repair request not found".to_string(),
+            ));
+        }
+        
+        // Find available shreds for the requested block
+        let available_shreds = self.block_shreds
+            .get(&request.block_id)
+            .and_then(|bs| bs.get(&validator))
+            .cloned()
+            .unwrap_or_default();
+        
+        // Filter shreds that match the missing pieces
+        let response_shreds: Vec<Shred> = available_shreds
+            .into_iter()
+            .filter(|s| request.missing_pieces.contains(&s.index))
+            .collect();
+        
+        if response_shreds.is_empty() {
+            return Ok(Vec::new()); // No shreds to send
+        }
+        
+        // Check bandwidth for response
+        let response_bandwidth = response_shreds.iter().map(|s| s.size as u64).sum();
+        if !self.check_bandwidth_limit(validator, response_bandwidth) {
+            return Err(AlpenglowError::ProtocolViolation(
+                "Bandwidth limit exceeded for repair response".to_string(),
+            ));
+        }
+        
+        // Send shreds to requester (add to their received shreds)
+        for shred in &response_shreds {
+            self.received_shreds
+                .entry(request.requester)
+                .or_insert_with(HashSet::new)
+                .insert(shred.clone());
+            
+            // Also add to block_shreds for the requester
+            self.block_shreds
+                .entry(request.block_id)
+                .or_insert_with(HashMap::new)
+                .entry(request.requester)
+                .or_insert_with(HashSet::new)
+                .insert(shred.clone());
+        }
+        
+        // Remove the repair request
+        self.repair_requests.remove(request);
+        self.update_bandwidth_usage(validator, response_bandwidth);
+        self.advance_clock();
+        
+        Ok(response_shreds)
+    }
+    
+    /// Check if block delivery was successful to honest majority - mirrors TLA+ RotorSuccessful
+    pub fn rotor_successful(&self, slot: u64) -> bool {
+        let block_id = slot; // Simplified mapping
+        let honest_validators = self.honest_validators();
+        let successful_validators: Vec<_> = honest_validators
+            .iter()
+            .filter(|&&v| {
+                self.delivered_blocks
+                    .get(&v)
+                    .map_or(false, |delivered| delivered.contains(&block_id))
+            })
+            .collect();
+        
+        let honest_stake: StakeAmount = honest_validators
+            .iter()
+            .map(|&v| self.config.stake_distribution.get(&v).unwrap_or(&0))
+            .sum();
+        
+        let successful_stake: StakeAmount = successful_validators
+            .iter()
+            .map(|&&v| self.config.stake_distribution.get(&v).unwrap_or(&0))
+            .sum();
+        
+        successful_stake > honest_stake / 2
+    }
+    
+    /// Stake-weighted sampling for relay selection - mirrors TLA+ StakeWeightedSampling
+    pub fn stake_weighted_sampling(&self, validators: &[ValidatorId], count: usize) -> Vec<ValidatorId> {
+        if validators.is_empty() || count == 0 {
+            return Vec::new();
+        }
+        
+        let total_stake = self.config.total_stake;
+        if total_stake == 0 {
+            // Equal probability sampling if no stake info
+            let mut result = validators.to_vec();
+            result.truncate(count);
+            return result;
+        }
+        
+        // Create cumulative stake distribution for sampling
+        let mut cumulative_stakes = Vec::new();
+        let mut cumulative = 0u64;
+        
+        for &validator in validators {
+            let stake = self.config.stake_distribution.get(&validator).unwrap_or(&0);
+            cumulative += stake;
+            cumulative_stakes.push((validator, cumulative));
+        }
+        
+        // Sample validators proportional to stake
+        let mut selected = Vec::new();
+        let mut used_validators = HashSet::new();
+        
+        for i in 0..count {
+            if used_validators.len() >= validators.len() {
+                break; // All validators already selected
+            }
+            
+            // Deterministic sampling based on position and total stake
+            let target = ((i as u64 + 1) * total_stake) / (count as u64 + 1);
+            
+            // Find validator with cumulative stake >= target
+            for &(validator, cum_stake) in &cumulative_stakes {
+                if cum_stake >= target && !used_validators.contains(&validator) {
+                    selected.push(validator);
+                    used_validators.insert(validator);
+                    break;
+                }
+            }
+        }
+        
+        // Fill remaining slots if needed
+        while selected.len() < count && selected.len() < validators.len() {
+            for &validator in validators {
+                if !used_validators.contains(&validator) {
+                    selected.push(validator);
+                    used_validators.insert(validator);
+                    if selected.len() >= count {
+                        break;
+                    }
+                }
+            }
+            break; // Avoid infinite loop
+        }
+        
+        selected
+    }
+    
+    /// Select relays for specific slot and shred index - mirrors TLA+ SelectRelays
+    pub fn select_relays(&self, slot: u64, shred_index: u32) -> Vec<ValidatorId> {
+        let seed = slot * 1000 + shred_index as u64;
+        let relay_count = std::cmp::min(self.config.validator_count / 3, 10);
+        
+        // Use deterministic selection based on seed
+        let all_validators: Vec<ValidatorId> = (0..self.config.validator_count as ValidatorId).collect();
+        
+        // Create deterministic but stake-weighted selection
+        let mut selected_validators = Vec::new();
+        let total_stake = self.config.total_stake;
+        
+        if total_stake == 0 {
+            // Round-robin selection if no stake info
+            for i in 0..relay_count {
+                let index = ((seed + i as u64) % self.config.validator_count as u64) as usize;
+                if index < all_validators.len() {
+                    selected_validators.push(all_validators[index]);
+                }
+            }
+        } else {
+            // Stake-weighted deterministic selection
+            for i in 0..relay_count {
+                let target = ((seed + i as u64) % total_stake) as u64;
+                let mut cumulative = 0u64;
+                
+                for &validator in &all_validators {
+                    let stake = self.config.stake_distribution.get(&validator).unwrap_or(&0);
+                    cumulative += stake;
+                    if cumulative > target && !selected_validators.contains(&validator) {
+                        selected_validators.push(validator);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        selected_validators
+    }
+    
+    /// Reed-Solomon encode using the reed-solomon-erasure crate - mirrors TLA+ ReedSolomonEncode
+    pub fn reed_solomon_encode(&self, block: &ErasureBlock, k: u32, n: u32) -> AlpenglowResult<Vec<Shred>> {
+        if k >= n || k == 0 || n == 0 {
+            return Err(AlpenglowError::InvalidConfig(
+                "Invalid Reed-Solomon parameters".to_string(),
+            ));
+        }
+        
+        let k_usize = k as usize;
+        let n_usize = n as usize;
+        
+        // Create Reed-Solomon encoder
+        let rs = ReedSolomon::new(k_usize, n_usize - k_usize)
+            .map_err(|_| AlpenglowError::ProtocolViolation("Failed to create Reed-Solomon encoder".to_string()))?;
+        
+        // Split block data into k chunks
+        let chunk_size = (block.data.len() + k_usize - 1) / k_usize;
+        let mut data_chunks = Vec::new();
+        
+        for i in 0..k_usize {
+            let start = i * chunk_size;
+            let end = std::cmp::min(start + chunk_size, block.data.len());
+            let mut chunk = block.data[start..end].to_vec();
+            chunk.resize(chunk_size, 0); // Pad with zeros
+            data_chunks.push(chunk);
+        }
+        
+        // Create parity chunks
+        let mut parity_chunks = vec![vec![0u8; chunk_size]; n_usize - k_usize];
+        
+        // Encode using Reed-Solomon
+        let mut all_chunks = data_chunks.clone();
+        all_chunks.append(&mut parity_chunks);
+        
+        rs.encode(&mut all_chunks)
+            .map_err(|_| AlpenglowError::ProtocolViolation("Reed-Solomon encoding failed".to_string()))?;
+        
+        // Create shreds from chunks
+        let mut shreds = Vec::new();
+        
+        // Data shreds (indices 1..k)
+        for (i, chunk) in all_chunks[0..k_usize].iter().enumerate() {
+            let shred = Shred::new_data(block.hash, block.slot, (i + 1) as u32, chunk.clone());
+            shreds.push(shred);
+        }
+        
+        // Parity shreds (indices k+1..n)
+        for (i, chunk) in all_chunks[k_usize..].iter().enumerate() {
+            let shred = Shred::new_parity(block.hash, block.slot, (k + i as u32 + 1), chunk.clone());
+            shreds.push(shred);
+        }
+        
+        Ok(shreds)
+    }
+    
+    /// Reed-Solomon decode using the reed-solomon-erasure crate - mirrors TLA+ ReedSolomonDecode
+    pub fn reed_solomon_decode(&self, shreds: &[Shred]) -> AlpenglowResult<ErasureBlock> {
+        if shreds.is_empty() {
+            return Err(AlpenglowError::ProtocolViolation(
+                "No shreds provided for decoding".to_string(),
+            ));
+        }
+        
+        let k_usize = self.k as usize;
+        let n_usize = self.n as usize;
+        
+        if shreds.len() < k_usize {
+            return Err(AlpenglowError::ProtocolViolation(
+                "Insufficient shreds for reconstruction".to_string(),
+            ));
+        }
+        
+        // Create Reed-Solomon decoder
+        let rs = ReedSolomon::new(k_usize, n_usize - k_usize)
+            .map_err(|_| AlpenglowError::ProtocolViolation("Failed to create Reed-Solomon decoder".to_string()))?;
+        
+        // Prepare chunks for reconstruction
+        let mut chunks: Vec<Option<Vec<u8>>> = vec![None; n_usize];
+        
+        for shred in shreds {
+            if shred.index >= 1 && shred.index <= self.n {
+                chunks[(shred.index - 1) as usize] = Some(shred.data.clone());
+            }
+        }
+        
+        // Reconstruct using Reed-Solomon
+        rs.reconstruct(&mut chunks)
+            .map_err(|_| AlpenglowError::ProtocolViolation("Reed-Solomon reconstruction failed".to_string()))?;
+        
+        // Combine data chunks to reconstruct block
+        let mut reconstructed_data = Vec::new();
+        for chunk_opt in chunks.into_iter().take(k_usize) {
+            if let Some(chunk) = chunk_opt {
+                reconstructed_data.extend_from_slice(&chunk);
+            }
+        }
+        
+        // Create reconstructed block
+        let block_id = shreds[0].block_id;
+        let slot = shreds[0].slot;
+        
+        let block = ErasureBlock {
+            hash: block_id,
+            slot,
+            view: 0,
+            proposer: 0, // Will be determined from context
+            parent: 0,
+            data: reconstructed_data,
+            timestamp: self.clock,
+            transactions: Vec::new(),
+            total_shreds: self.n,
+            data_shreds: self.k,
+        };
+        
+        Ok(block)
+    }
+    
+    /// Collect metrics for bandwidth usage, delivery times, and reconstruction success rates
+    pub fn collect_metrics(&self) -> RotorMetrics {
+        let total_bandwidth_used: u64 = self.bandwidth_usage.values().sum();
+        let total_blocks = self.block_shreds.len();
+        let total_delivered: usize = self.delivered_blocks.values().map(|s| s.len()).sum();
+        let total_reconstructed: usize = self.reconstructed_blocks.values().map(|s| s.len()).sum();
+        let active_repair_requests = self.repair_requests.len();
+        
+        // Calculate average delivery time (simplified)
+        let avg_delivery_time = if total_delivered > 0 {
+            self.clock / total_delivered as u64
+        } else {
+            0
+        };
+        
+        // Calculate reconstruction success rate
+        let reconstruction_success_rate = if total_blocks > 0 {
+            (total_reconstructed as f64) / (total_blocks as f64)
+        } else {
+            0.0
+        };
+        
+        // Calculate bandwidth utilization
+        let total_bandwidth_capacity = self.bandwidth_limit * self.config.validator_count as u64;
+        let bandwidth_utilization = if total_bandwidth_capacity > 0 {
+            (total_bandwidth_used as f64) / (total_bandwidth_capacity as f64)
+        } else {
+            0.0
+        };
+        
+        RotorMetrics {
+            total_bandwidth_used,
+            bandwidth_utilization,
+            total_blocks,
+            total_delivered,
+            total_reconstructed,
+            reconstruction_success_rate,
+            active_repair_requests,
+            avg_delivery_time,
+            clock: self.clock,
+        }
+    }
+}
+
+/// Metrics for Rotor performance tracking
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RotorMetrics {
+    /// Total bandwidth used across all validators
+    pub total_bandwidth_used: u64,
+    /// Bandwidth utilization as percentage (0.0 to 1.0)
+    pub bandwidth_utilization: f64,
+    /// Total number of blocks being propagated
+    pub total_blocks: usize,
+    /// Total number of blocks delivered
+    pub total_delivered: usize,
+    /// Total number of blocks reconstructed
+    pub total_reconstructed: usize,
+    /// Reconstruction success rate (0.0 to 1.0)
+    pub reconstruction_success_rate: f64,
+    /// Number of active repair requests
+    pub active_repair_requests: usize,
+    /// Average delivery time
+    pub avg_delivery_time: u64,
+    /// Current clock time
+    pub clock: u64,
 }
 
 /// Messages for Rotor actor communication
@@ -736,7 +1623,7 @@ pub enum RotorMessage {
     RequestRepair {
         validator: ValidatorId,
         block_id: BlockHash,
-        missing_pieces: HashSet<u32>,
+        missing_pieces: Vec<u32>,
     },
     
     /// Respond to repair request
@@ -769,7 +1656,7 @@ impl Actor for RotorActor {
     type State = RotorState;
     
     fn on_start(&self, id: Id, o: &mut crate::stateright::util::Out<Self>) -> Self::State {
-        let validator_id = id.into();
+        let validator_id = id as u32;
         let mut state = RotorState::new(validator_id, self.config.clone());
         
         // Initialize bandwidth usage for all validators
@@ -815,8 +1702,9 @@ impl Actor for RotorActor {
                                 
                                 // Store shreds according to assignments
                                 let mut block_shred_map = HashMap::new();
+                                let empty_set = HashSet::new();
                                 for validator in &validators {
-                                    let assigned_indices = assignments.get(validator).unwrap_or(&HashSet::new());
+                                    let assigned_indices = assignments.get(validator).unwrap_or(&empty_set);
                                     let validator_shreds: HashSet<Shred> = shreds
                                         .iter()
                                         .filter(|s| assigned_indices.contains(&s.index))
@@ -860,43 +1748,46 @@ impl Actor for RotorActor {
             
             RotorMessage::RelayShreds { validator, block_id, .. } => {
                 if validator == validator_id {
-                    if let Some(block_shreds) = state.block_shreds.get(&block_id) {
-                        if let Some(my_shreds) = block_shreds.get(&validator_id) {
-                            if !my_shreds.is_empty() {
-                                let bandwidth_needed = state.compute_bandwidth(my_shreds);
+                    // Clone the shreds to avoid borrow checker issues
+                    let my_shreds_clone = state.block_shreds.get(&block_id)
+                        .and_then(|block_shreds| block_shreds.get(&validator_id))
+                        .cloned();
+                    
+                    if let Some(my_shreds) = my_shreds_clone {
+                        if !my_shreds.is_empty() {
+                            let bandwidth_needed = state.compute_bandwidth(&my_shreds);
+                            
+                            // Check non-equivocation for relay - mirrors TLA+ RelayShreds
+                            if !state.check_non_equivocation(validator_id, &my_shreds) {
+                                // Non-equivocation violation detected, reject this action
+                                return;
+                            }
+                            
+                            if state.check_bandwidth_limit(validator_id, bandwidth_needed) {
+                                // Select relay targets using PS-P sampling
+                                let targets = state.select_relay_targets(validator_id, &my_shreds.iter().next().unwrap());
                                 
-                                // Check non-equivocation for relay - mirrors TLA+ RelayShreds
-                                if !state.check_non_equivocation(validator_id, my_shreds) {
-                                    // Non-equivocation violation detected, reject this action
-                                    return;
+                                // Send shreds to targets
+                                for target in targets {
+                                    if target != validator_id {
+                                        let target_id = Id::from(target as usize);
+                                        let shreds_vec: Vec<Shred> = my_shreds.iter().cloned().collect();
+                                        o.send(target_id, RotorMessage::RelayShreds {
+                                            validator: target,
+                                            block_id,
+                                            shreds: shreds_vec,
+                                        });
+                                    }
                                 }
                                 
-                                if state.check_bandwidth_limit(validator_id, bandwidth_needed) {
-                                    // Select relay targets using PS-P sampling
-                                    let targets = state.select_relay_targets(validator_id, &my_shreds.iter().next().unwrap());
-                                    
-                                    // Send shreds to targets
-                                    for target in targets {
-                                        if target != validator_id {
-                                            let target_id = Id::from(target);
-                                            let shreds_vec: Vec<Shred> = my_shreds.iter().cloned().collect();
-                                            o.send(target_id, RotorMessage::RelayShreds {
-                                                validator: target,
-                                                block_id,
-                                                shreds: shreds_vec,
-                                            });
-                                        }
-                                    }
-                                    
-                                    // Record shreds sent for non-equivocation tracking
-                                    for shred in my_shreds {
-                                        let shred_id = shred.shred_id();
-                                        state.record_shred_sent(validator_id, shred_id, shred.clone());
-                                    }
-                                    
-                                    state.update_bandwidth_usage(validator_id, bandwidth_needed);
-                                    state.advance_clock();
+                                // Record shreds sent for non-equivocation tracking
+                                for shred in &my_shreds {
+                                    let shred_id = shred.shred_id();
+                                    state.record_shred_sent(validator_id, shred_id, shred.clone());
                                 }
+                                
+                                state.update_bandwidth_usage(validator_id, bandwidth_needed);
+                                state.advance_clock();
                             }
                         }
                     }
@@ -942,7 +1833,7 @@ impl Actor for RotorActor {
                                             o.send(id, RotorMessage::RequestRepair {
                                                 validator: validator_id,
                                                 block_id,
-                                                missing_pieces: HashSet::new(), // Will be computed
+                                                missing_pieces: Vec::new(), // Will be computed
                                             });
                                         }
                                     }
@@ -953,7 +1844,7 @@ impl Actor for RotorActor {
                             o.send(id, RotorMessage::RequestRepair {
                                 validator: validator_id,
                                 block_id,
-                                missing_pieces: HashSet::new(), // Will be computed
+                                missing_pieces: Vec::new(), // Will be computed
                             });
                         }
                     }
@@ -983,7 +1874,7 @@ impl Actor for RotorActor {
                                     let repair_request = RepairRequest {
                                         requester: validator_id,
                                         block_id,
-                                        missing_pieces: needed_pieces,
+                                        missing_pieces: needed_pieces.into_iter().collect(),
                                         timestamp: state.clock,
                                         retry_count: 0,
                                     };
@@ -994,7 +1885,7 @@ impl Actor for RotorActor {
                                     
                                     // Broadcast repair request to other validators
                                     for i in 0..state.config.validator_count {
-                                        let target_id = Id::from(i as ValidatorId);
+                                        let target_id = Id::from(i);
                                         if target_id != id {
                                             o.send(target_id, RotorMessage::RespondToRepair {
                                                 validator: i as ValidatorId,
@@ -1039,7 +1930,7 @@ impl Actor for RotorActor {
                                     state.advance_clock();
                                     
                                     // Notify requester to attempt reconstruction
-                                    let requester_id = Id::from(request.requester);
+                                    let requester_id = Id::from(request.requester as usize);
                                     o.send(requester_id, RotorMessage::AttemptReconstruction {
                                         validator: request.requester,
                                         block_id: request.block_id,
@@ -1205,6 +2096,150 @@ impl Verifiable for RotorState {
 impl TlaCompatible for RotorState {
     fn export_tla_state(&self) -> serde_json::Value {
         // Export state in format compatible with TLA+ cross-validation
+        // Mirrors all TLA+ Rotor state variables exactly
+        
+        // Convert blockShreds to TLA+ format: block -> validator -> pieces
+        let block_shreds_json: HashMap<String, HashMap<String, Vec<serde_json::Value>>> = self.block_shreds
+            .iter()
+            .map(|(&block_id, validator_shreds)| {
+                let validator_shreds_json: HashMap<String, Vec<serde_json::Value>> = validator_shreds
+                    .iter()
+                    .map(|(&validator, shreds)| {
+                        let shreds_json: Vec<serde_json::Value> = shreds
+                            .iter()
+                            .map(|shred| {
+                                serde_json::json!({
+                                    "blockId": format!("{:?}", shred.block_id),
+                                    "slot": shred.slot,
+                                    "index": shred.index,
+                                    "data": shred.data,
+                                    "isParity": shred.is_parity,
+                                    "signature": shred.signature,
+                                    "size": shred.size
+                                })
+                            })
+                            .collect();
+                        (validator.to_string(), shreds_json)
+                    })
+                    .collect();
+                (format!("{:?}", block_id), validator_shreds_json)
+            })
+            .collect();
+        
+        // Convert relayAssignments to TLA+ format: validator -> assignments
+        let relay_assignments_json: HashMap<String, Vec<u32>> = self.relay_assignments
+            .iter()
+            .map(|(&validator, assignments)| (validator.to_string(), assignments.clone()))
+            .collect();
+        
+        // Convert reconstructionState to TLA+ format: validator -> reconstruction states
+        let reconstruction_state_json: HashMap<String, Vec<serde_json::Value>> = self.reconstruction_state
+            .iter()
+            .map(|(&validator, states)| {
+                let states_json: Vec<serde_json::Value> = states
+                    .iter()
+                    .map(|state| {
+                        serde_json::json!({
+                            "blockId": format!("{:?}", state.block_id),
+                            "collectedPieces": state.collected_pieces.iter().collect::<Vec<_>>(),
+                            "complete": state.complete,
+                            "startTime": state.start_time,
+                            "repairRequestsSent": state.repair_requests_sent
+                        })
+                    })
+                    .collect();
+                (validator.to_string(), states_json)
+            })
+            .collect();
+        
+        // Convert deliveredBlocks to TLA+ format: validator -> set of block IDs
+        let delivered_blocks_json: HashMap<String, Vec<String>> = self.delivered_blocks
+            .iter()
+            .map(|(&validator, blocks)| {
+                let blocks_json: Vec<String> = blocks
+                    .iter()
+                    .map(|block_id| format!("{:?}", block_id))
+                    .collect();
+                (validator.to_string(), blocks_json)
+            })
+            .collect();
+        
+        // Convert repairRequests to TLA+ format
+        let repair_requests_json: Vec<serde_json::Value> = self.repair_requests
+            .iter()
+            .map(|request| {
+                serde_json::json!({
+                    "requester": request.requester,
+                    "blockId": format!("{:?}", request.block_id),
+                    "missingPieces": request.missing_pieces.iter().collect::<Vec<_>>(),
+                    "timestamp": request.timestamp,
+                    "retryCount": request.retry_count
+                })
+            })
+            .collect();
+        
+        // Convert bandwidthUsage to TLA+ format: validator -> usage
+        let bandwidth_usage_json: HashMap<String, u64> = self.bandwidth_usage
+            .iter()
+            .map(|(&validator, &usage)| (validator.to_string(), usage))
+            .collect();
+        
+        // Convert receivedShreds to TLA+ format: validator -> set of shreds
+        let received_shreds_json: HashMap<String, Vec<serde_json::Value>> = self.received_shreds
+            .iter()
+            .map(|(&validator, shreds)| {
+                let shreds_json: Vec<serde_json::Value> = shreds
+                    .iter()
+                    .map(|shred| {
+                        serde_json::json!({
+                            "blockId": format!("{:?}", shred.block_id),
+                            "slot": shred.slot,
+                            "index": shred.index,
+                            "data": shred.data,
+                            "isParity": shred.is_parity,
+                            "signature": shred.signature,
+                            "size": shred.size
+                        })
+                    })
+                    .collect();
+                (validator.to_string(), shreds_json)
+            })
+            .collect();
+        
+        // Convert shredAssignments to TLA+ format: validator -> set of indices
+        let shred_assignments_json: HashMap<String, Vec<u32>> = self.shred_assignments
+            .iter()
+            .map(|(&validator, assignments)| {
+                let assignments_vec: Vec<u32> = assignments.iter().cloned().collect();
+                (validator.to_string(), assignments_vec)
+            })
+            .collect();
+        
+        // Convert reconstructedBlocks to TLA+ format: validator -> set of blocks
+        let reconstructed_blocks_json: HashMap<String, Vec<serde_json::Value>> = self.reconstructed_blocks
+            .iter()
+            .map(|(&validator, blocks)| {
+                let blocks_json: Vec<serde_json::Value> = blocks
+                    .iter()
+                    .map(|block| {
+                        serde_json::json!({
+                            "hash": format!("{:?}", block.hash),
+                            "slot": block.slot,
+                            "view": block.view,
+                            "proposer": block.proposer,
+                            "parent": format!("{:?}", block.parent),
+                            "data": block.data,
+                            "timestamp": block.timestamp,
+                            "totalShreds": block.total_shreds,
+                            "dataShreds": block.data_shreds
+                        })
+                    })
+                    .collect();
+                (validator.to_string(), blocks_json)
+            })
+            .collect();
+        
+        // Convert rotorHistory to TLA+ format: validator -> shredId -> shred
         let rotor_history_json: HashMap<String, HashMap<String, serde_json::Value>> = self.rotor_history
             .iter()
             .map(|(&validator, history)| {
@@ -1213,10 +2248,12 @@ impl TlaCompatible for RotorState {
                     .map(|(shred_id, shred)| {
                         let key = format!("slot_{}_index_{}", shred_id.slot, shred_id.index);
                         let value = serde_json::json!({
-                            "block_id": format!("{:?}", shred.block_id),
+                            "blockId": format!("{:?}", shred.block_id),
                             "slot": shred.slot,
                             "index": shred.index,
-                            "is_parity": shred.is_parity,
+                            "data": shred.data,
+                            "isParity": shred.is_parity,
+                            "signature": shred.signature,
                             "size": shred.size
                         });
                         (key, value)
@@ -1226,36 +2263,250 @@ impl TlaCompatible for RotorState {
             })
             .collect();
         
+        // Export all TLA+ Rotor state variables exactly as defined in the specification
         serde_json::json!({
-            "validator_id": self.validator_id,
+            // Core state variables matching TLA+ rotorVars
+            "blockShreds": block_shreds_json,
+            "relayAssignments": relay_assignments_json,
+            "reconstructionState": reconstruction_state_json,
+            "deliveredBlocks": delivered_blocks_json,
+            "repairRequests": repair_requests_json,
+            "bandwidthUsage": bandwidth_usage_json,
+            "receivedShreds": received_shreds_json,
+            "shredAssignments": shred_assignments_json,
+            "reconstructedBlocks": reconstructed_blocks_json,
+            "rotorHistory": rotor_history_json,
             "clock": self.clock,
-            "delivered_blocks": self.delivered_blocks,
-            "bandwidth_usage": self.bandwidth_usage,
-            "repair_requests_count": self.repair_requests.len(),
-            "reconstructed_blocks_count": self.reconstructed_blocks.values().map(|s| s.len()).sum::<usize>(),
-            "rotor_history": rotor_history_json,
+            
+            // Configuration parameters for cross-validation
+            "validator_id": self.validator_id,
             "k": self.k,
             "n": self.n,
-            "block_shreds_count": self.block_shreds.len(),
-            "relay_assignments": self.relay_assignments,
+            "bandwidth_limit": self.bandwidth_limit,
+            "retry_timeout": self.retry_timeout,
+            "max_retries": self.max_retries,
+            "load_balance_tolerance": self.load_balance_tolerance,
+            
+            // Derived metrics for validation
+            "total_blocks": self.block_shreds.len(),
+            "total_repair_requests": self.repair_requests.len(),
+            "total_delivered_blocks": self.delivered_blocks.values().map(|s| s.len()).sum::<usize>(),
+            "total_reconstructed_blocks": self.reconstructed_blocks.values().map(|s| s.len()).sum::<usize>(),
+            "total_bandwidth_used": self.bandwidth_usage.values().sum::<u64>(),
+            
+            // Validator set information
+            "validator_count": self.config.validator_count,
+            "stake_distribution": self.config.stake_distribution,
+            "total_stake": self.config.total_stake
         })
     }
     
     fn import_tla_state(&mut self, state: serde_json::Value) -> AlpenglowResult<()> {
+        // Import all TLA+ Rotor state variables with comprehensive error handling
+        
+        // Import clock (required)
         if let Some(clock) = state.get("clock").and_then(|v| v.as_u64()) {
             self.clock = clock;
+        } else {
+            return Err(AlpenglowError::ProtocolViolation(
+                "Missing or invalid clock in TLA+ state".to_string(),
+            ));
         }
         
+        // Import erasure coding parameters
         if let Some(k) = state.get("k").and_then(|v| v.as_u64()) {
             self.k = k as u32;
         }
-        
         if let Some(n) = state.get("n").and_then(|v| v.as_u64()) {
             self.n = n as u32;
         }
         
-        // Import rotor_history for cross-validation
-        if let Some(history_json) = state.get("rotor_history").and_then(|v| v.as_object()) {
+        // Validate erasure coding parameters
+        if self.k >= self.n || self.k == 0 || self.n == 0 {
+            return Err(AlpenglowError::InvalidConfig(
+                "Invalid erasure coding parameters in TLA+ state".to_string(),
+            ));
+        }
+        
+        // Import configuration parameters
+        if let Some(bandwidth_limit) = state.get("bandwidth_limit").and_then(|v| v.as_u64()) {
+            self.bandwidth_limit = bandwidth_limit;
+        }
+        if let Some(retry_timeout) = state.get("retry_timeout").and_then(|v| v.as_u64()) {
+            self.retry_timeout = retry_timeout;
+        }
+        if let Some(max_retries) = state.get("max_retries").and_then(|v| v.as_u64()) {
+            self.max_retries = max_retries as u32;
+        }
+        if let Some(tolerance) = state.get("load_balance_tolerance").and_then(|v| v.as_f64()) {
+            self.load_balance_tolerance = tolerance;
+        }
+        
+        // Import blockShreds: block -> validator -> pieces
+        if let Some(block_shreds_json) = state.get("blockShreds").and_then(|v| v.as_object()) {
+            self.block_shreds.clear();
+            for (block_id_str, validator_shreds_json) in block_shreds_json {
+                if let Some(validator_shreds_obj) = validator_shreds_json.as_object() {
+                    let mut validator_shreds_map = HashMap::new();
+                    for (validator_str, shreds_json) in validator_shreds_obj {
+                        if let (Ok(validator_id), Some(shreds_array)) = (
+                            validator_str.parse::<ValidatorId>(),
+                            shreds_json.as_array()
+                        ) {
+                            let mut shreds_set = HashSet::new();
+                            for shred_json in shreds_array {
+                                if let Some(shred) = self.parse_shred_from_json(shred_json)? {
+                                    shreds_set.insert(shred);
+                                }
+                            }
+                            validator_shreds_map.insert(validator_id, shreds_set);
+                        }
+                    }
+                    // Parse block ID from string representation
+                    if let Ok(block_id) = self.parse_block_id_from_string(block_id_str) {
+                        self.block_shreds.insert(block_id, validator_shreds_map);
+                    }
+                }
+            }
+        }
+        
+        // Import relayAssignments: validator -> assignments
+        if let Some(relay_assignments_json) = state.get("relayAssignments").and_then(|v| v.as_object()) {
+            self.relay_assignments.clear();
+            for (validator_str, assignments_json) in relay_assignments_json {
+                if let (Ok(validator_id), Some(assignments_array)) = (
+                    validator_str.parse::<ValidatorId>(),
+                    assignments_json.as_array()
+                ) {
+                    let assignments: Vec<u32> = assignments_array
+                        .iter()
+                        .filter_map(|v| v.as_u64().map(|n| n as u32))
+                        .collect();
+                    self.relay_assignments.insert(validator_id, assignments);
+                }
+            }
+        }
+        
+        // Import reconstructionState: validator -> reconstruction states
+        if let Some(reconstruction_state_json) = state.get("reconstructionState").and_then(|v| v.as_object()) {
+            self.reconstruction_state.clear();
+            for (validator_str, states_json) in reconstruction_state_json {
+                if let (Ok(validator_id), Some(states_array)) = (
+                    validator_str.parse::<ValidatorId>(),
+                    states_json.as_array()
+                ) {
+                    let mut states_vec = Vec::new();
+                    for state_json in states_array {
+                        if let Some(reconstruction_state) = self.parse_reconstruction_state_from_json(state_json)? {
+                            states_vec.push(reconstruction_state);
+                        }
+                    }
+                    self.reconstruction_state.insert(validator_id, states_vec);
+                }
+            }
+        }
+        
+        // Import deliveredBlocks: validator -> set of block IDs
+        if let Some(delivered_blocks_json) = state.get("deliveredBlocks").and_then(|v| v.as_object()) {
+            self.delivered_blocks.clear();
+            for (validator_str, blocks_json) in delivered_blocks_json {
+                if let (Ok(validator_id), Some(blocks_array)) = (
+                    validator_str.parse::<ValidatorId>(),
+                    blocks_json.as_array()
+                ) {
+                    let mut blocks_set = HashSet::new();
+                    for block_id_json in blocks_array {
+                        if let Some(block_id_str) = block_id_json.as_str() {
+                            if let Ok(block_id) = self.parse_block_id_from_string(block_id_str) {
+                                blocks_set.insert(block_id);
+                            }
+                        }
+                    }
+                    self.delivered_blocks.insert(validator_id, blocks_set);
+                }
+            }
+        }
+        
+        // Import repairRequests
+        if let Some(repair_requests_json) = state.get("repairRequests").and_then(|v| v.as_array()) {
+            self.repair_requests.clear();
+            for request_json in repair_requests_json {
+                if let Some(repair_request) = self.parse_repair_request_from_json(request_json)? {
+                    self.repair_requests.insert(repair_request);
+                }
+            }
+        }
+        
+        // Import bandwidthUsage: validator -> usage
+        if let Some(bandwidth_usage_json) = state.get("bandwidthUsage").and_then(|v| v.as_object()) {
+            self.bandwidth_usage.clear();
+            for (validator_str, usage_json) in bandwidth_usage_json {
+                if let (Ok(validator_id), Some(usage)) = (
+                    validator_str.parse::<ValidatorId>(),
+                    usage_json.as_u64()
+                ) {
+                    self.bandwidth_usage.insert(validator_id, usage);
+                }
+            }
+        }
+        
+        // Import receivedShreds: validator -> set of shreds
+        if let Some(received_shreds_json) = state.get("receivedShreds").and_then(|v| v.as_object()) {
+            self.received_shreds.clear();
+            for (validator_str, shreds_json) in received_shreds_json {
+                if let (Ok(validator_id), Some(shreds_array)) = (
+                    validator_str.parse::<ValidatorId>(),
+                    shreds_json.as_array()
+                ) {
+                    let mut shreds_set = HashSet::new();
+                    for shred_json in shreds_array {
+                        if let Some(shred) = self.parse_shred_from_json(shred_json)? {
+                            shreds_set.insert(shred);
+                        }
+                    }
+                    self.received_shreds.insert(validator_id, shreds_set);
+                }
+            }
+        }
+        
+        // Import shredAssignments: validator -> set of indices
+        if let Some(shred_assignments_json) = state.get("shredAssignments").and_then(|v| v.as_object()) {
+            self.shred_assignments.clear();
+            for (validator_str, assignments_json) in shred_assignments_json {
+                if let (Ok(validator_id), Some(assignments_array)) = (
+                    validator_str.parse::<ValidatorId>(),
+                    assignments_json.as_array()
+                ) {
+                    let assignments_set: HashSet<u32> = assignments_array
+                        .iter()
+                        .filter_map(|v| v.as_u64().map(|n| n as u32))
+                        .collect();
+                    self.shred_assignments.insert(validator_id, assignments_set);
+                }
+            }
+        }
+        
+        // Import reconstructedBlocks: validator -> set of blocks
+        if let Some(reconstructed_blocks_json) = state.get("reconstructedBlocks").and_then(|v| v.as_object()) {
+            self.reconstructed_blocks.clear();
+            for (validator_str, blocks_json) in reconstructed_blocks_json {
+                if let (Ok(validator_id), Some(blocks_array)) = (
+                    validator_str.parse::<ValidatorId>(),
+                    blocks_json.as_array()
+                ) {
+                    let mut blocks_set = HashSet::new();
+                    for block_json in blocks_array {
+                        if let Some(block) = self.parse_erasure_block_from_json(block_json)? {
+                            blocks_set.insert(block);
+                        }
+                    }
+                    self.reconstructed_blocks.insert(validator_id, blocks_set);
+                }
+            }
+        }
+        
+        // Import rotorHistory: validator -> shredId -> shred
+        if let Some(history_json) = state.get("rotorHistory").and_then(|v| v.as_object()) {
             self.rotor_history.clear();
             for (validator_str, validator_history) in history_json {
                 if let Ok(validator_id) = validator_str.parse::<ValidatorId>() {
@@ -1263,16 +2514,9 @@ impl TlaCompatible for RotorState {
                     if let Some(validator_history_obj) = validator_history.as_object() {
                         for (shred_id_str, shred_json) in validator_history_obj {
                             // Parse shred_id from "slot_X_index_Y" format
-                            if let Some(captures) = shred_id_str.strip_prefix("slot_") {
-                                if let Some(index_pos) = captures.find("_index_") {
-                                    let slot_str = &captures[..index_pos];
-                                    let index_str = &captures[index_pos + 7..];
-                                    if let (Ok(slot), Ok(index)) = (slot_str.parse::<u64>(), index_str.parse::<u32>()) {
-                                        let shred_id = ShredId::new(slot, index);
-                                        // Create placeholder shred for cross-validation
-                                        let shred = Shred::new_data([0u8; 32], slot, index, vec![]);
-                                        history.insert(shred_id, shred);
-                                    }
+                            if let Some(shred_id) = self.parse_shred_id_from_string(shred_id_str) {
+                                if let Some(shred) = self.parse_shred_from_json(shred_json)? {
+                                    history.insert(shred_id, shred);
                                 }
                             }
                         }
@@ -1282,39 +2526,282 @@ impl TlaCompatible for RotorState {
             }
         }
         
+        // Validate imported state consistency
+        self.validate_imported_state()?;
+        
         Ok(())
     }
     
     fn validate_tla_invariants(&self) -> AlpenglowResult<()> {
-        // Validate key invariants that should match TLA+ specification
-        self.verify_safety()?;
-        self.verify_liveness()?;
-        self.verify_byzantine_resilience()?;
+        // Validate all invariants that should match TLA+ Rotor specification exactly
         
-        // Additional TLA+ specific invariants
-        
-        // TypeInvariant checks
+        // 1. RotorNonEquivocation: no validator sends two different shreds with the same ID
         for (&validator, history) in &self.rotor_history {
-            if validator >= self.config.validator_count as ValidatorId {
-                return Err(AlpenglowError::ProtocolViolation(
-                    "Invalid validator ID in rotor history".to_string(),
-                ));
+            for (shred_id, sent_shred) in history {
+                // Check all shreds in block_shreds for this validator
+                for block_shreds in self.block_shreds.values() {
+                    if let Some(validator_shreds) = block_shreds.get(&validator) {
+                        for other_shred in validator_shreds {
+                            let other_shred_id = other_shred.shred_id();
+                            if other_shred_id.slot == shred_id.slot && 
+                               other_shred_id.index == shred_id.index &&
+                               other_shred != sent_shred {
+                                return Err(AlpenglowError::ProtocolViolation(
+                                    format!("RotorNonEquivocation violation: validator {} sent different shreds with same ID slot:{} index:{}", 
+                                           validator, shred_id.slot, shred_id.index),
+                                ));
+                            }
+                        }
+                    }
+                }
             }
-            
-            for (shred_id, shred) in history {
-                if shred_id.slot != shred.slot || shred_id.index != shred.index {
+        }
+        
+        // 2. DistinctIndices: ensures no duplicate shred indices per block per validator
+        for (block_id, validator_shreds) in &self.block_shreds {
+            for (&validator, shreds) in validator_shreds {
+                let indices: HashSet<u32> = shreds.iter().map(|s| s.index).collect();
+                if indices.len() != shreds.len() {
                     return Err(AlpenglowError::ProtocolViolation(
-                        "Inconsistent shred ID and shred data".to_string(),
+                        format!("DistinctIndices violation: validator {} has duplicate shred indices for block {:?}", 
+                               validator, block_id),
                     ));
                 }
             }
         }
         
-        // Clock must be non-negative
-        if self.clock < 0 {
+        // 3. ValidErasureCode: ensures proper K/N partitioning
+        for (block_id, validator_shreds) in &self.block_shreds {
+            for (&validator, shreds) in validator_shreds {
+                let data_shreds: Vec<_> = shreds.iter().filter(|s| !s.is_parity).collect();
+                let parity_shreds: Vec<_> = shreds.iter().filter(|s| s.is_parity).collect();
+                let data_indices: HashSet<u32> = data_shreds.iter().map(|s| s.index).collect();
+                let parity_indices: HashSet<u32> = parity_shreds.iter().map(|s| s.index).collect();
+                
+                // Check proper partitioning: data indices in 1..K, parity indices in (K+1)..N
+                for &index in &data_indices {
+                    if index < 1 || index > self.k {
+                        return Err(AlpenglowError::ProtocolViolation(
+                            format!("ValidErasureCode violation: data shred index {} not in range 1..{} for block {:?} validator {}", 
+                                   index, self.k, block_id, validator),
+                        ));
+                    }
+                }
+                
+                for &index in &parity_indices {
+                    if index <= self.k || index > self.n {
+                        return Err(AlpenglowError::ProtocolViolation(
+                            format!("ValidErasureCode violation: parity shred index {} not in range {}..{} for block {:?} validator {}", 
+                                   index, self.k + 1, self.n, block_id, validator),
+                        ));
+                    }
+                }
+                
+                // Check no overlap between data and parity indices
+                if !data_indices.is_disjoint(&parity_indices) {
+                    return Err(AlpenglowError::ProtocolViolation(
+                        format!("ValidErasureCode violation: data and parity indices overlap for block {:?} validator {}", 
+                               block_id, validator),
+                    ));
+                }
+            }
+        }
+        
+        // 4. TypeInvariant: validate all type constraints from TLA+ specification
+        
+        // Check all shreds have valid properties
+        for (_block_id, validator_shreds) in &self.block_shreds {
+            for (&validator, shreds) in validator_shreds {
+                for shred in shreds {
+                    // s.blockId # <<>> (non-empty block ID)
+                    if shred.block_id == 0u64 {
+                        return Err(AlpenglowError::ProtocolViolation(
+                            format!("TypeInvariant violation: empty block ID for shred index {} validator {}", 
+                                   shred.index, validator),
+                        ));
+                    }
+                    
+                    // s.index \in 1..N
+                    if shred.index < 1 || shred.index > self.n {
+                        return Err(AlpenglowError::ProtocolViolation(
+                            format!("TypeInvariant violation: shred index {} not in range 1..{} for validator {}", 
+                                   shred.index, self.n, validator),
+                        ));
+                    }
+                    
+                    // s.slot \in Nat (non-negative)
+                    // Slot is u64, so always non-negative in Rust
+                }
+            }
+        }
+        
+        // Check validator constraints
+        for &validator in self.bandwidth_usage.keys() {
+            if validator >= self.config.validator_count as ValidatorId {
+                return Err(AlpenglowError::ProtocolViolation(
+                    format!("TypeInvariant violation: invalid validator ID {} >= {}", 
+                           validator, self.config.validator_count),
+                ));
+            }
+        }
+        
+        // bandwidthUsage[v] \in Nat (non-negative)
+        for (&validator, &usage) in &self.bandwidth_usage {
+            // u64 is always non-negative, but check for reasonable bounds
+            if usage > self.bandwidth_limit * 10 {
+                return Err(AlpenglowError::ProtocolViolation(
+                    format!("TypeInvariant violation: excessive bandwidth usage {} for validator {}", 
+                           usage, validator),
+                ));
+            }
+        }
+        
+        // deliveredBlocks[v] \subseteq Nat (block IDs are natural numbers)
+        // BlockHash is [u8; 32], so this is satisfied by construction
+        
+        // rotorHistory[v] \in [ShredId -> UNION {blockShreds[b][v] : b \in DOMAIN blockShreds}]
+        for (&validator, history) in &self.rotor_history {
+            for (shred_id, shred) in history {
+                // Verify shred ID consistency
+                if shred_id.slot != shred.slot || shred_id.index != shred.index {
+                    return Err(AlpenglowError::ProtocolViolation(
+                        format!("TypeInvariant violation: inconsistent shred ID and shred data for validator {}", 
+                               validator),
+                    ));
+                }
+                
+                // Verify shred exists in some block for this validator
+                let mut found = false;
+                for block_shreds in self.block_shreds.values() {
+                    if let Some(validator_shreds) = block_shreds.get(&validator) {
+                        if validator_shreds.contains(shred) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                if !found {
+                    return Err(AlpenglowError::ProtocolViolation(
+                        format!("TypeInvariant violation: shred in history not found in blockShreds for validator {}", 
+                               validator),
+                    ));
+                }
+            }
+        }
+        
+        // clock \in Nat (non-negative)
+        // u64 is always non-negative
+        
+        // 5. BandwidthSafety: All validators respect bandwidth limits
+        for (&validator, &usage) in &self.bandwidth_usage {
+            if usage > self.bandwidth_limit {
+                return Err(AlpenglowError::ProtocolViolation(
+                    format!("BandwidthSafety violation: validator {} usage {} exceeds limit {}", 
+                           validator, usage, self.bandwidth_limit),
+                ));
+            }
+        }
+        
+        // 6. LoadBalanced: bandwidth usage is reasonably balanced
+        if self.bandwidth_usage.len() > 1 {
+            let usages: Vec<u64> = self.bandwidth_usage.values().cloned().collect();
+            let min_usage = *usages.iter().min().unwrap_or(&0);
+            let max_usage = *usages.iter().max().unwrap_or(&0);
+            let tolerance = (self.load_balance_tolerance * self.bandwidth_limit as f64) as u64;
+            
+            if max_usage > min_usage + tolerance {
+                return Err(AlpenglowError::ProtocolViolation(
+                    format!("LoadBalanced violation: bandwidth usage imbalance {} > tolerance {}", 
+                           max_usage - min_usage, tolerance),
+                ));
+            }
+        }
+        
+        // 7. ReconstructionCorrectness: All reconstructed blocks are valid
+        for (&validator, blocks) in &self.reconstructed_blocks {
+            for block in blocks {
+                if !self.validate_block_integrity(block) {
+                    return Err(AlpenglowError::ProtocolViolation(
+                        format!("ReconstructionCorrectness violation: invalid reconstructed block for validator {}", 
+                               validator),
+                    ));
+                }
+                
+                // Verify block is properly delivered
+                if !self.delivered_blocks.get(&validator).unwrap_or(&HashSet::new()).contains(&block.hash) {
+                    return Err(AlpenglowError::ProtocolViolation(
+                        format!("ReconstructionCorrectness violation: reconstructed block not marked as delivered for validator {}", 
+                               validator),
+                    ));
+                }
+            }
+        }
+        
+        // 8. Validate erasure coding parameters consistency
+        if self.k >= self.n || self.k == 0 || self.n == 0 {
             return Err(AlpenglowError::ProtocolViolation(
-                "Invalid clock value".to_string(),
+                format!("Invalid erasure coding parameters: K={}, N={}", self.k, self.n),
             ));
+        }
+        
+        // 9. Validate repair request consistency
+        for request in &self.repair_requests {
+            // Requester must be valid validator
+            if request.requester >= self.config.validator_count as ValidatorId {
+                return Err(AlpenglowError::ProtocolViolation(
+                    format!("Invalid repair request: requester {} >= validator count {}", 
+                           request.requester, self.config.validator_count),
+                ));
+            }
+            
+            // Missing pieces must be in valid range
+            for &piece_index in &request.missing_pieces {
+                if piece_index < 1 || piece_index > self.n {
+                    return Err(AlpenglowError::ProtocolViolation(
+                        format!("Invalid repair request: missing piece index {} not in range 1..{}", 
+                               piece_index, self.n),
+                    ));
+                }
+            }
+            
+            // Timestamp must not be in the future
+            if request.timestamp > self.clock {
+                return Err(AlpenglowError::ProtocolViolation(
+                    format!("Invalid repair request: timestamp {} > current clock {}", 
+                           request.timestamp, self.clock),
+                ));
+            }
+        }
+        
+        // 10. Validate reconstruction state consistency
+        for (&validator, states) in &self.reconstruction_state {
+            for state in states {
+                // Collected pieces must be in valid range
+                for &piece_index in &state.collected_pieces {
+                    if piece_index < 1 || piece_index > self.n {
+                        return Err(AlpenglowError::ProtocolViolation(
+                            format!("Invalid reconstruction state: collected piece index {} not in range 1..{} for validator {}", 
+                                   piece_index, self.n, validator),
+                        ));
+                    }
+                }
+                
+                // If complete, must have enough pieces
+                if state.complete && state.collected_pieces.len() < self.k as usize {
+                    return Err(AlpenglowError::ProtocolViolation(
+                        format!("Invalid reconstruction state: marked complete but only {} < {} pieces for validator {}", 
+                               state.collected_pieces.len(), self.k, validator),
+                    ));
+                }
+                
+                // Start time must not be in the future
+                if state.start_time > self.clock {
+                    return Err(AlpenglowError::ProtocolViolation(
+                        format!("Invalid reconstruction state: start time {} > current clock {} for validator {}", 
+                               state.start_time, self.clock, validator),
+                    ));
+                }
+            }
         }
         
         Ok(())
@@ -1465,7 +2952,7 @@ mod tests {
         let config = Config::new().with_validators(5).with_erasure_coding(3, 5);
         let state = RotorState::new(0, config);
         
-        let shred = Shred::new_data([1u8; 32], 1, 1, vec![1, 2, 3]);
+        let shred = Shred::new_data(1u64, 1, 1, vec![1, 2, 3]);
         let targets = state.select_relay_targets(0, &shred);
         
         // Should select some targets based on stake weights
@@ -1476,5 +2963,186 @@ mod tests {
         for target in targets {
             assert!(target < state.config.validator_count as ValidatorId);
         }
+    }
+    
+    #[test]
+    fn test_propose_block() {
+        let config = Config::new().with_validators(3).with_erasure_coding(2, 3);
+        let mut state = RotorState::new(0, config);
+        
+        let block = ErasureBlock::new(1u64, 1, 0, vec![1, 2, 3, 4], 2, 3);
+        
+        let result = state.propose_block(0, 1, block);
+        assert!(result.is_ok());
+        assert!(state.block_shreds.contains_key(&1u64));
+    }
+    
+    #[test]
+    fn test_shred_block() {
+        let config = Config::new().with_validators(3).with_erasure_coding(2, 3);
+        let mut state = RotorState::new(0, config);
+        
+        let block = ErasureBlock::new(1u64, 1, 0, vec![1, 2, 3, 4], 2, 3);
+        
+        // First propose the block
+        state.propose_block(0, 1, block.clone()).unwrap();
+        
+        // Then shred it
+        let result = state.shred_block(&block);
+        assert!(result.is_ok());
+        
+        let shreds = result.unwrap();
+        assert_eq!(shreds.len(), 3); // 2 data + 1 parity
+    }
+    
+    #[test]
+    fn test_broadcast_shred() {
+        let config = Config::new().with_validators(3).with_erasure_coding(2, 3);
+        let mut state = RotorState::new(0, config);
+        
+        let block = ErasureBlock::new(1u64, 1, 0, vec![1, 2, 3, 4], 2, 3);
+        state.propose_block(0, 1, block.clone()).unwrap();
+        let shreds = state.shred_block(&block).unwrap();
+        
+        let shred = &shreds[0];
+        let recipients = vec![1, 2];
+        
+        let result = state.broadcast_shred(0, shred, &recipients);
+        assert!(result.is_ok());
+        
+        // Check that recipients received the shred
+        assert!(state.received_shreds.get(&1).unwrap().contains(shred));
+        assert!(state.received_shreds.get(&2).unwrap().contains(shred));
+    }
+    
+    #[test]
+    fn test_repair_mechanism() {
+        let config = Config::new().with_validators(3).with_erasure_coding(2, 3);
+        let mut state = RotorState::new(0, config);
+        
+        // Request missing shreds
+        let missing_indices = vec![1, 2];
+        let result = state.request_missing_shreds(0, 1, &missing_indices);
+        assert!(result.is_ok());
+        assert_eq!(state.repair_requests.len(), 1);
+        
+        // Create a repair request to respond to
+        let repair_request = state.repair_requests.iter().next().unwrap().clone();
+        
+        // Add some shreds to respond with
+        let shred1 = Shred::new_data(1u64, 1, 1, vec![1, 2, 3]);
+        let shred2 = Shred::new_data(1u64, 1, 2, vec![4, 5, 6]);
+        
+        state.block_shreds.insert(1u64, HashMap::new());
+        state.block_shreds.get_mut(&1u64).unwrap().insert(0, [shred1.clone(), shred2.clone()].iter().cloned().collect());
+        
+        // Respond to repair request
+        let result = state.respond_to_repair_request(0, &repair_request);
+        assert!(result.is_ok());
+        
+        let response_shreds = result.unwrap();
+        assert_eq!(response_shreds.len(), 2);
+    }
+    
+    #[test]
+    fn test_rotor_successful() {
+        let config = Config::new().with_validators(3).with_erasure_coding(2, 3);
+        let mut state = RotorState::new(0, config);
+        
+        // Initially no blocks delivered
+        assert!(!state.rotor_successful(1));
+        
+        // Mark block as delivered to majority of validators
+        state.delivered_blocks.insert(0, [1u64].iter().cloned().collect());
+        state.delivered_blocks.insert(1, [1u64].iter().cloned().collect());
+        
+        // Now should be successful
+        assert!(state.rotor_successful(1));
+    }
+    
+    #[test]
+    fn test_stake_weighted_sampling() {
+        let config = Config::new().with_validators(4).with_erasure_coding(2, 4);
+        let state = RotorState::new(0, config);
+        
+        let validators = vec![0, 1, 2, 3];
+        let selected = state.stake_weighted_sampling(&validators, 2);
+        
+        assert_eq!(selected.len(), 2);
+        assert!(selected.iter().all(|&v| validators.contains(&v)));
+    }
+    
+    #[test]
+    fn test_select_relays() {
+        let config = Config::new().with_validators(4).with_erasure_coding(2, 4);
+        let state = RotorState::new(0, config);
+        
+        let relays = state.select_relays(1, 1);
+        assert!(!relays.is_empty());
+        assert!(relays.len() <= 4);
+        
+        // Should be deterministic
+        let relays2 = state.select_relays(1, 1);
+        assert_eq!(relays, relays2);
+    }
+    
+    #[test]
+    fn test_reed_solomon_encode_decode() {
+        let config = Config::new().with_validators(3).with_erasure_coding(2, 3);
+        let state = RotorState::new(0, config);
+        
+        let block = ErasureBlock::new(1u64, 1, 0, vec![1, 2, 3, 4, 5, 6, 7, 8], 2, 3);
+        
+        // Encode
+        let result = state.reed_solomon_encode(&block, 2, 3);
+        assert!(result.is_ok());
+        
+        let shreds = result.unwrap();
+        assert_eq!(shreds.len(), 3);
+        
+        // Decode
+        let result = state.reed_solomon_decode(&shreds);
+        assert!(result.is_ok());
+        
+        let reconstructed = result.unwrap();
+        assert_eq!(reconstructed.hash, block.hash);
+    }
+    
+    #[test]
+    fn test_metrics_collection() {
+        let config = Config::new().with_validators(3).with_erasure_coding(2, 3);
+        let mut state = RotorState::new(0, config);
+        
+        // Add some test data
+        state.bandwidth_usage.insert(0, 1000);
+        state.bandwidth_usage.insert(1, 2000);
+        state.delivered_blocks.insert(0, [1u64, 2u64].iter().cloned().collect());
+        
+        let metrics = state.collect_metrics();
+        assert_eq!(metrics.total_bandwidth_used, 3000);
+        assert_eq!(metrics.total_delivered, 2);
+        assert!(metrics.bandwidth_utilization >= 0.0);
+    }
+    
+    #[test]
+    fn test_create_and_validate_shred() {
+        let config = Config::new().with_validators(3).with_erasure_coding(2, 3);
+        let state = RotorState::new(0, config);
+        
+        let block = ErasureBlock::new(1u64, 1, 0, vec![1, 2, 3, 4], 2, 3);
+        let merkle_path = vec![0u8; 32];
+        
+        let result = state.create_shred(&block, 1, merkle_path);
+        assert!(result.is_ok());
+        
+        let shred = result.unwrap();
+        assert_eq!(shred.block_id, block.hash);
+        assert_eq!(shred.slot, block.slot);
+        assert_eq!(shred.index, 1);
+        assert!(!shred.is_parity); // Index 1 should be data shred
+        
+        // Validate the shred
+        let merkle_root = vec![1u8; 32];
+        assert!(state.validate_shred(&shred, &merkle_root));
     }
 }

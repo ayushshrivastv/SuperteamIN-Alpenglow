@@ -15,50 +15,17 @@
 
 use crate::{
     AlpenglowError, AlpenglowResult, Config, TlaCompatible, ValidatorId, Verifiable,
+    NetworkMessage, MessageType, MessageRecipient,
 };
-use serde::{Deserialize, Serialize};
 use crate::stateright::{Actor, ActorModel, Id};
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use std::fmt::Debug;
-use std::hash::Hash;
 
-/// Message types corresponding to TLA+ MessageType
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub enum MessageType {
-    Block,
-    Vote,
-    Certificate,
-    Shred,
-    Repair,
-}
 
-/// Network message structure exactly matching TLA+ NetworkMessage
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct NetworkMessage {
-    /// Unique message identifier
-    pub id: u64,
-    /// Sender validator ID
-    pub sender: ValidatorId,
-    /// Recipient validator ID (or broadcast)
-    pub recipient: MessageRecipient,
-    /// Message type
-    pub msg_type: MessageType,
-    /// Message payload (simplified to u64 for TLA+ compatibility)
-    pub payload: u64,
-    /// Timestamp when message was created
-    pub timestamp: u64,
-    /// Cryptographic signature
-    pub signature: MessageSignature,
-}
 
-/// Message recipient type
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub enum MessageRecipient {
-    /// Specific validator
-    Validator(ValidatorId),
-    /// Broadcast to all validators
-    Broadcast,
-}
+
+use serde::{Deserialize, Serialize};
 
 /// Message signature structure matching TLA+ Signature
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -74,10 +41,12 @@ pub struct MessageSignature {
 /// Network partition structure matching TLA+ NetworkPartition
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct NetworkPartition {
-    /// First partition group
-    pub partition1: HashSet<ValidatorId>,
-    /// Second partition group
-    pub partition2: HashSet<ValidatorId>,
+    /// Partition identifier
+    pub id: u32,
+    /// First partition of validators
+    pub partition1: Vec<ValidatorId>,
+    /// Second partition of validators
+    pub partition2: Vec<ValidatorId>,
     /// When partition started
     pub start_time: u64,
     /// Whether partition has been healed
@@ -85,7 +54,7 @@ pub struct NetworkPartition {
 }
 
 /// Network state exactly matching TLA+ Network variables
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct NetworkState {
     /// Current logical clock time - mirrors TLA+ clock
     pub clock: u64,
@@ -107,8 +76,17 @@ pub struct NetworkState {
     pub next_message_id: u64,
 }
 
+impl Hash for NetworkState {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Hash only the key identifying fields to avoid issues with collections
+        self.clock.hash(state);
+        self.dropped_messages.hash(state);
+        self.next_message_id.hash(state);
+    }
+}
+
 /// Network configuration matching TLA+ constants
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct NetworkConfig {
     /// Set of all validators
     pub validators: HashSet<ValidatorId>,
@@ -145,7 +123,7 @@ impl From<Config> for NetworkConfig {
 }
 
 /// Network actor implementing partial synchrony model
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct NetworkActor {
     /// Validator ID for this network actor
     pub validator_id: ValidatorId,
@@ -171,8 +149,8 @@ pub enum NetworkActorMessage {
     AdvanceClock,
     /// Create a network partition
     CreatePartition {
-        partition1: HashSet<ValidatorId>,
-        partition2: HashSet<ValidatorId>,
+        partition1: Vec<ValidatorId>,
+        partition2: Vec<ValidatorId>,
     },
     /// Heal a network partition
     HealPartition,
@@ -214,13 +192,9 @@ impl NetworkActor {
             sender: self.validator_id,
             recipient: MessageRecipient::Validator(recipient),
             msg_type: MessageType::Block, // Default type
-            payload: content,
+            payload: vec![content as u8],
             timestamp: state.clock,
-            signature: MessageSignature {
-                signer: self.validator_id,
-                message: content,
-                valid: true,
-            },
+            signature: content,
         };
 
         let delay = self.compute_message_delay(state.clock, self.validator_id);
@@ -245,13 +219,9 @@ impl NetworkActor {
                     sender: self.validator_id,
                     recipient: MessageRecipient::Validator(*validator),
                     msg_type: MessageType::Block,
-                    payload: content,
+                    payload: vec![content as u8],
                     timestamp: state.clock,
-                    signature: MessageSignature {
-                        signer: self.validator_id,
-                        message: content,
-                        valid: true,
-                    },
+                    signature: content,
                 };
 
                 let delay = self.compute_message_delay(state.clock, self.validator_id);
@@ -301,7 +271,11 @@ impl NetworkActor {
         let droppable_message = state.message_queue.iter()
             .find(|msg| {
                 state.config.byzantine_validators.contains(&msg.sender) ||
-                !msg.signature.valid
+                if msg.signature != 0 {
+                    true
+                } else {
+                    false
+                }
             })
             .cloned();
 
@@ -319,8 +293,8 @@ impl NetworkActor {
     pub fn create_partition(
         &self,
         state: &mut NetworkState,
-        partition1: HashSet<ValidatorId>,
-        partition2: HashSet<ValidatorId>,
+        partition1: Vec<ValidatorId>,
+        partition2: Vec<ValidatorId>,
     ) -> AlpenglowResult<()> {
         // Can only create partitions before GST
         if state.clock >= state.config.gst {
@@ -336,13 +310,17 @@ impl NetworkActor {
             ));
         }
 
-        if !partition1.is_disjoint(&partition2) {
+        // Convert to HashSet for disjoint check
+        let set1: HashSet<_> = partition1.iter().cloned().collect();
+        let set2: HashSet<_> = partition2.iter().cloned().collect();
+        
+        if !set1.is_disjoint(&set2) {
             return Err(AlpenglowError::NetworkError(
                 "Partition groups must be disjoint".to_string()
             ));
         }
 
-        let all_validators: HashSet<_> = partition1.union(&partition2).cloned().collect();
+        let all_validators: HashSet<_> = set1.union(&set2).cloned().collect();
         if all_validators != state.config.validators {
             return Err(AlpenglowError::NetworkError(
                 "Partition must cover all validators".to_string()
@@ -355,8 +333,10 @@ impl NetworkActor {
             .cloned()
             .collect();
 
-        let honest_in_p1 = partition1.intersection(&honest_validators).count();
-        let honest_in_p2 = partition2.intersection(&honest_validators).count();
+        let set1: HashSet<_> = partition1.iter().cloned().collect();
+        let set2: HashSet<_> = partition2.iter().cloned().collect();
+        let honest_in_p1 = set1.intersection(&honest_validators).count();
+        let honest_in_p2 = set2.intersection(&honest_validators).count();
 
         if honest_in_p1 == 0 || honest_in_p2 == 0 {
             return Err(AlpenglowError::NetworkError(
@@ -365,8 +345,9 @@ impl NetworkActor {
         }
 
         let partition = NetworkPartition {
-            partition1,
-            partition2,
+            id: state.clock as u32, // Use timestamp as unique ID
+            partition1: partition1.into_iter().collect(),
+            partition2: partition2.into_iter().collect(),
             start_time: state.clock,
             healed: false,
         };
@@ -413,7 +394,7 @@ impl NetworkActor {
     }
 
     /// Compute message delay based on network conditions and GST
-    fn compute_message_delay(&self, current_time: u64, sender: ValidatorId) -> u64 {
+    fn compute_message_delay(&self, current_time: u64, _sender: ValidatorId) -> u64 {
         if current_time < self.config.gst {
             // Before GST: unbounded delay (modeled as large but finite)
             self.config.max_network_delay * 10
@@ -485,13 +466,9 @@ impl NetworkActor {
             sender: self.validator_id,
             recipient,
             msg_type: MessageType::Block,
-            payload,
+            payload: vec![payload as u8],
             timestamp: state.clock,
-            signature: MessageSignature {
-                signer: self.validator_id,
-                message: payload,
-                valid: false, // Invalid signature for Byzantine message
-            },
+            signature: payload,
         };
 
         state.message_queue.insert(fake_message);
@@ -645,7 +622,7 @@ impl Actor for NetworkActor {
 }
 
 /// Partial synchrony model for the network
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PartialSynchronyModel {
     /// Network configuration
     pub config: Config,
@@ -703,7 +680,7 @@ impl Verifiable for NetworkState {
     fn verify_safety(&self) -> AlpenglowResult<()> {
         // NoForgery: No message forgery for honest validators
         for msg in &self.message_queue {
-            if !self.config.byzantine_validators.contains(&msg.sender) && !msg.signature.valid {
+            if !self.config.byzantine_validators.contains(&msg.sender) && msg.signature == 0 {
                 return Err(AlpenglowError::ProtocolViolation(
                     "Message forgery detected for honest validator".to_string(),
                 ));
@@ -783,48 +760,410 @@ impl Verifiable for NetworkState {
 }
 
 impl TlaCompatible for NetworkState {
+    /// Export complete network state for TLA+ cross-validation
+    /// Matches all TLA+ Network variables exactly
     fn export_tla_state(&self) -> serde_json::Value {
+        // Convert message queue to TLA+ format (set of messages)
+        let message_queue: Vec<serde_json::Value> = self.message_queue.iter()
+            .map(|msg| serde_json::json!({
+                "id": msg.id,
+                "sender": msg.sender,
+                "recipient": match msg.recipient {
+                    MessageRecipient::Validator(v) => serde_json::Value::Number(serde_json::Number::from(v)),
+                    MessageRecipient::Broadcast => serde_json::Value::String("broadcast".to_string()),
+                },
+                "type": match msg.msg_type {
+                    MessageType::Block => "block",
+                    MessageType::Vote => "vote", 
+                    MessageType::Certificate => "certificate",
+                    MessageType::Shred => "shred",
+                    MessageType::Repair => "repair",
+                    MessageType::RepairRequest => "repair_request",
+                    MessageType::RepairResponse => "repair_response",
+                    MessageType::Heartbeat => "heartbeat",
+                    MessageType::Byzantine => "byzantine",
+                },
+                "payload": msg.payload,
+                "timestamp": msg.timestamp,
+                "signature": msg.signature
+            }))
+            .collect();
+
+        // Convert message buffer to TLA+ format (function from validator to set of messages)
+        let message_buffer: serde_json::Map<String, serde_json::Value> = self.message_buffer.iter()
+            .map(|(validator, messages)| {
+                let msgs: Vec<serde_json::Value> = messages.iter()
+                    .map(|msg| serde_json::json!({
+                        "id": msg.id,
+                        "sender": msg.sender,
+                        "recipient": match msg.recipient {
+                            MessageRecipient::Validator(v) => serde_json::Value::Number(serde_json::Number::from(v)),
+                            MessageRecipient::Broadcast => serde_json::Value::String("broadcast".to_string()),
+                        },
+                        "type": match msg.msg_type {
+                            MessageType::Block => "block",
+                            MessageType::Vote => "vote",
+                            MessageType::Certificate => "certificate", 
+                            MessageType::Shred => "shred",
+                            MessageType::Repair => "repair",
+                            MessageType::RepairRequest => "repair_request",
+                            MessageType::RepairResponse => "repair_response",
+                            MessageType::Heartbeat => "heartbeat",
+                            MessageType::Byzantine => "byzantine",
+                        },
+                        "payload": msg.payload,
+                        "timestamp": msg.timestamp,
+                        "signature": msg.signature
+                    }))
+                    .collect();
+                (validator.to_string(), serde_json::Value::Array(msgs))
+            })
+            .collect();
+
+        // Convert network partitions to TLA+ format
+        let network_partitions: Vec<serde_json::Value> = self.network_partitions.iter()
+            .map(|partition| serde_json::json!({
+                "partition1": partition.partition1.iter().collect::<Vec<_>>(),
+                "partition2": partition.partition2.iter().collect::<Vec<_>>(),
+                "startTime": partition.start_time,
+                "healed": partition.healed
+            }))
+            .collect();
+
+        // Convert delivery time map to TLA+ format (function from message ID to time)
+        let delivery_time: serde_json::Map<String, serde_json::Value> = self.delivery_time.iter()
+            .map(|(msg_id, time)| (msg_id.to_string(), serde_json::Value::Number(serde_json::Number::from(*time))))
+            .collect();
+
+        // Export all TLA+ Network variables exactly as specified
         serde_json::json!({
-            "messageQueue": self.message_queue,
-            "messageBuffer": self.message_buffer,
-            "networkPartitions": self.network_partitions,
+            // Core TLA+ Network variables - mirrors Network.tla exactly
+            "messageQueue": message_queue,
+            "messageBuffer": message_buffer,
+            "networkPartitions": network_partitions,
             "droppedMessages": self.dropped_messages,
-            "deliveryTime": self.delivery_time,
-            "clock": self.clock
+            "deliveryTime": delivery_time,
+            "clock": self.clock,
+            
+            // Additional state for complete cross-validation
+            "byzantineValidators": self.config.byzantine_validators.iter().collect::<Vec<_>>(),
+            "validators": self.config.validators.iter().collect::<Vec<_>>(),
+            
+            // Network configuration constants - mirrors TLA+ constants
+            "GST": self.config.gst,
+            "Delta": self.config.delta,
+            "MaxMessageSize": self.config.max_message_size,
+            "NetworkCapacity": self.config.network_capacity,
+            "MaxBufferSize": self.config.max_buffer_size,
+            "PartitionTimeout": self.config.partition_timeout,
+            
+            // Partial synchrony model state
+            "partialSynchronyActive": self.clock >= self.config.gst,
+            "networkSynchronized": self.network_partitions.iter().all(|p| p.healed),
+            
+            // Message delivery guarantees state
+            "gstDeliveryGuarantees": self.clock >= self.config.gst,
+            "boundedDeliveryActive": self.clock >= self.config.gst,
+            
+            // Performance and health metrics
+            "congestionLevel": self.message_queue.len(),
+            "averageDeliveryTime": if self.delivery_time.is_empty() { 0 } else {
+                self.delivery_time.values().sum::<u64>() / self.delivery_time.len() as u64
+            },
+            "partitionCount": self.network_partitions.len(),
+            "activePartitionCount": self.network_partitions.iter().filter(|p| !p.healed).count(),
+            
+            // Cross-validation metadata
+            "exportTimestamp": self.clock,
+            "stateVersion": "1.0",
+            "networkVars": ["messageQueue", "messageBuffer", "networkPartitions", "droppedMessages", "deliveryTime", "clock"]
         })
     }
 
+    /// Import complete network state from TLA+ model checker
+    /// Reconstructs NetworkState from TLA+ exported JSON with comprehensive error handling
     fn import_tla_state(&mut self, state: serde_json::Value) -> AlpenglowResult<()> {
-        if let Some(clock) = state.get("clock").and_then(|v| v.as_u64()) {
-            self.clock = clock;
+        // Import clock with validation
+        if let Some(clock_val) = state.get("clock") {
+            match clock_val.as_u64() {
+                Some(clock) => self.clock = clock,
+                None => return Err(AlpenglowError::NetworkError(
+                    "Invalid clock value in TLA+ state - must be non-negative integer".to_string()
+                )),
+            }
+        } else {
+            return Err(AlpenglowError::NetworkError(
+                "Missing required 'clock' field in TLA+ state".to_string()
+            ));
         }
 
-        if let Some(dropped) = state.get("droppedMessages").and_then(|v| v.as_u64()) {
-            self.dropped_messages = dropped;
+        // Import dropped messages count with validation
+        if let Some(dropped_val) = state.get("droppedMessages") {
+            match dropped_val.as_u64() {
+                Some(dropped) => self.dropped_messages = dropped,
+                None => return Err(AlpenglowError::NetworkError(
+                    "Invalid droppedMessages value in TLA+ state - must be non-negative integer".to_string()
+                )),
+            }
         }
 
-        // Import other fields as needed for cross-validation
+        // Import message queue with comprehensive validation
+        if let Some(queue_val) = state.get("messageQueue") {
+            if let Some(queue_array) = queue_val.as_array() {
+                let mut new_queue = HashSet::new();
+                for msg_val in queue_array {
+                    let message = self.parse_tla_message(msg_val)?;
+                    new_queue.insert(message);
+                }
+                self.message_queue = new_queue;
+            } else {
+                return Err(AlpenglowError::NetworkError(
+                    "Invalid messageQueue format in TLA+ state - must be array".to_string()
+                ));
+            }
+        }
+
+        // Import message buffer with validation
+        if let Some(buffer_val) = state.get("messageBuffer") {
+            if let Some(buffer_obj) = buffer_val.as_object() {
+                let mut new_buffer = HashMap::new();
+                for (validator_str, messages_val) in buffer_obj {
+                    let validator: ValidatorId = validator_str.parse()
+                        .map_err(|_| AlpenglowError::NetworkError(
+                            format!("Invalid validator ID in messageBuffer: {}", validator_str)
+                        ))?;
+                    
+                    if let Some(messages_array) = messages_val.as_array() {
+                        let mut validator_messages = HashSet::new();
+                        for msg_val in messages_array {
+                            let message = self.parse_tla_message(msg_val)?;
+                            validator_messages.insert(message);
+                        }
+                        new_buffer.insert(validator, validator_messages);
+                    } else {
+                        return Err(AlpenglowError::NetworkError(
+                            format!("Invalid message array for validator {} in messageBuffer", validator)
+                        ));
+                    }
+                }
+                self.message_buffer = new_buffer;
+            } else {
+                return Err(AlpenglowError::NetworkError(
+                    "Invalid messageBuffer format in TLA+ state - must be object".to_string()
+                ));
+            }
+        }
+
+        // Import network partitions with validation
+        if let Some(partitions_val) = state.get("networkPartitions") {
+            if let Some(partitions_array) = partitions_val.as_array() {
+                let mut new_partitions = HashSet::new();
+                for partition_val in partitions_array {
+                    let partition = self.parse_tla_partition(partition_val)?;
+                    new_partitions.insert(partition);
+                }
+                self.network_partitions = new_partitions;
+            } else {
+                return Err(AlpenglowError::NetworkError(
+                    "Invalid networkPartitions format in TLA+ state - must be array".to_string()
+                ));
+            }
+        }
+
+        // Import delivery time map with validation
+        if let Some(delivery_val) = state.get("deliveryTime") {
+            if let Some(delivery_obj) = delivery_val.as_object() {
+                let mut new_delivery_time = HashMap::new();
+                for (msg_id_str, time_val) in delivery_obj {
+                    let msg_id: u64 = msg_id_str.parse()
+                        .map_err(|_| AlpenglowError::NetworkError(
+                            format!("Invalid message ID in deliveryTime: {}", msg_id_str)
+                        ))?;
+                    
+                    let time = time_val.as_u64()
+                        .ok_or_else(|| AlpenglowError::NetworkError(
+                            format!("Invalid delivery time for message {}: must be non-negative integer", msg_id)
+                        ))?;
+                    
+                    new_delivery_time.insert(msg_id, time);
+                }
+                self.delivery_time = new_delivery_time;
+            } else {
+                return Err(AlpenglowError::NetworkError(
+                    "Invalid deliveryTime format in TLA+ state - must be object".to_string()
+                ));
+            }
+        }
+
+        // Import Byzantine validators if present
+        if let Some(byzantine_val) = state.get("byzantineValidators") {
+            if let Some(byzantine_array) = byzantine_val.as_array() {
+                let mut byzantine_set = HashSet::new();
+                for validator_val in byzantine_array {
+                    let validator = validator_val.as_u64()
+                        .ok_or_else(|| AlpenglowError::NetworkError(
+                            "Invalid Byzantine validator ID - must be non-negative integer".to_string()
+                        ))? as ValidatorId;
+                    byzantine_set.insert(validator);
+                }
+                self.config.byzantine_validators = byzantine_set;
+            }
+        }
+
+        // Validate imported state consistency
+        self.validate_imported_state()?;
+
         Ok(())
     }
 
+    /// Validate all TLA+ Network invariants with comprehensive checks
     fn validate_tla_invariants(&self) -> AlpenglowResult<()> {
-        // Validate key TLA+ invariants
-        self.verify_safety()?;
-        self.verify_liveness()?;
-        self.verify_byzantine_resilience()?;
+        // Core safety, liveness, and Byzantine resilience checks
+        self.verify_safety().map_err(|e| AlpenglowError::ProtocolViolation(
+            format!("Safety property violation: {}", e)
+        ))?;
+        
+        self.verify_liveness().map_err(|e| AlpenglowError::ProtocolViolation(
+            format!("Liveness property violation: {}", e)
+        ))?;
+        
+        self.verify_byzantine_resilience().map_err(|e| AlpenglowError::ProtocolViolation(
+            format!("Byzantine resilience violation: {}", e)
+        ))?;
 
-        // NetworkTypeOK invariant
+        // NetworkTypeOK invariant - comprehensive type checking
+        self.validate_network_type_ok()?;
+
+        // Partial synchrony invariants
+        self.validate_partial_synchrony_invariants()?;
+
+        // Message delivery invariants
+        self.validate_message_delivery_invariants()?;
+
+        // Network partition invariants
+        self.validate_partition_invariants()?;
+
+        // Byzantine behavior invariants
+        self.validate_byzantine_invariants()?;
+
+        // Performance and resource invariants
+        self.validate_performance_invariants()?;
+
+        Ok(())
+    }
+}
+
+impl NetworkState {
+    /// Parse TLA+ message format into NetworkMessage
+    fn parse_tla_message(&self, msg_val: &serde_json::Value) -> AlpenglowResult<NetworkMessage> {
+        let _id = msg_val.get("id")
+            .and_then(|v| v.as_u64())
+            .ok_or_else(|| AlpenglowError::NetworkError("Missing or invalid message ID".to_string()))?;
+
+        let sender = msg_val.get("sender")
+            .and_then(|v| v.as_u64())
+            .ok_or_else(|| AlpenglowError::NetworkError("Missing or invalid sender".to_string()))? as ValidatorId;
+
+        let recipient = match msg_val.get("recipient") {
+            Some(serde_json::Value::Number(n)) => {
+                let validator_id = n.as_u64()
+                    .ok_or_else(|| AlpenglowError::NetworkError("Invalid recipient validator ID".to_string()))? as ValidatorId;
+                MessageRecipient::Validator(validator_id)
+            },
+            Some(serde_json::Value::String(s)) if s == "broadcast" => MessageRecipient::Broadcast,
+            _ => return Err(AlpenglowError::NetworkError("Invalid recipient format".to_string())),
+        };
+
+        let msg_type = match msg_val.get("type").and_then(|v| v.as_str()) {
+            Some("block") => MessageType::Block,
+            Some("vote") => MessageType::Vote,
+            Some("certificate") => MessageType::Certificate,
+            Some("shred") => MessageType::Shred,
+            Some("repair") => MessageType::Repair,
+            _ => return Err(AlpenglowError::NetworkError("Invalid or missing message type".to_string())),
+        };
+
+        let payload = msg_val.get("payload")
+            .and_then(|v| v.as_u64())
+            .ok_or_else(|| AlpenglowError::NetworkError("Missing or invalid payload".to_string()))?;
+
+        let timestamp = msg_val.get("timestamp")
+            .and_then(|v| v.as_u64())
+            .ok_or_else(|| AlpenglowError::NetworkError("Missing or invalid timestamp".to_string()))?;
+
+        let signature = if let Some(sig_val) = msg_val.get("signature") {
+            sig_val.as_u64()
+                .ok_or_else(|| AlpenglowError::NetworkError("Invalid signature format".to_string()))?
+        } else {
+            return Err(AlpenglowError::NetworkError("Missing message signature".to_string()));
+        };
+
+        Ok(NetworkMessage {
+            id: self.next_message_id,
+            sender,
+            recipient,
+            msg_type,
+            payload: vec![payload as u8],
+            timestamp,
+            signature: signature,
+        })
+    }
+
+    /// Parse TLA+ partition format into NetworkPartition
+    fn parse_tla_partition(&self, partition_val: &serde_json::Value) -> AlpenglowResult<NetworkPartition> {
+        let partition1_array = partition_val.get("partition1")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| AlpenglowError::NetworkError("Missing or invalid partition1".to_string()))?;
+
+        let partition1: Vec<ValidatorId> = partition1_array.iter()
+            .map(|v| v.as_u64().ok_or_else(|| AlpenglowError::NetworkError("Invalid validator in partition1".to_string())))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .map(|v| v as ValidatorId)
+            .collect();
+
+        let partition2_array = partition_val.get("partition2")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| AlpenglowError::NetworkError("Missing or invalid partition2".to_string()))?;
+
+        let partition2: Vec<ValidatorId> = partition2_array.iter()
+            .map(|v| v.as_u64().ok_or_else(|| AlpenglowError::NetworkError("Invalid validator in partition2".to_string())))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .map(|v| v as ValidatorId)
+            .collect();
+
+        let start_time = partition_val.get("startTime")
+            .and_then(|v| v.as_u64())
+            .ok_or_else(|| AlpenglowError::NetworkError("Missing or invalid startTime".to_string()))?;
+
+        let healed = partition_val.get("healed")
+            .and_then(|v| v.as_bool())
+            .ok_or_else(|| AlpenglowError::NetworkError("Missing or invalid healed status".to_string()))?;
+
+        Ok(NetworkPartition {
+            id: start_time as u32, // Use start_time as ID for imported partitions
+            partition1,
+            partition2,
+            start_time,
+            healed,
+        })
+    }
+
+    /// Validate imported state consistency
+    fn validate_imported_state(&self) -> AlpenglowResult<()> {
+        // Validate message queue consistency
         for msg in &self.message_queue {
             if !self.config.validators.contains(&msg.sender) {
-                return Err(AlpenglowError::ProtocolViolation(
-                    "Invalid sender in message queue".to_string(),
+                return Err(AlpenglowError::NetworkError(
+                    format!("Message queue contains invalid sender: {}", msg.sender)
                 ));
             }
             
             if let MessageRecipient::Validator(recipient) = msg.recipient {
                 if !self.config.validators.contains(&recipient) {
-                    return Err(AlpenglowError::ProtocolViolation(
-                        "Invalid recipient in message queue".to_string(),
+                    return Err(AlpenglowError::NetworkError(
+                        format!("Message queue contains invalid recipient: {}", recipient)
                     ));
                 }
             }
@@ -833,8 +1172,85 @@ impl TlaCompatible for NetworkState {
         // Validate message buffer consistency
         for (validator, messages) in &self.message_buffer {
             if !self.config.validators.contains(validator) {
+                return Err(AlpenglowError::NetworkError(
+                    format!("Message buffer contains invalid validator: {}", validator)
+                ));
+            }
+            
+            for msg in messages {
+                if let MessageRecipient::Validator(recipient) = msg.recipient {
+                    if recipient != *validator {
+                        return Err(AlpenglowError::NetworkError(
+                            format!("Message in wrong validator buffer: message for {} in buffer {}", recipient, validator)
+                        ));
+                    }
+                }
+            }
+        }
+
+        // Validate delivery time consistency
+        for (msg_id, delivery_time) in &self.delivery_time {
+            if *delivery_time < self.clock {
+                // Find corresponding message
+                if !self.message_queue.iter().any(|msg| msg.id == *msg_id) {
+                    return Err(AlpenglowError::NetworkError(
+                        format!("Delivery time exists for non-existent message: {}", msg_id)
+                    ));
+                }
+            }
+        }
+
+        // Validate partition consistency
+        for partition in &self.network_partitions {
+            if partition.partition1.is_empty() || partition.partition2.is_empty() {
+                return Err(AlpenglowError::NetworkError(
+                    "Network partition contains empty groups".to_string()
+                ));
+            }
+            
+            let set1: HashSet<_> = partition.partition1.iter().cloned().collect();
+            let set2: HashSet<_> = partition.partition2.iter().cloned().collect();
+            if !set1.is_disjoint(&set2) {
+                return Err(AlpenglowError::NetworkError(
+                    "Network partition groups are not disjoint".to_string()
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate NetworkTypeOK invariant comprehensively
+    fn validate_network_type_ok(&self) -> AlpenglowResult<()> {
+        // Validate message queue structure
+        for msg in &self.message_queue {
+            if !self.config.validators.contains(&msg.sender) {
                 return Err(AlpenglowError::ProtocolViolation(
-                    "Invalid validator in message buffer".to_string(),
+                    format!("Invalid sender {} in message queue", msg.sender)
+                ));
+            }
+            
+            if let MessageRecipient::Validator(recipient) = msg.recipient {
+                if !self.config.validators.contains(&recipient) {
+                    return Err(AlpenglowError::ProtocolViolation(
+                        format!("Invalid recipient {} in message queue", recipient)
+                    ));
+                }
+            }
+
+            // Validate message signature structure
+            if !self.config.byzantine_validators.contains(&msg.sender) {
+                return Err(AlpenglowError::ProtocolViolation(
+                    format!("Message signature from Byzantine validator {}", msg.sender)
+                ));
+            }
+        }
+
+        // Validate message buffer structure
+        for (validator, messages) in &self.message_buffer {
+            if !self.config.validators.contains(validator) {
+                return Err(AlpenglowError::ProtocolViolation(
+                    format!("Invalid validator {} in message buffer", validator)
                 ));
             }
             
@@ -842,11 +1258,244 @@ impl TlaCompatible for NetworkState {
                 if let MessageRecipient::Validator(recipient) = msg.recipient {
                     if recipient != *validator {
                         return Err(AlpenglowError::ProtocolViolation(
-                            "Message in wrong validator buffer".to_string(),
+                            format!("Message for {} found in buffer for {}", recipient, validator)
                         ));
                     }
                 }
             }
+        }
+
+        // Validate network partitions structure
+        for partition in &self.network_partitions {
+            for validator in &partition.partition1 {
+                if !self.config.validators.contains(validator) {
+                    return Err(AlpenglowError::ProtocolViolation(
+                        format!("Invalid validator {} in partition1", validator)
+                    ));
+                }
+            }
+            for validator in &partition.partition2 {
+                if !self.config.validators.contains(validator) {
+                    return Err(AlpenglowError::ProtocolViolation(
+                        format!("Invalid validator {} in partition2", validator)
+                    ));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate partial synchrony invariants
+    fn validate_partial_synchrony_invariants(&self) -> AlpenglowResult<()> {
+        // PartialSynchrony invariant from TLA+
+        if self.clock >= self.config.gst {
+            for msg in &self.message_queue {
+                if !self.config.byzantine_validators.contains(&msg.sender) 
+                    && msg.timestamp >= self.config.gst {
+                    if let Some(&delivery_time) = self.delivery_time.get(&msg.id) {
+                        if delivery_time > msg.timestamp + self.config.delta {
+                            return Err(AlpenglowError::ProtocolViolation(
+                                format!("Message {} violates Delta bound after GST: delivery_time={}, timestamp={}, delta={}", 
+                                    msg.id, delivery_time, msg.timestamp, self.config.delta)
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        // GSTDeliveryGuarantees invariant
+        if self.clock >= self.config.gst {
+            for msg in &self.message_queue {
+                if !self.config.byzantine_validators.contains(&msg.sender)
+                    && msg.timestamp >= self.config.gst {
+                    if !self.delivery_time.contains_key(&msg.id) {
+                        return Err(AlpenglowError::ProtocolViolation(
+                            format!("Honest message {} after GST missing delivery time", msg.id)
+                        ));
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate message delivery invariants
+    fn validate_message_delivery_invariants(&self) -> AlpenglowResult<()> {
+        // BoundedDeliveryProperty
+        if self.clock >= self.config.gst {
+            for msg in &self.message_queue {
+                if msg.timestamp >= self.config.gst
+                    && !self.config.byzantine_validators.contains(&msg.sender) {
+                    if let Some(&delivery_time) = self.delivery_time.get(&msg.id) {
+                        if delivery_time > msg.timestamp + self.config.delta {
+                            return Err(AlpenglowError::ProtocolViolation(
+                                format!("Message delivery exceeds Delta bound: msg={}, delivery={}, timestamp={}, delta={}", 
+                                    msg.id, delivery_time, msg.timestamp, self.config.delta)
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        // EventualDeliveryProperty
+        if self.clock >= self.config.gst + self.config.delta {
+            for msg in &self.message_queue {
+                if msg.timestamp < self.clock - self.config.delta
+                    && !self.config.byzantine_validators.contains(&msg.sender) {
+                    return Err(AlpenglowError::ProtocolViolation(
+                        format!("Honest message {} not delivered within expected time", msg.id)
+                    ));
+                }
+            }
+        }
+
+        // MessageOrdering property
+        for msg1 in &self.message_queue {
+            for msg2 in &self.message_queue {
+                if msg1.sender == msg2.sender
+                    && msg1.recipient == msg2.recipient
+                    && msg1.timestamp < msg2.timestamp
+                    && !self.config.byzantine_validators.contains(&msg1.sender)
+                    && self.clock >= self.config.gst {
+                    if let (Some(&delivery1), Some(&delivery2)) = 
+                        (self.delivery_time.get(&msg1.id), self.delivery_time.get(&msg2.id)) {
+                        if delivery1 > delivery2 {
+                            return Err(AlpenglowError::ProtocolViolation(
+                                format!("Message ordering violation: earlier message {} delivered after later message {}", 
+                                    msg1.id, msg2.id)
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate network partition invariants
+    fn validate_partition_invariants(&self) -> AlpenglowResult<()> {
+        // PartitionDetection invariant
+        for partition in &self.network_partitions {
+            if !partition.healed && self.clock >= partition.start_time + self.config.partition_timeout {
+                return Err(AlpenglowError::ProtocolViolation(
+                    format!("Partition not healed within timeout: start={}, current={}, timeout={}", 
+                        partition.start_time, self.clock, self.config.partition_timeout)
+                ));
+            }
+        }
+
+        // NetworkHealing invariant
+        if self.clock >= self.config.gst + self.config.delta {
+            for partition in &self.network_partitions {
+                if !partition.healed {
+                    return Err(AlpenglowError::ProtocolViolation(
+                        format!("Network partition not healed after GST + Delta: start={}, current={}, gst={}, delta={}", 
+                            partition.start_time, self.clock, self.config.gst, self.config.delta)
+                    ));
+                }
+            }
+        }
+
+        // Validate partition structure
+        for partition in &self.network_partitions {
+            if partition.partition1.is_empty() || partition.partition2.is_empty() {
+                return Err(AlpenglowError::ProtocolViolation(
+                    "Network partition contains empty groups".to_string()
+                ));
+            }
+            
+            let set1: HashSet<_> = partition.partition1.iter().cloned().collect();
+            let set2: HashSet<_> = partition.partition2.iter().cloned().collect();
+            if !set1.is_disjoint(&set2) {
+                return Err(AlpenglowError::ProtocolViolation(
+                    "Network partition groups are not disjoint".to_string()
+                ));
+            }
+
+            let all_in_partition: HashSet<_> = set1.union(&set2).cloned().collect();
+            if all_in_partition != self.config.validators {
+                return Err(AlpenglowError::ProtocolViolation(
+                    "Network partition does not cover all validators".to_string()
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate Byzantine behavior invariants
+    fn validate_byzantine_invariants(&self) -> AlpenglowResult<()> {
+        // NoForgery invariant
+        for msg in &self.message_queue {
+            if !self.config.byzantine_validators.contains(&msg.sender) && msg.signature == 0 {
+                return Err(AlpenglowError::ProtocolViolation(
+                    format!("Message forgery detected for honest validator {}", msg.sender)
+                ));
+            }
+        }
+
+        // ChannelIntegrity invariant
+        for msg in &self.message_queue {
+            if msg.signature != 0 && !self.config.byzantine_validators.contains(&msg.sender) {
+                // In a real implementation, this would verify cryptographic integrity
+                // For modeling purposes, we check signature consistency
+                // Simplified signature validation for u64 type
+                if msg.signature != msg.sender as u64 {
+                    return Err(AlpenglowError::ProtocolViolation(
+                        format!("Message signature {} does not match sender {}", 
+                            msg.signature, msg.sender)
+                    ));
+                }
+            }
+        }
+
+        // Byzantine threshold check
+        let byzantine_count = self.config.byzantine_validators.len();
+        let total_validators = self.config.validators.len();
+        if byzantine_count >= total_validators / 3 {
+            return Err(AlpenglowError::ProtocolViolation(
+                format!("Too many Byzantine validators: {} out of {} (threshold: {})", 
+                    byzantine_count, total_validators, total_validators / 3)
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Validate performance and resource invariants
+    fn validate_performance_invariants(&self) -> AlpenglowResult<()> {
+        // BandwidthUtilization invariant
+        let current_usage = self.message_queue.len() as u64 * self.config.max_message_size;
+        if current_usage > self.config.network_capacity {
+            return Err(AlpenglowError::ProtocolViolation(
+                format!("Bandwidth utilization exceeds capacity: {} > {}", 
+                    current_usage, self.config.network_capacity)
+            ));
+        }
+
+        // BufferBounds invariant
+        for (validator, messages) in &self.message_buffer {
+            if messages.len() > self.config.max_buffer_size {
+                return Err(AlpenglowError::ProtocolViolation(
+                    format!("Message buffer for validator {} exceeds maximum size: {} > {}", 
+                        validator, messages.len(), self.config.max_buffer_size)
+                ));
+            }
+        }
+
+        // CongestionControl invariant
+        let congestion_level = self.message_queue.len();
+        if congestion_level > 1000 {
+            // Check if congestion is being reduced
+            // This is a simplified check - in practice would track congestion over time
+            return Err(AlpenglowError::ProtocolViolation(
+                format!("High congestion level not being controlled: {}", congestion_level)
+            ));
         }
 
         Ok(())
@@ -856,7 +1505,7 @@ impl TlaCompatible for NetworkState {
 /// Create a network model for verification
 pub fn create_network_model(
     config: Config,
-    byzantine_validators: HashSet<ValidatorId>,
+    _byzantine_validators: HashSet<ValidatorId>,
 ) -> ActorModel<NetworkActor, (), ()> {
     let mut model = ActorModel::new();
 
@@ -1018,7 +1667,7 @@ mod tests {
         assert_eq!(msg.sender, 0);
         assert_eq!(msg.recipient, MessageRecipient::Validator(1));
         assert_eq!(msg.payload, 42);
-        assert!(msg.signature.valid);
+        assert!(msg.signature != 0);
     }
 
     #[test]
@@ -1119,7 +1768,7 @@ mod tests {
         let fake_msg = state.message_queue.iter().next().unwrap();
         assert_eq!(fake_msg.sender, 0);
         assert_eq!(fake_msg.payload, 999);
-        assert!(!fake_msg.signature.valid);
+        assert!(fake_msg.signature == 0);
     }
 
     #[test]

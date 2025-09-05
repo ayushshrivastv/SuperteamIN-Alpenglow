@@ -3,7 +3,16 @@
 (* Timing constants and functions for the Alpenglow protocol              *)
 (**************************************************************************)
 
-EXTENDS Integers, Sequences
+EXTENDS Integers, Sequences, FiniteSets
+
+CONSTANTS ByzantineValidators
+
+----------------------------------------------------------------------------
+(* Network Condition Constants *)
+NetworkConditionGood == "good"
+NetworkConditionDegraded == "degraded"
+NetworkConditionPoor == "poor"
+ValidNetworkConditions == {NetworkConditionGood, NetworkConditionDegraded, NetworkConditionPoor}
 
 ----------------------------------------------------------------------------
 (* Timing Constants *)
@@ -55,79 +64,114 @@ MaxBandwidth == 10000          \* maximum bandwidth capacity
 (* Timing Functions *)
 
 \* Calculate view timeout with exponential backoff
+\* @param view: Positive integer representing the view number
 CalculateViewTimeout(view) ==
-    Min(ViewTimeout * (ViewTimeoutMultiplier ^ (view - 1)), MaxViewTimeout)
+    IF view < 1
+    THEN MinTimeout
+    ELSE Min(ViewTimeout * (ViewTimeoutMultiplier ^ (view - 1)), MaxViewTimeout)
 
 \* Adaptive timeout with exponential backoff strategy
+\* @param view: Positive integer representing the view number
+\* @param baseTimeout: Positive timeout value
 AdaptiveTimeout(view, baseTimeout) ==
-    LET exponentialTimeout == baseTimeout * (TimeoutMultiplier ^ (view - 1))
-        boundedTimeout == Min(exponentialTimeout, MaxTimeout)
-    IN Max(boundedTimeout, MinTimeout)
+    IF view < 1 \/ baseTimeout <= 0
+    THEN MinTimeout
+    ELSE LET exponentialTimeout == baseTimeout * (TimeoutMultiplier ^ (view - 1))
+             boundedTimeout == Min(exponentialTimeout, MaxTimeout)
+         IN Max(boundedTimeout, MinTimeout)
 
 \* Extend timeout during network instability
+\* @param currentTimeout: Current timeout value
+\* @param factor: Multiplication factor for timeout extension
 ExtendTimeout(currentTimeout, factor) ==
     LET extendedTimeout == currentTimeout * factor
     IN Min(extendedTimeout, MaxTimeout)
 
 \* Calculate slot start time
+\* @param slot: Slot number (1-indexed)
 GetSlotStartTime(slot) ==
     (slot - 1) * SlotDuration
 
 \* Calculate slot end time
+\* @param slot: Slot number (1-indexed)
 GetSlotEndTime(slot) ==
     slot * SlotDuration
 
 \* Check if time is within slot
+\* @param time: Current time value
+\* @param slot: Slot number to check
 IsWithinSlot(time, slot) ==
     /\ time >= GetSlotStartTime(slot)
     /\ time < GetSlotEndTime(slot)
 
 \* Calculate next timeout
+\* @param currentTime: Current time value
+\* @param baseTimeout: Base timeout duration to add
 NextTimeout(currentTime, baseTimeout) ==
     currentTime + baseTimeout
 
 \* Check if timeout expired
+\* @param currentTime: Current time value
+\* @param timeoutTime: Timeout deadline
 IsTimedOut(currentTime, timeoutTime) ==
     currentTime >= timeoutTime
 
 \* Calculate message delivery time
+\* @param messageSize: Size of the message in bytes
+\* Note: sender and receiver parameters kept for future use in routing logic
 MessageDeliveryTime(sender, receiver, messageSize) ==
-    NetworkLatency + (messageSize \div BandwidthPerValidator) + PropagationDelay
+    IF BandwidthPerValidator <= 0
+    THEN NetworkLatency + messageSize + PropagationDelay  \* Fallback calculation
+    ELSE NetworkLatency + (messageSize \div BandwidthPerValidator) + PropagationDelay
 
 \* Calculate Byzantine delay
+\* @param validator: Validator ID to check
+\* @param action: Action being performed (kept for future Byzantine behavior modeling)
 CalculateByzantineDelay(validator, action) ==
     IF validator \in ByzantineValidators
     THEN ByzantineDelay
     ELSE 0
 
 \* Estimate reconstruction time
+\* @param numShreds: Number of shreds to reconstruct
+\* @param bandwidth: Available bandwidth (must be > 0)
 EstimateReconstructionTime(numShreds, bandwidth) ==
-    ReconstructionTime + (numShreds * 10 \div bandwidth)
+    IF bandwidth <= 0
+    THEN ReconstructionTime + (numShreds * 10 \div 1)  \* Use 1 as fallback
+    ELSE ReconstructionTime + (numShreds * 10 \div bandwidth)
 
 \* Calculate repair time
+\* @param missingShreds: Set of missing shred indices
 CalculateRepairTime(missingShreds) ==
     RepairRequestTimeout + (Cardinality(missingShreds) * 10)
 
-\* Compute fast path deadline
+\* Compute fast path deadline (80% stake threshold)
 ComputeDelta80 ==
     FastPathTimeout
 
-\* Compute slow path deadline
+\* Compute slow path deadline (60% stake threshold)
 ComputeDelta60 ==
     SlowPathTimeout
 
 \* Check if within fast path window
+\* @param currentTime: Current time value
+\* @param startTime: Start time of the consensus round
 IsWithinFastPath(currentTime, startTime) ==
     currentTime <= startTime + FastPathTimeout
 
 \* Check if within slow path window
+\* @param currentTime: Current time value
+\* @param startTime: Start time of the consensus round
 IsWithinSlowPath(currentTime, startTime) ==
     /\ currentTime > startTime + FastPathTimeout
     /\ currentTime <= startTime + SlowPathTimeout
 
 \* Calculate jitter (random delay)
+\* @param seed: Non-negative integer seed for jitter calculation
 CalculateJitter(seed) ==
-    (seed % 10) * 5  \* 0-45ms jitter
+    IF seed < 0
+    THEN 0  \* No jitter for negative seeds
+    ELSE (seed % 10) * 5  \* 0-45ms jitter
 
 \* Synchronization threshold
 SyncThreshold ==
@@ -157,11 +201,15 @@ IsValidTimeout(timeout) ==
     /\ timeout <= MaxTimeout
 
 \* Calculate timeout with network condition adjustment
+\* @param baseTimeout: Base timeout value
+\* @param networkCondition: Network condition from ValidNetworkConditions
 NetworkAdjustedTimeout(baseTimeout, networkCondition) ==
-    CASE networkCondition = "good" -> baseTimeout
-      [] networkCondition = "degraded" -> ExtendTimeout(baseTimeout, 2)
-      [] networkCondition = "poor" -> ExtendTimeout(baseTimeout, 4)
-      [] OTHER -> baseTimeout
+    IF networkCondition \notin ValidNetworkConditions
+    THEN baseTimeout  \* Invalid condition, use base timeout
+    ELSE CASE networkCondition = NetworkConditionGood -> baseTimeout
+           [] networkCondition = NetworkConditionDegraded -> ExtendTimeout(baseTimeout, 2)
+           [] networkCondition = NetworkConditionPoor -> ExtendTimeout(baseTimeout, 4)
+           [] OTHER -> baseTimeout
 
 \* Timeout stabilization check
 TimeoutStabilized(currentTimeout, previousTimeout) ==
@@ -189,7 +237,5 @@ TimeoutConvergence(timeoutSequence) ==
             TimeoutStabilized(timeoutSequence[i],
                              IF i > 1 THEN timeoutSequence[i-1] ELSE timeoutSequence[i])
 
-\* Constants needed by other modules
-CONSTANTS ByzantineValidators
 
 ============================================================================

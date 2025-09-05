@@ -28,6 +28,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 PROOFS_DIR="$PROJECT_DIR/proofs"
 RESULTS_DIR="$PROJECT_DIR/results/proofs"
+BASELINE_DIR="$RESULTS_DIR/baseline_obligations.txt"
 TLAPS_BIN="/usr/local/tlaps/bin/tlapm"
 
 # Default values
@@ -35,12 +36,19 @@ PROOF="${1:-All}"
 shift || true
 ADDITIONAL_ARGS="$@"
 
-# Proof files mapping
-declare -A PROOF_FILES=(
-    ["Safety"]="Safety.tla"
-    ["Liveness"]="Liveness.tla"
-    ["Resilience"]="Resilience.tla"
-)
+# Proof files mapping (bash 3.2 compatible)
+get_proof_file() {
+    case "$1" in
+        "Safety") echo "Safety.tla" ;;
+        "Liveness") echo "Liveness.tla" ;;
+        "Resilience") echo "Resilience.tla" ;;
+        "MathHelpers") echo "MathHelpers.tla" ;;
+        "WhitepaperTheorems") echo "WhitepaperTheorems.tla" ;;
+        *) echo "" ;;
+    esac
+}
+
+PROOF_NAMES="MathHelpers Safety Liveness Resilience WhitepaperTheorems"
 
 # Helper functions
 print_info() {
@@ -80,12 +88,14 @@ check_prerequisites() {
     
     # Check if proof files exist
     if [ "$PROOF" != "All" ]; then
-        if [ ! -f "$PROOFS_DIR/${PROOF_FILES[$PROOF]}" ]; then
-            print_error "Proof file ${PROOF_FILES[$PROOF]} not found in $PROOFS_DIR"
+        PROOF_FILE=$(get_proof_file "$PROOF")
+        if [ -z "$PROOF_FILE" ] || [ ! -f "$PROOFS_DIR/$PROOF_FILE" ]; then
+            print_error "Proof file $PROOF_FILE not found in $PROOFS_DIR"
             exit 1
         fi
     else
-        for proof_file in "${PROOF_FILES[@]}"; do
+        for proof_name in $PROOF_NAMES; do
+            proof_file=$(get_proof_file "$proof_name")
             if [ ! -f "$PROOFS_DIR/$proof_file" ]; then
                 print_warn "Proof file $proof_file not found"
             fi
@@ -99,6 +109,124 @@ check_prerequisites() {
     mkdir -p "$SESSION_DIR"
     
     print_info "Results will be saved to: $SESSION_DIR"
+}
+
+# Get enhanced timeout for complex proofs
+get_timeout() {
+    local proof_name=$1
+    case "$proof_name" in
+        "WhitepaperTheorems") echo "120" ;;
+        "MathHelpers") echo "60" ;;
+        *) echo "30" ;;
+    esac
+}
+
+# Get backend combinations for stubborn proofs
+get_backend_combinations() {
+    local proof_name=$1
+    case "$proof_name" in
+        "WhitepaperTheorems") echo "zenon ls4 smt zenon+ls4 ls4+smt zenon+smt zenon+ls4+smt" ;;
+        "MathHelpers") echo "zenon ls4 smt zenon+ls4" ;;
+        *) echo "zenon ls4 smt" ;;
+    esac
+}
+
+# Extract individual lemma status
+extract_lemma_status() {
+    local output_dir=$1
+    local proof_name=$2
+    
+    print_info "Extracting individual lemma verification status..."
+    
+    # Create lemma status file
+    echo "================================================================================" > "$output_dir/lemma_status.txt"
+    echo "Individual Lemma Verification Status: $proof_name" >> "$output_dir/lemma_status.txt"
+    echo "================================================================================" >> "$output_dir/lemma_status.txt"
+    echo "" >> "$output_dir/lemma_status.txt"
+    
+    # Parse obligations log for lemma-specific information
+    if [ -f "$output_dir/obligations.log" ]; then
+        # Extract lemma names and their obligation counts
+        grep -n "LEMMA\|THEOREM" "$PROOFS_DIR/$(get_proof_file $proof_name)" | while read line; do
+            lemma_name=$(echo "$line" | sed 's/.*LEMMA\|THEOREM \([^ ]*\).*/\1/')
+            line_num=$(echo "$line" | cut -d: -f1)
+            echo "Lemma: $lemma_name (Line $line_num)" >> "$output_dir/lemma_status.txt"
+        done
+    fi
+    
+    # Parse verification logs for lemma-specific results
+    for log_file in "$output_dir"/*.log; do
+        if [ -f "$log_file" ]; then
+            backend=$(basename "$log_file" .log)
+            echo "" >> "$output_dir/lemma_status.txt"
+            echo "Backend: $backend" >> "$output_dir/lemma_status.txt"
+            echo "----------------------------------------" >> "$output_dir/lemma_status.txt"
+            
+            # Extract lemma-specific results
+            grep -A 2 -B 2 "WhitepaperLemma\|WhitepaperTheorem\|SimpleArithmetic\|StakeArithmetic" "$log_file" >> "$output_dir/lemma_status.txt" 2>/dev/null || true
+        fi
+    done
+}
+
+# Compare with baseline
+compare_with_baseline() {
+    local output_dir=$1
+    local proof_name=$2
+    
+    if [ -f "$BASELINE_DIR" ] && [ "$proof_name" == "WhitepaperTheorems" ]; then
+        print_info "Comparing with baseline obligations..."
+        
+        # Extract current obligation count
+        current_total=$(grep -c "obligation" "$output_dir/obligations.log" 2>/dev/null || echo "0")
+        current_verified=$(grep -c "succeeded" "$output_dir"/*.log 2>/dev/null || echo "0")
+        
+        # Compare with baseline if it exists
+        if grep -q "WhitepaperTheorems" "$BASELINE_DIR" 2>/dev/null; then
+            baseline_total=$(grep "WhitepaperTheorems.*Total:" "$BASELINE_DIR" | cut -d: -f2 | tr -d ' ')
+            baseline_verified=$(grep "WhitepaperTheorems.*Verified:" "$BASELINE_DIR" | cut -d: -f2 | tr -d ' ')
+            
+            echo "Baseline Comparison:" >> "$output_dir/baseline_comparison.txt"
+            echo "  Previous Total: $baseline_total" >> "$output_dir/baseline_comparison.txt"
+            echo "  Current Total: $current_total" >> "$output_dir/baseline_comparison.txt"
+            echo "  Previous Verified: $baseline_verified" >> "$output_dir/baseline_comparison.txt"
+            echo "  Current Verified: $current_verified" >> "$output_dir/baseline_comparison.txt"
+            
+            if [ "$current_verified" -gt "$baseline_verified" ]; then
+                echo "  Progress: +$((current_verified - baseline_verified)) obligations verified" >> "$output_dir/baseline_comparison.txt"
+                print_info "✓ Progress: +$((current_verified - baseline_verified)) obligations verified"
+            elif [ "$current_verified" -lt "$baseline_verified" ]; then
+                echo "  Regression: -$((baseline_verified - current_verified)) obligations lost" >> "$output_dir/baseline_comparison.txt"
+                print_warn "⚠ Regression: -$((baseline_verified - current_verified)) obligations lost"
+            else
+                echo "  Status: No change in verification count" >> "$output_dir/baseline_comparison.txt"
+                print_info "Status: No change in verification count"
+            fi
+        else
+            echo "No baseline found for $proof_name" >> "$output_dir/baseline_comparison.txt"
+        fi
+        
+        # Update baseline
+        update_baseline "$proof_name" "$current_total" "$current_verified"
+    fi
+}
+
+# Update baseline file
+update_baseline() {
+    local proof_name=$1
+    local total=$2
+    local verified=$3
+    
+    # Create baseline directory if it doesn't exist
+    mkdir -p "$(dirname "$BASELINE_DIR")"
+    
+    # Remove old entry for this proof
+    if [ -f "$BASELINE_DIR" ]; then
+        grep -v "^$proof_name" "$BASELINE_DIR" > "$BASELINE_DIR.tmp" || true
+        mv "$BASELINE_DIR.tmp" "$BASELINE_DIR"
+    fi
+    
+    # Add new entry
+    echo "$proof_name Total: $total Verified: $verified Date: $(date)" >> "$BASELINE_DIR"
 }
 
 # Verify single proof file
@@ -130,55 +258,79 @@ verify_proof() {
     TOTAL_OBLIGATIONS=$(grep -c "obligation" "$output_dir/obligations.log" 2>/dev/null || echo "0")
     print_info "Found $TOTAL_OBLIGATIONS proof obligations"
     
-    # Verify with different backends
-    local BACKENDS=("zenon" "ls4" "smt")
+    # Get enhanced settings for this proof
+    TIMEOUT=$(get_timeout "$proof_name")
+    BACKEND_COMBINATIONS=$(get_backend_combinations "$proof_name")
+    
+    # Verify with different backend combinations
     local VERIFIED=0
     local FAILED=0
-    local TIMEOUT=0
+    local TIMEOUT_COUNT=0
+    local BEST_VERIFIED=0
     
-    for backend in "${BACKENDS[@]}"; do
-        print_info "Verifying with $backend backend..."
+    for backend_combo in $BACKEND_COMBINATIONS; do
+        print_info "Verifying with $backend_combo backend(s) (timeout: ${TIMEOUT}s)..."
         
         $TLAPS_BIN --cleanfp \
-            --method "$backend" \
-            --timeout 30 \
+            --method "$backend_combo" \
+            --timeout "$TIMEOUT" \
             $ADDITIONAL_ARGS \
-            "$PROOFS_DIR/$proof_file" > "$output_dir/${backend}.log" 2>&1
+            "$PROOFS_DIR/$proof_file" > "$output_dir/${backend_combo}.log" 2>&1
         
         EXIT_CODE=$?
         
         # Parse results
-        if grep -q "All proof obligations succeeded" "$output_dir/${backend}.log"; then
-            VERIFIED=$((VERIFIED + $(grep -c "succeeded" "$output_dir/${backend}.log" || echo 0)))
-            print_info "✓ $backend: Success"
-        elif grep -q "failed" "$output_dir/${backend}.log"; then
-            FAILED=$((FAILED + $(grep -c "failed" "$output_dir/${backend}.log" || echo 0)))
-            print_warn "⚠ $backend: Some obligations failed"
-        elif grep -q "timeout" "$output_dir/${backend}.log"; then
-            TIMEOUT=$((TIMEOUT + $(grep -c "timeout" "$output_dir/${backend}.log" || echo 0)))
-            print_warn "⚠ $backend: Some obligations timed out"
+        current_verified=$(grep -c "succeeded" "$output_dir/${backend_combo}.log" 2>/dev/null || echo "0")
+        current_failed=$(grep -c "failed" "$output_dir/${backend_combo}.log" 2>/dev/null || echo "0")
+        current_timeout=$(grep -c "timeout" "$output_dir/${backend_combo}.log" 2>/dev/null || echo "0")
+        
+        if [ "$current_verified" -gt "$BEST_VERIFIED" ]; then
+            BEST_VERIFIED=$current_verified
+            VERIFIED=$current_verified
+            FAILED=$current_failed
+            TIMEOUT_COUNT=$current_timeout
+        fi
+        
+        if grep -q "All proof obligations succeeded" "$output_dir/${backend_combo}.log"; then
+            print_info "✓ $backend_combo: All obligations succeeded"
+            VERIFIED=$TOTAL_OBLIGATIONS
+            FAILED=0
+            TIMEOUT_COUNT=0
+            break
+        elif [ "$current_verified" -gt 0 ]; then
+            print_info "✓ $backend_combo: $current_verified/$TOTAL_OBLIGATIONS obligations succeeded"
+        else
+            print_warn "⚠ $backend_combo: No obligations succeeded"
         fi
     done
     
-    # Try combined backend approach for remaining obligations
-    if [ $FAILED -gt 0 ] || [ $TIMEOUT -gt 0 ]; then
-        print_info "Attempting combined backend verification..."
+    # Try extended timeout for stubborn obligations if needed
+    if [ "$FAILED" -gt 0 ] || [ "$TIMEOUT_COUNT" -gt 0 ]; then
+        EXTENDED_TIMEOUT=$((TIMEOUT * 2))
+        print_info "Attempting extended timeout verification (${EXTENDED_TIMEOUT}s)..."
         
         $TLAPS_BIN --cleanfp \
             --method "zenon ls4 smt" \
-            --timeout 60 \
+            --timeout "$EXTENDED_TIMEOUT" \
             $ADDITIONAL_ARGS \
-            "$PROOFS_DIR/$proof_file" > "$output_dir/combined.log" 2>&1
+            "$PROOFS_DIR/$proof_file" > "$output_dir/extended.log" 2>&1
         
-        if grep -q "All proof obligations succeeded" "$output_dir/combined.log"; then
-            print_info "✓ Combined verification succeeded"
-            VERIFIED=$TOTAL_OBLIGATIONS
-            FAILED=0
-            TIMEOUT=0
+        extended_verified=$(grep -c "succeeded" "$output_dir/extended.log" 2>/dev/null || echo "0")
+        if [ "$extended_verified" -gt "$VERIFIED" ]; then
+            VERIFIED=$extended_verified
+            FAILED=$((TOTAL_OBLIGATIONS - VERIFIED))
+            TIMEOUT_COUNT=0
+            print_info "✓ Extended timeout: $VERIFIED/$TOTAL_OBLIGATIONS obligations succeeded"
         fi
     fi
     
-    # Generate summary
+    # Extract individual lemma status
+    extract_lemma_status "$output_dir" "$proof_name"
+    
+    # Compare with baseline for WhitepaperTheorems
+    compare_with_baseline "$output_dir" "$proof_name"
+    
+    # Generate enhanced summary
     cat > "$output_dir/summary.txt" << EOF
 ================================================================================
 Proof Verification Summary: $proof_name
@@ -191,48 +343,103 @@ Proof Obligations:
   - Total: $TOTAL_OBLIGATIONS
   - Verified: $VERIFIED
   - Failed: $FAILED
-  - Timeout: $TIMEOUT
+  - Timeout: $TIMEOUT_COUNT
 
-Success Rate: $(echo "scale=2; $VERIFIED * 100 / $TOTAL_OBLIGATIONS" | bc)%
+Success Rate: $(echo "scale=2; $VERIFIED * 100 / $TOTAL_OBLIGATIONS" | bc 2>/dev/null || echo "0")%
+
+Verification Settings:
+  - Timeout: ${TIMEOUT}s (extended: $((TIMEOUT * 2))s)
+  - Backend combinations: $(echo $BACKEND_COMBINATIONS | wc -w)
+  - Enhanced mode: $([ "$proof_name" == "WhitepaperTheorems" ] && echo "Yes" || echo "No")
 
 Backends Used:
-  - Zenon (automated theorem prover)
-  - LS4 (temporal logic prover)
-  - SMT (satisfiability modulo theories)
+$(for combo in $BACKEND_COMBINATIONS; do
+    echo "  - $combo"
+done)
+
+Individual Lemma Analysis:
+$(if [ -f "$output_dir/lemma_status.txt" ]; then
+    echo "  - Available in lemma_status.txt"
+else
+    echo "  - Not available"
+fi)
+
+Baseline Comparison:
+$(if [ -f "$output_dir/baseline_comparison.txt" ]; then
+    cat "$output_dir/baseline_comparison.txt" | sed 's/^/  /'
+else
+    echo "  - Not available"
+fi)
 
 Detailed Logs:
   - Structure: $output_dir/structure.log
   - Obligations: $output_dir/obligations.log
   - Backend logs: $output_dir/*.log
+  - Lemma status: $output_dir/lemma_status.txt
+  - Failure analysis: $output_dir/failures.txt
 
 EOF
     
     cat "$output_dir/summary.txt"
     
     # Return status
-    if [ $FAILED -eq 0 ] && [ $TIMEOUT -eq 0 ]; then
+    if [ $FAILED -eq 0 ] && [ $TIMEOUT_COUNT -eq 0 ]; then
         return 0
     else
         return 1
     fi
 }
 
-# Extract failed obligations
+# Extract failed obligations with enhanced debugging
 extract_failures() {
     local output_dir=$1
+    local proof_name=$2
     
-    print_info "Extracting failed proof obligations..."
+    print_info "Extracting failed proof obligations with debugging info..."
+    
+    echo "================================================================================" > "$output_dir/failures.txt"
+    echo "Failed Proof Obligations Analysis: $proof_name" >> "$output_dir/failures.txt"
+    echo "================================================================================" >> "$output_dir/failures.txt"
+    echo "" >> "$output_dir/failures.txt"
     
     for log_file in "$output_dir"/*.log; do
         if grep -q "failed" "$log_file"; then
-            echo "Failed obligations in $(basename $log_file):" >> "$output_dir/failures.txt"
-            grep -A 5 -B 5 "failed" "$log_file" >> "$output_dir/failures.txt"
+            backend=$(basename "$log_file" .log)
+            echo "Backend: $backend" >> "$output_dir/failures.txt"
+            echo "----------------------------------------" >> "$output_dir/failures.txt"
+            
+            # Extract failed obligations with context
+            grep -n -A 10 -B 5 "failed" "$log_file" >> "$output_dir/failures.txt"
+            echo "" >> "$output_dir/failures.txt"
+            
+            # Extract specific lemma failures for WhitepaperTheorems
+            if [ "$proof_name" == "WhitepaperTheorems" ]; then
+                echo "Specific Lemma Failures:" >> "$output_dir/failures.txt"
+                grep -A 3 -B 3 "WhitepaperLemma.*failed\|WhitepaperTheorem.*failed" "$log_file" >> "$output_dir/failures.txt" 2>/dev/null || true
+                echo "" >> "$output_dir/failures.txt"
+            fi
+            
             echo "---" >> "$output_dir/failures.txt"
         fi
     done
     
+    # Add debugging recommendations
+    echo "" >> "$output_dir/failures.txt"
+    echo "Debugging Recommendations:" >> "$output_dir/failures.txt"
+    echo "1. Check if all required modules are properly imported" >> "$output_dir/failures.txt"
+    echo "2. Verify that helper lemmas are proven before use" >> "$output_dir/failures.txt"
+    echo "3. Consider breaking complex proofs into smaller steps" >> "$output_dir/failures.txt"
+    echo "4. Try different backend combinations for stubborn obligations" >> "$output_dir/failures.txt"
+    echo "5. Increase timeout for complex arithmetic proofs" >> "$output_dir/failures.txt"
+    
+    if [ "$proof_name" == "WhitepaperTheorems" ]; then
+        echo "6. Ensure MathHelpers module is verified first" >> "$output_dir/failures.txt"
+        echo "7. Check that all predicate definitions are complete" >> "$output_dir/failures.txt"
+        echo "8. Verify Byzantine and network assumptions are properly stated" >> "$output_dir/failures.txt"
+    fi
+    
     if [ -f "$output_dir/failures.txt" ]; then
-        print_warn "Failed obligations extracted to: $output_dir/failures.txt"
+        print_warn "Enhanced failure analysis saved to: $output_dir/failures.txt"
     fi
 }
 
@@ -254,21 +461,33 @@ generate_proof_graph() {
     fi
 }
 
-# Verify all proofs
+# Verify all proofs with dependency order
 verify_all() {
     local TOTAL_SUCCESS=0
     local TOTAL_FAILED=0
     
-    for proof_name in "${!PROOF_FILES[@]}"; do
-        if [ -f "$PROOFS_DIR/${PROOF_FILES[$proof_name]}" ]; then
-            verify_proof "$proof_name" "${PROOF_FILES[$proof_name]}"
+    # Verify in dependency order: MathHelpers first, then others, WhitepaperTheorems last
+    local ORDERED_PROOFS="MathHelpers Safety Liveness Resilience WhitepaperTheorems"
+    
+    for proof_name in $ORDERED_PROOFS; do
+        proof_file=$(get_proof_file "$proof_name")
+        if [ -f "$PROOFS_DIR/$proof_file" ]; then
+            verify_proof "$proof_name" "$proof_file"
             if [ $? -eq 0 ]; then
                 TOTAL_SUCCESS=$((TOTAL_SUCCESS + 1))
+                print_info "✓ $proof_name verification completed successfully"
             else
                 TOTAL_FAILED=$((TOTAL_FAILED + 1))
-                extract_failures "$SESSION_DIR/$proof_name"
+                extract_failures "$SESSION_DIR/$proof_name" "$proof_name"
+                print_error "✗ $proof_name verification failed"
+                
+                # For WhitepaperTheorems, provide additional guidance
+                if [ "$proof_name" == "WhitepaperTheorems" ]; then
+                    print_info "Consider verifying MathHelpers first if not already done"
+                    print_info "Check that all predicate definitions are complete"
+                fi
             fi
-            generate_proof_graph "$proof_name" "${PROOF_FILES[$proof_name]}"
+            generate_proof_graph "$proof_name" "$proof_file"
         else
             print_warn "Skipping $proof_name - file not found"
         fi
@@ -278,7 +497,7 @@ verify_all() {
     generate_overall_summary $TOTAL_SUCCESS $TOTAL_FAILED
 }
 
-# Generate overall summary
+# Generate overall summary with enhanced reporting
 generate_overall_summary() {
     local success=$1
     local failed=$2
@@ -296,25 +515,51 @@ Results:
   - Total proof modules: $total
   - Successfully verified: $success
   - Failed verification: $failed
-  - Success rate: $(echo "scale=2; $success * 100 / $total" | bc)%
+  - Success rate: $(echo "scale=2; $success * 100 / $total" | bc 2>/dev/null || echo "0")%
 
 Proof Modules:
-$(for proof_name in "${!PROOF_FILES[@]}"; do
+$(for proof_name in $PROOF_NAMES; do
     if [ -f "$SESSION_DIR/$proof_name/summary.txt" ]; then
-        status=$(grep "Success Rate" "$SESSION_DIR/$proof_name/summary.txt" | cut -d: -f2)
-        echo "  - $proof_name: $status"
+        status=$(grep "Success Rate" "$SESSION_DIR/$proof_name/summary.txt" | cut -d: -f2 | tr -d ' ')
+        obligations=$(grep "Total:" "$SESSION_DIR/$proof_name/summary.txt" | cut -d: -f2 | tr -d ' ')
+        verified=$(grep "Verified:" "$SESSION_DIR/$proof_name/summary.txt" | cut -d: -f2 | tr -d ' ')
+        echo "  - $proof_name: $verified/$obligations obligations ($status success rate)"
     fi
 done)
 
+WhitepaperTheorems Progress:
+$(if [ -f "$SESSION_DIR/WhitepaperTheorems/baseline_comparison.txt" ]; then
+    echo "$(cat "$SESSION_DIR/WhitepaperTheorems/baseline_comparison.txt" | sed 's/^/  /')"
+else
+    echo "  - No baseline comparison available"
+fi)
+
+Module Dependencies:
+  - MathHelpers: Foundation for arithmetic proofs
+  - Safety/Liveness/Resilience: Core protocol properties  
+  - WhitepaperTheorems: Main theorems (depends on all above)
+
 Recommendations:
 $(if [ $failed -gt 0 ]; then
-    echo "  - Review failed obligations in individual failure logs"
-    echo "  - Consider increasing timeout for complex proofs"
-    echo "  - Try different backend combinations"
+    echo "  - Review enhanced failure analysis in individual failure logs"
+    echo "  - Verify dependencies: MathHelpers → Core modules → WhitepaperTheorems"
+    echo "  - Consider increasing timeout for complex proofs (current: 30-120s)"
+    echo "  - Try extended backend combinations for stubborn obligations"
+    if [ -f "$SESSION_DIR/WhitepaperTheorems/failures.txt" ]; then
+        echo "  - Check WhitepaperTheorems specific debugging recommendations"
+    fi
 else
     echo "  - All proofs verified successfully!"
     echo "  - Consider running with --paranoid flag for extra checking"
+    echo "  - Baseline has been updated for progress tracking"
 fi)
+
+Enhanced Features Used:
+  - Individual lemma status tracking
+  - Baseline comparison for progress monitoring
+  - Extended timeout settings for complex proofs
+  - Multiple backend combinations
+  - Dependency-aware verification order
 
 Session Directory: $SESSION_DIR
 
@@ -345,18 +590,21 @@ main() {
     
     if [ "$PROOF" == "All" ]; then
         verify_all
-    elif [ -n "${PROOF_FILES[$PROOF]}" ]; then
-        verify_proof "$PROOF" "${PROOF_FILES[$PROOF]}"
-        if [ $? -ne 0 ]; then
-            extract_failures "$SESSION_DIR/$PROOF"
-        fi
-        generate_proof_graph "$PROOF" "${PROOF_FILES[$PROOF]}"
     elif [ "$PROOF" == "debug" ] && [ -n "$2" ]; then
         debug_proof "$2"
     else
-        print_error "Unknown proof: $PROOF"
-        echo "Available proofs: Safety, Liveness, Resilience, All"
-        exit 1
+        PROOF_FILE=$(get_proof_file "$PROOF")
+        if [ -n "$PROOF_FILE" ]; then
+            verify_proof "$PROOF" "$PROOF_FILE"
+            if [ $? -ne 0 ]; then
+                extract_failures "$SESSION_DIR/$PROOF" "$PROOF"
+            fi
+            generate_proof_graph "$PROOF" "$PROOF_FILE"
+        else
+            print_error "Unknown proof: $PROOF"
+            echo "Available proofs: MathHelpers, Safety, Liveness, Resilience, WhitepaperTheorems, All"
+            exit 1
+        fi
     fi
     
     END_TIME=$(date +%s)

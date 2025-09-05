@@ -146,7 +146,7 @@ impl<A: Actor> ActorModel<A> {
         self
     }
     
-    pub fn init_network<I>(mut self, init: I) -> ActorModel<A, I, ()> {
+    pub fn init_network<I>(self, init: I) -> ActorModel<A, I, ()> {
         ActorModel {
             actors: self.actors,
             init_network: init,
@@ -257,7 +257,7 @@ pub struct SystemState<S> {
 impl<S> SystemState<S> {
     pub fn new(actor_count: usize) -> Self {
         Self {
-            actor_states: vec![None; actor_count],
+            actor_states: (0..actor_count).map(|_| None).collect(),
             network: Network { messages: Vec::new() },
             step_count: 0,
         }
@@ -283,6 +283,9 @@ pub struct SimpleProperty<F> {
     pub name: String,
     pub check_fn: F,
 }
+
+/// Type alias for cleaner API
+// Property type alias removed to avoid conflict with trait
 
 impl<F, M> Property<M> for SimpleProperty<F>
 where
@@ -343,13 +346,32 @@ pub trait Model {
 /// Checker for model verification
 pub struct Checker<M: Model> {
     model: M,
+    max_depth: Option<usize>,
+    timeout_ms: Option<u64>,
 }
 
 impl<M: Model> Checker<M> {
     /// Create a new checker
     pub fn new(model: M) -> Self {
-        Self { model }
+        Self { 
+            model,
+            max_depth: None,
+            timeout_ms: None,
+        }
     }
+    
+    /// Set maximum exploration depth
+    pub fn max_depth(mut self, depth: usize) -> Self {
+        self.max_depth = Some(depth);
+        self
+    }
+    
+    /// Set timeout in milliseconds
+    pub fn timeout(mut self, timeout_ms: u64) -> Self {
+        self.timeout_ms = Some(timeout_ms);
+        self
+    }
+
     
     /// Check safety properties
     pub fn check_safety(&self) -> bool {
@@ -390,19 +412,75 @@ impl<M: Model> Checker<M> {
         P: Property<M>
     {
         let init_states = self.model.init_states();
+        let mut states_explored = 0;
+        
         for state in &init_states {
+            states_explored += 1;
             if !property.check(&self.model, state) {
-                return CheckResult::Fail("Property violation detected".to_string());
+                return CheckResult::fail(
+                    "Property violation detected".to_string(),
+                    states_explored
+                );
+            }
+            
+            // Check depth limit
+            if let Some(max_depth) = self.max_depth {
+                if states_explored >= max_depth {
+                    break;
+                }
             }
         }
-        CheckResult::Pass
+        
+        CheckResult::pass(states_explored)
     }
 }
 
 /// Result type for property checking
 #[derive(Debug)]
-pub enum CheckResult {
-    Pass,
-    Fail(String),
-    Timeout,
+pub struct CheckResult {
+    pub valid: bool,
+    pub counterexample: Option<Vec<String>>,
+    pub states_explored: usize,
+    pub error_message: Option<String>,
+}
+
+impl CheckResult {
+    pub fn pass(states_explored: usize) -> Self {
+        Self {
+            valid: true,
+            counterexample: None,
+            states_explored,
+            error_message: None,
+        }
+    }
+    
+    pub fn fail(error: String, states_explored: usize) -> Self {
+        Self {
+            valid: false,
+            counterexample: Some(vec![error.clone()]),
+            states_explored,
+            error_message: Some(error),
+        }
+    }
+    
+    pub fn timeout(states_explored: usize) -> Self {
+        Self {
+            valid: false,
+            counterexample: None,
+            states_explored,
+            error_message: Some("Timeout".to_string()),
+        }
+    }
+    
+    pub fn is_valid(&self) -> bool {
+        self.valid
+    }
+    
+    pub fn counterexample(&self) -> Option<Vec<String>> {
+        self.counterexample.clone()
+    }
+    
+    pub fn states_explored(&self) -> usize {
+        self.states_explored
+    }
 }

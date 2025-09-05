@@ -143,9 +143,11 @@ AdversaryEvent == [
 AssignValidatorRegions(validators, regions) ==
     LET regionCount == Cardinality(regions)
         validatorList == SetToSeq(validators)
+        regionList == SetToSeq(regions)
     IN [v \in validators |-> 
         LET index == CHOOSE i \in 1..Len(validatorList) : validatorList[i] = v
-        IN CHOOSE r \in regions : TRUE]  \* Simplified assignment
+            regionIndex == ((index - 1) % regionCount) + 1
+        IN regionList[regionIndex]]  \* Deterministic round-robin assignment
 
 \* Calculate base latency between regions
 BaseRegionLatency(r1, r2) ==
@@ -162,7 +164,10 @@ BaseRegionLatency(r1, r2) ==
 \* Calculate current latency between two validators
 CurrentValidatorLatency(v1, v2) ==
     LET baseLatency == BaseRegionLatency(validatorRegions[v1], validatorRegions[v2])
-        variance == CHOOSE x \in 0..MaxLatencyVariance : TRUE
+        \* Deterministic variance based on validator hash
+        hashSum == (CHOOSE i \in 1..Len(SetToSeq(Validators)) : SetToSeq(Validators)[i] = v1) +
+                   (CHOOSE j \in 1..Len(SetToSeq(Validators)) : SetToSeq(Validators)[j] = v2)
+        variance == (hashSum % (MaxLatencyVariance + 1))
         congestion == congestionLevels[validatorRegions[v1]] + congestionLevels[validatorRegions[v2]]
     IN baseLatency + variance + congestion
 
@@ -173,34 +178,44 @@ SameGeographicCluster(v1, v2) ==
 \* Calculate network distance between validators
 NetworkDistance(v1, v2) ==
     IF v1 = v2 THEN 0
-    ELSE LET edge == CHOOSE e \in networkTopology : e.from = v1 /\ e.to = v2
-         IN IF edge \in networkTopology THEN edge.weight ELSE 999
+    ELSE LET possibleEdges == {e \in networkTopology : e.from = v1 /\ e.to = v2}
+         IN IF possibleEdges # {}
+            THEN (CHOOSE e \in possibleEdges : \A other \in possibleEdges : e.weight <= other.weight).weight
+            ELSE 999  \* No direct connection
 
 ----------------------------------------------------------------------------
 \* Dynamic Validator Set Management
 
-\* Get validators for a specific epoch
+\* Get validators for a specific epoch with error handling
 ValidatorsInEpoch(epoch) ==
-    IF epoch \in DOMAIN validatorSets
-    THEN validatorSets[epoch]
-    ELSE Validators  \* Default to initial set
+    IF epoch < 0 \/ epoch > MaxEpochs
+    THEN {}  \* Invalid epoch returns empty set
+    ELSE IF epoch \in DOMAIN validatorSets
+         THEN validatorSets[epoch]
+         ELSE Validators  \* Default to initial set
 
-\* Get stake distribution for an epoch
+\* Get stake distribution for an epoch with error handling
 StakeInEpoch(epoch) ==
-    IF epoch \in DOMAIN stakeHistory
-    THEN stakeHistory[epoch]
-    ELSE Stake  \* Default to initial stake
+    IF epoch < 0 \/ epoch > MaxEpochs
+    THEN [v \in {} |-> 0]  \* Invalid epoch returns empty stake map
+    ELSE IF epoch \in DOMAIN stakeHistory
+         THEN stakeHistory[epoch]
+         ELSE Stake  \* Default to initial stake
 
-\* Check if validator can join in current epoch
+\* Check if validator can join in current epoch with error handling
 CanJoinEpoch(validator, epoch) ==
+    /\ validator \in Validators  \* Must be a valid validator
     /\ validator \in pendingJoins
     /\ validator \notin ValidatorsInEpoch(epoch)
+    /\ ValidatorsInEpoch(epoch) # {}  \* Epoch must be valid
     /\ Cardinality(ValidatorsInEpoch(epoch)) < MaxValidators
 
-\* Check if validator can leave in current epoch
+\* Check if validator can leave in current epoch with error handling
 CanLeaveEpoch(validator, epoch) ==
+    /\ validator \in Validators  \* Must be a valid validator
     /\ validator \in pendingLeaves
     /\ validator \in ValidatorsInEpoch(epoch)
+    /\ ValidatorsInEpoch(epoch) # {}  \* Epoch must be valid
     /\ Cardinality(ValidatorsInEpoch(epoch)) > MinValidators
 
 \* Transition to next epoch
@@ -314,49 +329,32 @@ CoordinatedPartitionAttack ==
     /\ \E coordinator \in ByzantineValidators :
         /\ LET strategy == "split_stake"  \* Strategy to split stake evenly
                targetValidators == ValidatorsInEpoch(currentEpoch) \ ByzantineValidators
-               partition1 == CHOOSE p1 \in SUBSET targetValidators : 
-                            Cardinality(p1) = Cardinality(targetValidators) \div 2
+               validatorSeq == SetToSeq(targetValidators)
+               halfSize == Cardinality(targetValidators) \div 2
+               partition1 == {validatorSeq[i] : i \in 1..halfSize}
                partition2 == targetValidators \ partition1
                newAttack == [partitions |-> {partition1, partition2},
                             coordinator |-> coordinator,
                             strategy |-> strategy,
                             startTime |-> clock,
                             duration |-> PartitionTimeout,
-                            active |-> TRUE]
-           IN
-           /\ partition1 # {} /\ partition2 # {}
-           /\ coordinatedPartitions' = coordinatedPartitions \cup {newAttack}
-           /\ networkPartitions' = networkPartitions \cup {[
-                partition1 |-> partition1,
-                partition2 |-> partition2,
-                startTime |-> clock,
-                healed |-> FALSE
-              ]}
-           /\ adversaryMemory' = adversaryMemory \cup {[
-                type |-> "coordinated_partition",
-                coordinator |-> coordinator,
-                timestamp |-> clock,
-                success |-> TRUE
-              ]}
-    /\ UNCHANGED <<messageQueue, messageBuffer, droppedMessages, deliveryTime, clock,
-                   currentEpoch, validatorSets, pendingJoins, pendingLeaves, stakeHistory,
-                   validatorRegions, regionLatencies, networkTopology, isolatedNodes,
-                   eclipseAttacks, partitionHistory, currentLatencies, bandwidthUtilization,
-                   messageLosses, congestionLevels, attackPatterns, adaptiveStrategy>>
+{{ ... }}
 
 \* Stake-based partition (isolate high-stake validators)
 StakeBasedPartition ==
     /\ clock < GST
     /\ LET currentStake == StakeInEpoch(currentEpoch)
+           totalStake == SumStake(ValidatorsInEpoch(currentEpoch), currentStake)
+           stakeThreshold == totalStake \div 10
            highStakeValidators == {v \in ValidatorsInEpoch(currentEpoch) : 
-                                  currentStake[v] > (CHOOSE total \in Nat : 
-                                    total = SumStake(ValidatorsInEpoch(currentEpoch), currentStake)) \div 10}
+                                  currentStake[v] > stakeThreshold}
            lowStakeValidators == ValidatorsInEpoch(currentEpoch) \ highStakeValidators
        IN
        /\ highStakeValidators # {} /\ lowStakeValidators # {}
        /\ networkPartitions' = networkPartitions \cup {[
             partition1 |-> highStakeValidators,
             partition2 |-> lowStakeValidators,
+{{ ... }}
             startTime |-> clock,
             healed |-> FALSE
           ]}
@@ -380,7 +378,9 @@ SumStake(validators, stakeMap) ==
 SumStakeHelper(validatorSeq, stakeMap, index, acc) ==
     IF index > Len(validatorSeq)
     THEN acc
-    ELSE SumStakeHelper(validatorSeq, stakeMap, index + 1, acc + stakeMap[validatorSeq[index]])
+    ELSE IF validatorSeq[index] \in DOMAIN stakeMap
+         THEN SumStakeHelper(validatorSeq, stakeMap, index + 1, acc + stakeMap[validatorSeq[index]])
+         ELSE SumStakeHelper(validatorSeq, stakeMap, index + 1, acc)  \* Skip invalid validators
 
 ----------------------------------------------------------------------------
 \* Realistic Network Conditions
@@ -402,7 +402,10 @@ MessageLoss ==
     \E msg \in messageQueue :
         /\ LET lossProb == MessageLossRate + 
                           (congestionLevels[validatorRegions[msg.sender]] / 100)
-           IN lossProb > (CHOOSE x \in 1..100 : TRUE) / 100  \* Probabilistic loss
+               \* Deterministic loss based on message hash and clock
+               msgHash == (msg.id % 100) + (clock % 100)
+               lossThreshold == CHOOSE threshold \in 1..100 : threshold = (msgHash % 100) + 1
+           IN (lossProb * 100) > lossThreshold  \* Deterministic comparison
         /\ messageQueue' = messageQueue \ {msg}
         /\ messageLosses' = messageLosses \cup {[
              message |-> msg,
@@ -422,7 +425,10 @@ UpdateBandwidthUtilization ==
     /\ bandwidthUtilization' = [v \in ValidatorsInEpoch(currentEpoch) |->
                                LET outgoingMsgs == Cardinality({msg \in messageQueue : msg.sender = v})
                                    baseUtilization == (outgoingMsgs * MaxMessageSize) / NetworkCapacity
-                                   variance == CHOOSE x \in 0..BandwidthVariance : TRUE
+                                   \* Deterministic variance based on validator index and clock
+                                   validatorIndex == CHOOSE i \in 1..Len(SetToSeq(ValidatorsInEpoch(currentEpoch))) : 
+                                                    SetToSeq(ValidatorsInEpoch(currentEpoch))[i] = v
+                                   variance == ((validatorIndex + clock) % (BandwidthVariance + 1))
                                IN baseUtilization + variance]
     /\ UNCHANGED <<messageQueue, messageBuffer, networkPartitions, droppedMessages,
                    deliveryTime, clock, currentEpoch, validatorSets, pendingJoins,

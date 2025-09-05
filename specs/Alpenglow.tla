@@ -7,33 +7,18 @@
 
 EXTENDS Integers, Sequences, FiniteSets, TLC
 
-\* Import helper modules
-Utils == INSTANCE Utils
-Types == INSTANCE Types
-Crypto == INSTANCE Crypto
-NetworkIntegration == INSTANCE NetworkIntegration WITH
-    TotalStake <- Utils!Sum([v \in Validators |-> Stake[v]]),
-    FastPathStake <- (4 * Utils!Sum([v \in Validators |-> Stake[v]])) \div 5,
-    SlowPathStake <- (3 * Utils!Sum([v \in Validators |-> Stake[v]])) \div 5
-
 CONSTANTS
     Validators,          \* Set of all validators
     ByzantineValidators, \* Set of Byzantine validators
     OfflineValidators,   \* Set of offline validators
     MaxSlot,             \* Maximum slot number
     MaxView,             \* Maximum view number
-    MaxTime,             \* Maximum time value
     GST,                 \* Global Stabilization Time
     Delta,               \* Network delay bound
     InitialLeader,       \* Initial leader for Votor
     K,                   \* Erasure coding data shreds
     N,                   \* Erasure coding total shreds
-    MaxBlockSize,        \* Maximum block size
-    BandwidthPerValidator, \* Bandwidth per validator
-    MaxMessageSize,      \* Maximum message size
-    NetworkCapacity,     \* Network capacity
     BandwidthLimit,      \* Bandwidth limit per validator
-    TimeoutDelta,        \* Timeout delta for Votor
     MaxRetries           \* Maximum retries for Rotor
 
 ASSUME
@@ -45,11 +30,20 @@ ASSUME
     /\ N > K  \* Erasure coding constraint
     /\ K > 0
 
-HonestValidators == Validators \ (ByzantineValidators \cup OfflineValidators)
+\* Import foundational modules with proper parameter mappings
+INSTANCE Types WITH Validators <- Validators,
+                    ByzantineValidators <- ByzantineValidators,
+                    OfflineValidators <- OfflineValidators,
+                    MaxSlot <- MaxSlot,
+                    MaxView <- MaxView,
+                    GST <- GST,
+                    Delta <- Delta
 
-\* Define stake mapping for all validators (equal stake for simplicity)
-Stake == [v \in Validators |-> 10]
-StakeMapping == Stake
+INSTANCE Utils
+
+\* Use stake mapping from Types module
+HonestValidators == Types!HonestValidators
+StakeMapping == Types!Stake
 
 ----------------------------------------------------------------------------
 (* System State Variables *)
@@ -58,100 +52,109 @@ VARIABLES
     \* Time and scheduling
     clock,               \* Current global time
     currentSlot,         \* Current protocol slot
-    currentRotor,        \* Current rotor/leader used by propagation
 
-    \* Votor consensus state (mapped from submodule)
-    votorView,           \* View number for each validator
-    votorVotedBlocks,    \* Blocks voted by each validator
-    votorGeneratedCerts, \* Certificates generated
-    votorFinalizedChain, \* Finalized blockchain
-    votorSkipVotes,      \* Skip votes for view changes
-    votorTimeoutExpiry,  \* Timeout expiry times
-    votorReceivedVotes,  \* Votes received by validators
-    \* certificates removed - use votorGeneratedCerts from Votor
-    finalizedBlocks,     \* Finalized blocks per slot
-    finalizedBySlot,     \* Derived mapping slot -> block
+    \* Votor consensus state variables (aligned with Votor module)
+    votorView,           \* Current view number for each validator [validator]
+    votorVotes,          \* Votes cast by each validator [validator]
+    votorTimeouts,       \* Timeout settings per validator per slot [validator][slot]
+    votorGeneratedCerts, \* Certificates generated per view [view]
+    votorFinalizedChain, \* Finalized chain per validator [validator]
+    votorState,          \* Internal state tracking per validator [validator][slot]
+    votorObservedCerts,  \* Certificates observed by each validator [validator]
 
-    \* Rotor propagation state (mapped from submodule)
-    rotorBlockShreds,
-    rotorRelayAssignments,
-    rotorReconstructionState,
-    rotorDeliveredBlocks,
-    rotorRepairRequests,
-    rotorBandwidthUsage,
-    rotorShredAssignments,    \* Shred assignment mapping
-    rotorReceivedShreds,       \* Received shreds per validator
-    rotorReconstructedBlocks,  \* Reconstructed blocks from shreds
+    \* Rotor propagation state variables (aligned with Rotor module)
+    rotorBlocks,         \* Blocks by slot: slot -> block
+    rotorShreds,         \* Shreds by slot and index: slot -> index -> shred
+    rotorReceivedShreds, \* Shreds received by validator: validator -> slot -> set of shreds
+    rotorReconstructedBlocks, \* Reconstructed blocks: validator -> slot -> block
+    blockShreds,         \* Erasure-coded pieces: block -> validator -> pieces
+    relayAssignments,    \* Stake-weighted relay assignments
+    reconstructionState, \* Block reconstruction progress per validator
+    deliveredBlocks,     \* Successfully delivered blocks per validator
+    repairRequests,      \* Missing piece repair requests
+    bandwidthUsage,      \* Current bandwidth usage per validator
+    receivedShreds,      \* Shreds received by each validator
+    shredAssignments,    \* Shred assignments for each validator
+    reconstructedBlocks, \* Blocks reconstructed by each validator
+    rotorHistory,        \* History of shreds sent by each validator
 
-    \* Additional propagation state
-    deliveredBlocks,     \* Global set of blocks that have been fully reconstructed from shreds
-                         \* This is the union of all validators' reconstructedBlocks from Rotor
-                         \* Used to track which blocks are available for voting/finalization
-
-    \* Network state (mapped from submodule)
+    \* Network state
     networkMessageQueue,
     networkMessageBuffer,
     networkPartitions,   \* Set of network partitions
     networkDroppedMessages,
     networkDeliveryTime, \* Message delivery time mapping
-
-    \* Additional network state
     messages,            \* In-flight messages (as a set)
 
-    \* Failure state tracking
+    \* Additional state
+    finalizedBlocks,     \* Finalized blocks per slot
+    finalizedBySlot,     \* Derived mapping slot -> block
     failureStates,       \* Validator failure states
-
-    \* Cryptographic state
-    nonceCounter,        \* Counter for generating unique nonces (from Crypto module)
-
-    \* Metrics
+    nonceCounter,        \* Counter for generating unique nonces
     latencyMetrics,      \* Finalization latencies
     bandwidthMetrics     \* Bandwidth consumption
 
-vars == <<clock, currentSlot, currentRotor, votorView, votorVotedBlocks, votorGeneratedCerts,
-          votorFinalizedChain, votorSkipVotes, votorTimeoutExpiry, votorReceivedVotes,
-          finalizedBlocks, finalizedBySlot,
-          rotorBlockShreds, rotorRelayAssignments, rotorReconstructionState, rotorDeliveredBlocks,
-          rotorRepairRequests, rotorBandwidthUsage, rotorShredAssignments, rotorReceivedShreds,
-          rotorReconstructedBlocks, deliveredBlocks, networkMessageQueue, networkMessageBuffer,
-          networkPartitions, networkDroppedMessages, networkDeliveryTime, messages,
-          failureStates, nonceCounter, latencyMetrics, bandwidthMetrics>>
+vars == <<clock, currentSlot, votorView, votorVotes, votorTimeouts, votorGeneratedCerts,
+          votorFinalizedChain, votorState, votorObservedCerts,
+          rotorBlocks, rotorShreds, rotorReceivedShreds, rotorReconstructedBlocks,
+          blockShreds, relayAssignments, reconstructionState, deliveredBlocks,
+          repairRequests, bandwidthUsage, receivedShreds, shredAssignments,
+          reconstructedBlocks, rotorHistory,
+          networkMessageQueue, networkMessageBuffer, networkPartitions,
+          networkDroppedMessages, networkDeliveryTime, messages,
+          finalizedBlocks, finalizedBySlot, failureStates, nonceCounter,
+          latencyMetrics, bandwidthMetrics>>
 
-\* Instance submodules with parameter mappings (after variables are declared)
+\* Instance submodules with proper parameter mappings
 Votor == INSTANCE Votor WITH
-    Stake <- StakeMapping,
-    InitialLeader <- InitialLeader,
-    view <- votorView,
-    votedBlocks <- votorVotedBlocks,
-    generatedCerts <- votorGeneratedCerts,
-    finalizedChain <- votorFinalizedChain,
-    TimeoutDelta <- TimeoutDelta,
-    skipVotes <- votorSkipVotes,
-    timeoutExpiry <- votorTimeoutExpiry,
-    receivedVotes <- votorReceivedVotes,
-    currentTime <- clock
+    Validators <- Validators,
+    ByzantineValidators <- ByzantineValidators,
+    OfflineValidators <- OfflineValidators,
+    MaxView <- MaxView,
+    MaxSlot <- MaxSlot,
+    GST <- GST,
+    Delta <- Delta,
+    votorView <- votorView,
+    votorVotes <- votorVotes,
+    votorTimeouts <- votorTimeouts,
+    votorGeneratedCerts <- votorGeneratedCerts,
+    votorFinalizedChain <- votorFinalizedChain,
+    votorState <- votorState,
+    votorObservedCerts <- votorObservedCerts,
+    clock <- clock
 
 Rotor == INSTANCE Rotor WITH
+    Validators <- Validators,
     Stake <- StakeMapping,
-    MaxRetries <- MaxRetries,
-    blockShreds <- rotorBlockShreds,
-    relayAssignments <- rotorRelayAssignments,
-    reconstructionState <- rotorReconstructionState,
-    deliveredBlocks <- rotorDeliveredBlocks,
-    repairRequests <- rotorRepairRequests,
-    bandwidthUsage <- rotorBandwidthUsage,
-    receivedShreds <- rotorReceivedShreds,
-    shredAssignments <- rotorShredAssignments,
-    reconstructedBlocks <- rotorReconstructedBlocks,
+    ByzantineValidators <- ByzantineValidators,
+    K <- K,
+    N <- N,
+    MaxBlocks <- 100,
+    BandwidthLimit <- BandwidthLimit,
     RetryTimeout <- 10,
-    LowLatencyThreshold <- 100,
+    MaxRetries <- MaxRetries,
     HighLatencyThreshold <- 1000,
-    MaxBufferSize <- 1000,
+    LowLatencyThreshold <- 100,
     LoadBalanceTolerance <- 2,
-    MaxBlocks <- 100
+    MaxBufferSize <- 1000,
+    rotorBlocks <- rotorBlocks,
+    rotorShreds <- rotorShreds,
+    rotorReceivedShreds <- rotorReceivedShreds,
+    rotorReconstructedBlocks <- rotorReconstructedBlocks,
+    blockShreds <- blockShreds,
+    relayAssignments <- relayAssignments,
+    reconstructionState <- reconstructionState,
+    deliveredBlocks <- deliveredBlocks,
+    repairRequests <- repairRequests,
+    bandwidthUsage <- bandwidthUsage,
+    receivedShreds <- receivedShreds,
+    shredAssignments <- shredAssignments,
+    reconstructedBlocks <- reconstructedBlocks,
+    rotorHistory <- rotorHistory,
+    clock <- clock
 
 NW == INSTANCE Network WITH
-    Stake <- StakeMapping,
+    Validators <- Validators,
     messageQueue <- networkMessageQueue,
     messageBuffer <- networkMessageBuffer,
     networkPartitions <- networkPartitions,
@@ -173,39 +176,29 @@ SymPerms ==
 TypeOK ==
     /\ clock \in Nat
     /\ currentSlot \in 1..MaxSlot
-    /\ currentRotor \in Validators
-    /\ votorView \in [Validators -> 1..MaxView]
-    /\ Votor!TypeInvariant  \* From Votor
-    /\ Rotor!TypeInvariant  \* From Rotor
-    /\ NW!NetworkTypeOK   \* From Network
-    /\ votorGeneratedCerts \in [1..MaxView -> SUBSET Types!Certificate]
+    /\ Votor!TypeInvariant  \* From Votor module
+    /\ Rotor!TypeInvariant  \* From Rotor module
     /\ finalizedBlocks \in [1..MaxSlot -> SUBSET Types!Block]
     /\ finalizedBySlot \in [1..MaxSlot -> SUBSET Types!Block]
     /\ failureStates \in [Validators -> {"active", "byzantine", "offline"}]
-    /\ deliveredBlocks \in SUBSET Types!Block  \* Set of delivered blocks
-    /\ messages \in SUBSET Types!NetworkMessage  \* Standardized as set type
+    /\ messages \in SUBSET Types!NetworkMessage
     /\ bandwidthMetrics \in [Validators -> Nat]
+    /\ latencyMetrics \in [1..MaxSlot -> Nat]
+    /\ nonceCounter \in Nat
 
-\* Consistency invariant: deliveredBlocks is derived from Rotor's reconstructedBlocks
-\* deliveredBlocks represents the global view of all blocks that have been successfully
-\* reconstructed by any validator in the network from received shreds
+\* Integration invariants between modules
+VotorRotorIntegration ==
+    \* Blocks available for voting must come from Rotor delivery
+    \A v \in Validators :
+        \A vote \in votorVotes[v] :
+            \E slot \in DOMAIN rotorReconstructedBlocks[v] :
+                \E block \in rotorReconstructedBlocks[v][slot] :
+                    vote.block_hash = block.hash
+
+\* Delivered blocks consistency with reconstruction
 DeliveredBlocksConsistency ==
-    deliveredBlocks = UNION {rotorReconstructedBlocks[v] : v \in Validators}
-
-\* Invariant: All delivered blocks must have been properly reconstructed
-\* Every block in deliveredBlocks must have been reconstructed by at least one validator
-\* This ensures blocks aren't added to deliveredBlocks without going through proper shred reconstruction
-DeliveredBlocksValidity ==
-    \A b \in deliveredBlocks :
-        \E v \in Validators : b \in rotorReconstructedBlocks[v]
-
-\* Invariant: Delivered blocks must correspond to actual block IDs in Rotor
-\* Each delivered block must have a corresponding blockId that was marked as delivered
-\* in at least one validator's rotorDeliveredBlocks set, ensuring proper tracking
-DeliveredBlocksCorrespondence ==
-    \A b \in deliveredBlocks :
-        \E blockId \in DOMAIN rotorBlockShreds :
-            blockId \in rotorDeliveredBlocks[CHOOSE v \in Validators : b \in rotorReconstructedBlocks[v]]
+    deliveredBlocks = UNION {Range(rotorReconstructedBlocks[v]) : v \in Validators}
+    WHERE Range(f) == {f[x] : x \in DOMAIN f}
 
 ----------------------------------------------------------------------------
 (* Initial State *)
@@ -213,40 +206,23 @@ DeliveredBlocksCorrespondence ==
 Init ==
     /\ clock = 0
     /\ currentSlot = 1
-    /\ currentRotor = InitialLeader
-    \* Votor state initialization
-    /\ votorView = [v \in Validators |-> 1]
-    /\ votorVotedBlocks = [v \in Validators |-> [vw \in 1..MaxView |-> {}]]
-    /\ votorFinalizedChain = [v \in Validators |-> <<>>]
-    /\ votorSkipVotes = [v \in Validators |-> [vw \in 1..MaxView |-> {}]]
-    /\ votorTimeoutExpiry = [v \in Validators |-> TimeoutDelta]
-    /\ votorReceivedVotes = [v \in Validators |-> [vw \in 1..MaxView |-> {}]]
-    /\ votorGeneratedCerts = [vw \in 1..MaxView |-> {}]
-    \* Rotor state initialization
-    /\ rotorBlockShreds = [b \in {} |-> {}]  \* Empty initially
-    /\ rotorRelayAssignments = [v \in Validators |-> {}]
-    /\ rotorReconstructionState = [v \in Validators |-> [b \in {} |-> 0]]
-    /\ rotorDeliveredBlocks = {}
-    /\ rotorRepairRequests = [v \in Validators |-> {}]
-    /\ rotorBandwidthUsage = [v \in Validators |-> 0]
-    /\ rotorShredAssignments = [v \in Validators |-> {}]
-    /\ rotorReceivedShreds = [v \in Validators |-> {}]
-    /\ rotorReconstructedBlocks = [v \in Validators |-> {}]
+    \* Initialize using submodule Init predicates
+    /\ Votor!Init
+    /\ Rotor!Init
+    \* Additional state initialization
+    /\ finalizedBlocks = [slot \in 1..MaxSlot |-> {}]
+    /\ finalizedBySlot = [slot \in 1..MaxSlot |-> {}]
+    /\ messages = {}
+    /\ failureStates = [v \in Validators |-> "active"]
+    /\ nonceCounter = 0
+    /\ latencyMetrics = [slot \in 1..MaxSlot |-> 0]
+    /\ bandwidthMetrics = [v \in Validators |-> 0]
     \* Network state initialization
     /\ networkMessageQueue = {}
     /\ networkMessageBuffer = [v \in Validators |-> {}]
     /\ networkPartitions = {}
     /\ networkDroppedMessages = 0
-    /\ networkDeliveryTime = <<>>  \* Empty function
-    \* Additional state
-    /\ finalizedBlocks = [slot \in 1..MaxSlot |-> {}]
-    /\ finalizedBySlot = [slot \in 1..MaxSlot |-> {}]  \* Changed from <<>> to {} for proper type
-    /\ deliveredBlocks = {}  \* Initially no blocks delivered
-    /\ messages = {}
-    /\ failureStates = [v \in Validators |-> "active"]
-    /\ nonceCounter = 0  \* Initialize cryptographic nonce counter
-    /\ latencyMetrics = [slot \in 1..MaxSlot |-> 0]
-    /\ bandwidthMetrics = [v \in Validators |-> 0]
+    /\ networkDeliveryTime = [msg \in {} |-> 0]
 
 ----------------------------------------------------------------------------
 (* Timing Functions *)
@@ -283,22 +259,25 @@ AdvanceClock ==
 
 \* Advance view on timeout (per-validator) with Rotor integration
 AdvanceView(v) ==
+    /\ v \in Validators
     /\ votorView[v] < MaxView
-    /\ clock >= votorTimeoutExpiry[v]  \* Timeout expired for validator v
+    /\ Votor!TimeoutExpired(v, currentSlot)
     /\ \* Check if block delivery failed - if no block delivered for current slot, advance view
-       LET currentDelivered == UNION {rotorReconstructedBlocks[val] : val \in Validators}
+       LET currentDelivered == UNION {Range(rotorReconstructedBlocks[val]) : val \in Validators}
        IN ~(\E b \in currentDelivered : b.slot = currentSlot)
     /\ votorView' = [votorView EXCEPT ![v] = votorView[v] + 1]
-    /\ votorTimeoutExpiry' = [votorTimeoutExpiry EXCEPT ![v] = clock + TimeoutDelta * (2 ^ votorView'[v]) * Utils!Min(2 ^ votorView'[v], 2^10)]  \* Exponential backoff with cap
-    /\ votorSkipVotes' = [votorSkipVotes EXCEPT ![v] = [votorSkipVotes[v] EXCEPT ![votorView'[v]] = {}]]  \* Reset skip votes for new view
-    /\ UNCHANGED <<clock, currentSlot, currentRotor, votorVotedBlocks, votorReceivedVotes,
-                   votorGeneratedCerts, votorFinalizedChain,
-                   finalizedBlocks, finalizedBySlot, rotorBlockShreds, rotorShredAssignments,
-                   rotorReceivedShreds, rotorReconstructedBlocks, rotorRelayAssignments,
-                   rotorReconstructionState, rotorDeliveredBlocks,
-                   rotorRepairRequests, rotorBandwidthUsage, deliveredBlocks, networkMessageQueue,
-                   networkMessageBuffer, networkPartitions, networkDroppedMessages, messages,
-                   latencyMetrics, bandwidthMetrics>>
+    /\ Votor!SetTimeout(v, currentSlot, clock + Types!SlotDuration * (2 ^ votorView'[v]))
+    /\ UNCHANGED <<clock, currentSlot, votorVotes, votorGeneratedCerts, votorFinalizedChain,
+                   votorState, votorObservedCerts, finalizedBlocks, finalizedBySlot,
+                   rotorBlocks, rotorShreds, rotorReceivedShreds, rotorReconstructedBlocks,
+                   blockShreds, relayAssignments, reconstructionState, deliveredBlocks,
+                   repairRequests, bandwidthUsage, receivedShreds, shredAssignments,
+                   reconstructedBlocks, rotorHistory, networkMessageQueue, networkMessageBuffer,
+                   networkPartitions, networkDroppedMessages, networkDeliveryTime, messages,
+                   failureStates, nonceCounter, latencyMetrics, bandwidthMetrics>>
+
+\* Helper function for sequence range
+Range(f) == {f[x] : x \in DOMAIN f}
 
 \* Advance to next slot when current slot is finalized
 AdvanceSlot ==
@@ -322,7 +301,10 @@ GenerateCertificate(block, voteSet) ==
         totalStake == Utils!Sum([v \in Validators |-> Stake[v]])
         fastPathStake == (4 * totalStake) \div 5  \* 80% for fast path
         slowPathStake == (3 * totalStake) \div 5  \* 60% for slow path
-        leader == Types!ComputeLeader(votorView[CHOOSE v \in Validators : TRUE], Validators, StakeMapping)  \* View-based leader
+        \* Use deterministic leader selection based on minimum view
+        minView == CHOOSE view \in {votorView[val] : val \in Validators} :
+                   \A otherView \in {votorView[val] : val \in Validators} : view <= otherView
+        leader == Types!ComputeLeader(minView, Validators, StakeMapping)  \* Deterministic view-based leader
         blockHash == block.hash
     IN
     /\ totalVoteStake >= slowPathStake  \* At least slow path threshold
@@ -344,122 +326,90 @@ GenerateCertificate(block, voteSet) ==
                    networkPartitions, networkDroppedMessages, messages,
                    latencyMetrics, bandwidthMetrics>>
 
-\* Votor consensus actions
+\* Votor consensus actions - delegate to Votor module
 VotorAction ==
-    \/ /\ \E v \in Validators :
-           /\ v = Types!ComputeLeader(votorView[v], Validators, StakeMapping)  \* View-based leader selection
-           /\ Votor!ProposeBlock(v, votorView[v])
-       /\ UNCHANGED <<clock, currentRotor, currentSlot, finalizedBlocks, finalizedBySlot,
-                      rotorBlockShreds, rotorRelayAssignments,
-                      rotorReconstructionState, rotorDeliveredBlocks,
-                      rotorRepairRequests, rotorBandwidthUsage,
-                      rotorReceivedShreds, rotorReconstructedBlocks, rotorShredAssignments,
-                      deliveredBlocks, failureStates,
-                      networkMessageQueue, networkMessageBuffer, networkPartitions,
-                      networkDroppedMessages, networkDeliveryTime, messages,
-                      latencyMetrics, bandwidthMetrics>>
-    \/ /\ \E v \in Validators, slot \in 1..MaxSlot :
-           /\ slot = votorView[v]
-           /\ votorVotedBlocks[v][slot] # {}
-           /\ \E b \in votorVotedBlocks[v][slot] :
-               Votor!CastVote(v, b, slot)
-       /\ UNCHANGED <<clock, currentRotor, currentSlot, finalizedBlocks, finalizedBySlot,
-                      rotorBlockShreds, rotorRelayAssignments,
-                      rotorReconstructionState, rotorDeliveredBlocks,
-                      rotorRepairRequests, rotorBandwidthUsage,
-                      rotorReceivedShreds, rotorReconstructedBlocks, rotorShredAssignments,
-                      deliveredBlocks, failureStates,
-                      networkMessageQueue, networkMessageBuffer, networkPartitions,
-                      networkDroppedMessages, networkDeliveryTime, messages,
-                      latencyMetrics, bandwidthMetrics>>
-    \/ /\ \E v \in Validators : Votor!CollectVotes(v, votorView[v])
-       /\ UNCHANGED <<clock, currentRotor, currentSlot, finalizedBlocks, finalizedBySlot,
-                      rotorBlockShreds, rotorRelayAssignments,
-                      rotorReconstructionState, rotorDeliveredBlocks,
-                      rotorRepairRequests, rotorBandwidthUsage,
-                      rotorReceivedShreds, rotorReconstructedBlocks, rotorShredAssignments,
-                      deliveredBlocks, failureStates,
-                      networkMessageQueue, networkMessageBuffer, networkPartitions,
-                      networkDroppedMessages, networkDeliveryTime, messages,
-                      latencyMetrics, bandwidthMetrics>>
-    \/ /\ \E v \in Validators :
-           Votor!CollectSkipVotes(v, votorView[v])
-       /\ UNCHANGED <<clock, currentRotor, currentSlot, finalizedBlocks, finalizedBySlot,
-                      rotorBlockShreds, rotorRelayAssignments,
-                      rotorReconstructionState, rotorDeliveredBlocks,
-                      rotorRepairRequests, rotorBandwidthUsage,
-                      rotorReceivedShreds, rotorReconstructedBlocks, rotorShredAssignments,
-                      deliveredBlocks, failureStates,
-                      networkMessageQueue, networkMessageBuffer, networkPartitions,
-                      networkDroppedMessages, networkDeliveryTime, messages,
-                      latencyMetrics, bandwidthMetrics>>
-    \/ \E v \in Validators : \E cert \in votorGeneratedCerts[votorView[v]] :
-        /\ cert.type \in {"fast", "slow"}
-        /\ Votor!FinalizeBlock(v, cert)
-        /\ LET blk == CHOOSE b \in UNION {votorVotedBlocks[val][votorView[val]] : val \in Validators} : b.hash = cert.block
-           IN /\ finalizedBlocks' = [finalizedBlocks EXCEPT ![blk.slot] =
-                                     finalizedBlocks[blk.slot] \cup {blk}]
-              /\ finalizedBySlot' = [finalizedBySlot EXCEPT ![blk.slot] = {blk}]
-              /\ latencyMetrics' = [latencyMetrics EXCEPT ![blk.slot] = clock - blk.timestamp]
-        /\ UNCHANGED <<clock, currentSlot, currentRotor, deliveredBlocks,
-                   rotorBlockShreds, rotorRelayAssignments,
-                   rotorReconstructionState, rotorDeliveredBlocks,
-                   rotorRepairRequests, rotorBandwidthUsage,
-                   rotorShredAssignments, rotorReceivedShreds,
-                   rotorReconstructedBlocks, failureStates,
-                   networkMessageQueue, networkMessageBuffer,
-                   networkPartitions, networkDroppedMessages, networkDeliveryTime, messages,
-                   bandwidthMetrics>>
-    \/ /\ \E v \in Validators : Votor!SubmitSkipVote(v, votorView[v])
-       /\ UNCHANGED <<clock, currentRotor, currentSlot, finalizedBlocks, finalizedBySlot,
-                      rotorBlockShreds, rotorRelayAssignments,
-                      rotorReconstructionState, rotorDeliveredBlocks,
-                      rotorRepairRequests, rotorBandwidthUsage,
-                      rotorReceivedShreds, rotorReconstructedBlocks, rotorShredAssignments,
-                      deliveredBlocks, failureStates,
-                      networkMessageQueue, networkMessageBuffer, networkPartitions,
-                      networkDroppedMessages, networkDeliveryTime, messages,
-                      latencyMetrics, bandwidthMetrics>>
+    \/ \E v \in Validators, slot \in 1..MaxSlot, block \in Types!Block :
+        /\ Votor!CastNotarVote(v, slot, block)
+        /\ UNCHANGED <<clock, currentSlot, finalizedBlocks, finalizedBySlot,
+                       rotorBlocks, rotorShreds, rotorReceivedShreds, rotorReconstructedBlocks,
+                       blockShreds, relayAssignments, reconstructionState, deliveredBlocks,
+                       repairRequests, bandwidthUsage, receivedShreds, shredAssignments,
+                       reconstructedBlocks, rotorHistory, networkMessageQueue, networkMessageBuffer,
+                       networkPartitions, networkDroppedMessages, networkDeliveryTime, messages,
+                       failureStates, nonceCounter, latencyMetrics, bandwidthMetrics>>
+    \/ \E v \in Validators, slot \in 1..MaxSlot, reason \in STRING :
+        /\ Votor!CastSkipVote(v, slot, reason)
+        /\ UNCHANGED <<clock, currentSlot, finalizedBlocks, finalizedBySlot,
+                       rotorBlocks, rotorShreds, rotorReceivedShreds, rotorReconstructedBlocks,
+                       blockShreds, relayAssignments, reconstructionState, deliveredBlocks,
+                       repairRequests, bandwidthUsage, receivedShreds, shredAssignments,
+                       reconstructedBlocks, rotorHistory, networkMessageQueue, networkMessageBuffer,
+                       networkPartitions, networkDroppedMessages, networkDeliveryTime, messages,
+                       failureStates, nonceCounter, latencyMetrics, bandwidthMetrics>>
+    \/ \E v \in Validators, slot \in 1..MaxSlot, block \in Types!Block :
+        /\ Votor!CastFinalizationVote(v, slot, block)
+        /\ UNCHANGED <<clock, currentSlot, finalizedBlocks, finalizedBySlot,
+                       rotorBlocks, rotorShreds, rotorReceivedShreds, rotorReconstructedBlocks,
+                       blockShreds, relayAssignments, reconstructionState, deliveredBlocks,
+                       repairRequests, bandwidthUsage, receivedShreds, shredAssignments,
+                       reconstructedBlocks, rotorHistory, networkMessageQueue, networkMessageBuffer,
+                       networkPartitions, networkDroppedMessages, networkDeliveryTime, messages,
+                       failureStates, nonceCounter, latencyMetrics, bandwidthMetrics>>
+    \/ \E v \in Validators, slot \in 1..MaxSlot, block \in Types!Block, cert \in Types!Certificate :
+        /\ Votor!FinalizeBlock(v, slot, block, cert)
+        /\ finalizedBlocks' = [finalizedBlocks EXCEPT ![slot] = finalizedBlocks[slot] \cup {block}]
+        /\ finalizedBySlot' = [finalizedBySlot EXCEPT ![slot] = {block}]
+        /\ latencyMetrics' = [latencyMetrics EXCEPT ![slot] =
+                             IF block.timestamp > 0 THEN clock - block.timestamp ELSE 0]
+        /\ UNCHANGED <<clock, currentSlot, votorView, votorVotes, votorTimeouts,
+                       votorGeneratedCerts, votorFinalizedChain, votorState, votorObservedCerts,
+                       rotorBlocks, rotorShreds, rotorReceivedShreds, rotorReconstructedBlocks,
+                       blockShreds, relayAssignments, reconstructionState, deliveredBlocks,
+                       repairRequests, bandwidthUsage, receivedShreds, shredAssignments,
+                       reconstructedBlocks, rotorHistory, networkMessageQueue, networkMessageBuffer,
+                       networkPartitions, networkDroppedMessages, networkDeliveryTime, messages,
+                       failureStates, nonceCounter, bandwidthMetrics>>
+    \/ Votor!GenerateCertificates
+        /\ UNCHANGED <<clock, currentSlot, finalizedBlocks, finalizedBySlot,
+                       rotorBlocks, rotorShreds, rotorReceivedShreds, rotorReconstructedBlocks,
+                       blockShreds, relayAssignments, reconstructionState, deliveredBlocks,
+                       repairRequests, bandwidthUsage, receivedShreds, shredAssignments,
+                       reconstructedBlocks, rotorHistory, networkMessageQueue, networkMessageBuffer,
+                       networkPartitions, networkDroppedMessages, networkDeliveryTime, messages,
+                       failureStates, nonceCounter, latencyMetrics, bandwidthMetrics>>
 
-\* Rotor propagation actions
+\* Rotor propagation actions - delegate to Rotor module
 RotorAction ==
-    \/ \E leader \in Validators : \E block \in votorVotedBlocks[leader][votorView[leader]] :
-        /\ leader = Types!ComputeLeader(votorView[leader], Validators, StakeMapping)  \* View-based leader
-        /\ Rotor!ShredAndDistribute(leader, block)
-        \* Update global deliveredBlocks to reflect all blocks reconstructed by any validator
-        \* This aggregates the network-wide view of available blocks for consensus
-        /\ deliveredBlocks' = UNION {rotorReconstructedBlocks[v] : v \in Validators}
-        /\ UNCHANGED <<clock, currentRotor, currentSlot, votorView, votorVotedBlocks, votorReceivedVotes,
-                       votorGeneratedCerts, votorFinalizedChain, votorTimeoutExpiry,
-                       votorSkipVotes, finalizedBlocks, finalizedBySlot,
-                       networkMessageQueue, networkMessageBuffer, networkPartitions,
-                       networkDroppedMessages, networkDeliveryTime, messages,
-                       failureStates, latencyMetrics, bandwidthMetrics>>
-    \/ \E v \in Validators, blockId \in DOMAIN rotorBlockShreds :
-        /\ Rotor!RelayShreds(v, blockId)
-        /\ UNCHANGED <<deliveredBlocks, clock, currentRotor, currentSlot, votorView, votorVotedBlocks, votorReceivedVotes,
-                       votorGeneratedCerts, votorFinalizedChain, votorTimeoutExpiry,
-                       votorSkipVotes, finalizedBlocks, finalizedBySlot,
-                       networkMessageQueue, networkMessageBuffer, networkPartitions,
-                       networkDroppedMessages, networkDeliveryTime, messages,
-                       failureStates, latencyMetrics, bandwidthMetrics>>
-    \/ \E v \in Validators, blockId \in DOMAIN rotorBlockShreds :
-        /\ Rotor!AttemptReconstruction(v, blockId)
-        /\ deliveredBlocks' = UNION {rotorReconstructedBlocks[v] : v \in Validators}  \* Derive from reconstructed blocks
-        /\ UNCHANGED <<clock, currentRotor, currentSlot, votorView, votorVotedBlocks, votorReceivedVotes,
-                       votorGeneratedCerts, votorFinalizedChain, votorTimeoutExpiry,
-                       votorSkipVotes, finalizedBlocks, finalizedBySlot,
-                       networkMessageQueue, networkMessageBuffer, networkPartitions,
-                       networkDroppedMessages, networkDeliveryTime, messages,
-                       failureStates, latencyMetrics, bandwidthMetrics>>
-    \/ \E v \in Validators, blockId \in DOMAIN rotorBlockShreds :
-        /\ Rotor!RequestRepair(v, blockId)
-        /\ UNCHANGED <<deliveredBlocks, clock, currentRotor, currentSlot, votorView, votorVotedBlocks, votorReceivedVotes,
-                       votorGeneratedCerts, votorFinalizedChain, votorTimeoutExpiry,
-                       votorSkipVotes, finalizedBlocks, finalizedBySlot,
-                       networkMessageQueue, networkMessageBuffer, networkPartitions,
-                       networkDroppedMessages, networkDeliveryTime, messages,
-                       failureStates, latencyMetrics, bandwidthMetrics>>
+    \/ \E leader \in Validators, slot \in Nat, block \in Types!Block :
+        /\ Rotor!ProposeBlock(leader, slot, block)
+        /\ UNCHANGED <<clock, currentSlot, votorView, votorVotes, votorTimeouts,
+                       votorGeneratedCerts, votorFinalizedChain, votorState, votorObservedCerts,
+                       finalizedBlocks, finalizedBySlot, networkMessageQueue, networkMessageBuffer,
+                       networkPartitions, networkDroppedMessages, networkDeliveryTime, messages,
+                       failureStates, nonceCounter, latencyMetrics, bandwidthMetrics>>
+    \/ \E block \in Types!Block :
+        /\ Rotor!ShredBlock(block)
+        /\ UNCHANGED <<clock, currentSlot, votorView, votorVotes, votorTimeouts,
+                       votorGeneratedCerts, votorFinalizedChain, votorState, votorObservedCerts,
+                       finalizedBlocks, finalizedBySlot, networkMessageQueue, networkMessageBuffer,
+                       networkPartitions, networkDroppedMessages, networkDeliveryTime, messages,
+                       failureStates, nonceCounter, latencyMetrics, bandwidthMetrics>>
+    \/ \E v \in Validators, slot \in Nat, shreds \in SUBSET Types!ErasureCodedPiece :
+        /\ Rotor!ReconstructBlock(v, slot, shreds)
+        /\ UNCHANGED <<clock, currentSlot, votorView, votorVotes, votorTimeouts,
+                       votorGeneratedCerts, votorFinalizedChain, votorState, votorObservedCerts,
+                       finalizedBlocks, finalizedBySlot, networkMessageQueue, networkMessageBuffer,
+                       networkPartitions, networkDroppedMessages, networkDeliveryTime, messages,
+                       failureStates, nonceCounter, latencyMetrics, bandwidthMetrics>>
+    \/ \E leader \in Validators, blockId \in Nat :
+        /\ Rotor!ShredAndDistribute(leader, [hash |-> blockId, slot |-> currentSlot,
+                                            proposer |-> leader, view |-> 0, parent |-> 0,
+                                            data |-> "test", timestamp |-> clock, transactions |-> {}])
+        /\ UNCHANGED <<clock, currentSlot, votorView, votorVotes, votorTimeouts,
+                       votorGeneratedCerts, votorFinalizedChain, votorState, votorObservedCerts,
+                       finalizedBlocks, finalizedBySlot, networkMessageQueue, networkMessageBuffer,
+                       networkPartitions, networkDroppedMessages, networkDeliveryTime, messages,
+                       failureStates, nonceCounter, latencyMetrics, bandwidthMetrics>>
 
 \* Send message through network
 SendMessage(msg) ==
@@ -598,59 +548,41 @@ Next ==
     \/ RotorAction
     \/ NetworkAction
     \/ ByzantineAction
+    \/ Votor!AdvanceClock
+    \/ Rotor!Next
 
-Spec == Init /\ [][Next]_vars /\ WF_vars(AdvanceClock) /\ WF_vars(AdvanceSlot)
+Spec == Init /\ [][Next]_vars /\ WF_vars(AdvanceClock) /\ WF_vars(AdvanceSlot) /\ WF_vars(Votor!Next) /\ WF_vars(Rotor!Next)
 
 ----------------------------------------------------------------------------
 (* Safety Properties *)
 
-\* No conflicting blocks finalized in same slot
-Safety ==
-    \A slot \in 1..MaxSlot :
-        \A b1, b2 \in finalizedBlocks[slot] :
-            b1 = b2  \* At most one block per slot
+\* Import safety properties from Votor module
+Safety == Votor!SafetyInvariant
 
 \* Certificate uniqueness per slot
-CertificateUniqueness ==
-    \A slot \in 1..MaxSlot :
-        \A vw \in 1..MaxView :
-            \A c1, c2 \in votorGeneratedCerts[vw] :
-                /\ c1.slot = slot
-                /\ c2.slot = slot
-                /\ c1.type = c2.type
-                /\ c1.block = c2.block
-                => c1 = c2
+CertificateUniqueness == Votor!ValidCertificateThresholds
 
 \* Chain consistency across honest validators
-ChainConsistency ==
-    \A v1, v2 \in HonestValidators :
-        \A slot \in 1..currentSlot :
-            \* Validators agree on finalized blocks
-            slot \in DOMAIN finalizedBySlot /\ finalizedBySlot[slot] # {} =>
-                (\E b1 \in votorFinalizedChain[v1], b2 \in votorFinalizedChain[v2] :
-                    b1.slot = slot /\ b2.slot = slot => b1 = b2)
+ChainConsistency == Votor!ChainConsistencyInvariant
 
 \* Consistent finalization
 ConsistentFinalization ==
     \A slot \in 1..MaxSlot :
         Cardinality(finalizedBlocks[slot]) <= 1
 
+\* Rotor non-equivocation
+RotorNonEquivocation == Rotor!RotorNonEquivocation
+
 ----------------------------------------------------------------------------
 (* Liveness Properties *)
 
-\* Progress with sufficient honest participation
-Progress ==
-    LET honestStake == Utils!Sum([v \in HonestValidators |-> Stake[v]])
-        totalStake == Utils!Sum([v \in Validators |-> Stake[v]])
-    IN
-    /\ honestStake * 5 >= totalStake * 3  \* >=60% honest
-    /\ clock > GST
-    => <>(\E b \in finalizedBlocks[currentSlot] : TRUE)
+\* Import liveness properties from Votor module
+Progress == Votor!LivenessProperty
 
 \* Fast path completion with high participation
 FastPath ==
-    LET ResponsiveStake == Utils!Sum([v \in (HonestValidators \ OfflineValidators) |-> Stake[v]])
-        totalStake == Utils!Sum([v \in Validators |-> Stake[v]])
+    LET ResponsiveStake == Utils!TotalStake(HonestValidators \ OfflineValidators, StakeMapping)
+        totalStake == Utils!TotalStake(Validators, StakeMapping)
     IN
     /\ ResponsiveStake >= (4 * totalStake) \div 5  \* >=80% responsive
     /\ clock > GST
@@ -658,8 +590,8 @@ FastPath ==
 
 \* Bounded finalization time
 BoundedFinalization ==
-    LET ResponsiveStake == Utils!Sum([v \in (HonestValidators \ OfflineValidators) |-> Stake[v]])
-        totalStake == Utils!Sum([v \in Validators |-> Stake[v]])
+    LET ResponsiveStake == Utils!TotalStake(HonestValidators \ OfflineValidators, StakeMapping)
+        totalStake == Utils!TotalStake(Validators, StakeMapping)
         FinalizationBound == IF ResponsiveStake >= (4 * totalStake) \div 5
                              THEN Delta  \* Fast path bound
                              ELSE 2 * Delta  \* Slow path bound
@@ -668,20 +600,19 @@ BoundedFinalization ==
     => [](clock <= GST + FinalizationBound =>
           \E b \in finalizedBlocks[currentSlot] : TRUE)
 
+\* Block delivery guarantee from Rotor
+BlockDeliveryGuarantee == Rotor!BlockDeliveryGuarantee
+
 ----------------------------------------------------------------------------
 (* Resilience Properties *)
 
-\* Maintain safety under maximum Byzantine faults
-ByzantineResilience ==
-    LET ByzantineStake == Utils!Sum([v \in ByzantineValidators |-> Stake[v]])
-        totalStake == Utils!Sum([v \in Validators |-> Stake[v]])
-    IN
-    ByzantineStake <= totalStake \div 5 => []Safety
+\* Import resilience properties from Votor module
+ByzantineResilience == Votor!ByzantineResilienceProperty
 
 \* Maintain liveness under maximum offline faults
 OfflineResilience ==
-    LET OfflineStake == Utils!Sum([v \in OfflineValidators |-> Stake[v]])
-        totalStake == Utils!Sum([v \in Validators |-> Stake[v]])
+    LET OfflineStake == Utils!TotalStake(OfflineValidators, StakeMapping)
+        totalStake == Utils!TotalStake(Validators, StakeMapping)
     IN
     /\ OfflineStake <= totalStake \div 5
     /\ clock > GST
@@ -695,9 +626,9 @@ PartitionRecovery ==
 
 \* Combined "20+20" resilience
 Combined2020Resilience ==
-    LET ByzantineStake == Utils!Sum([v \in ByzantineValidators |-> Stake[v]])
-        OfflineStake == Utils!Sum([v \in OfflineValidators |-> Stake[v]])
-        totalStake == Utils!Sum([v \in Validators |-> Stake[v]])
+    LET ByzantineStake == Utils!TotalStake(ByzantineValidators, StakeMapping)
+        OfflineStake == Utils!TotalStake(OfflineValidators, StakeMapping)
+        totalStake == Utils!TotalStake(Validators, StakeMapping)
     IN
     /\ ByzantineStake <= totalStake \div 5
     /\ OfflineStake <= totalStake \div 5
@@ -711,20 +642,21 @@ Combined2020Resilience ==
 RotorVotorIntegration ==
     \A slot \in 1..currentSlot :
         \A v \in HonestValidators :
-            \* If a block is proposed for a slot, it should be delivered before timeout
-            (\E b \in votorVotedBlocks[v][votorView[v]] : b.slot = slot) =>
+            \* If a vote exists for a slot, the corresponding block should be available
+            (\E vote \in votorVotes[v] : vote.slot = slot) =>
                 \* Either the block is delivered through Rotor
-                <>(\E d \in deliveredBlocks : d.slot = slot) \/
+                <>(\E s \in DOMAIN rotorReconstructedBlocks[v] :
+                    \E b \in rotorReconstructedBlocks[v][s] : b.slot = slot) \/
                 \* Or the validator times out and advances view
-                <>(clock >= votorTimeoutExpiry[v] /\ votorView'[v] = votorView[v] + 1) \/
+                <>(Votor!TimeoutExpired(v, slot)) \/
                 \* Or the block gets finalized through consensus
                 <>(\E cert \in votorGeneratedCerts[votorView[v]] : cert.slot = slot)
 
 \* Bandwidth utilization is stake-proportional
 StakeProportionalBandwidth ==
     \A v \in HonestValidators :
-        LET ExpectedBandwidth == (Stake[v] * BandwidthPerValidator * Cardinality(Validators)) \div Utils!Sum([val \in Validators |-> Stake[val]])
-        IN rotorBandwidthUsage[v] \in (ExpectedBandwidth * 9) \div 10..(ExpectedBandwidth * 11) \div 10
+        LET ExpectedBandwidth == (StakeMapping[v] * BandwidthLimit * Cardinality(Validators)) \div Utils!TotalStake(Validators, StakeMapping)
+        IN bandwidthUsage[v] \in (ExpectedBandwidth * 9) \div 10..(ExpectedBandwidth * 11) \div 10
 
 ----------------------------------------------------------------------------
 (* Model Checking Constraints *)
@@ -733,17 +665,26 @@ StakeProportionalBandwidth ==
 StateConstraint ==
     /\ clock <= 100
     /\ currentSlot <= 10
-    /\ Cardinality(messages) <= 1000  \* messages is correctly used as a set
-    /\ Cardinality(deliveredBlocks) <= 50  \* Limit delivered blocks for model checking
-    /\ \A v \in Validators : votorView[v] <= 5  \* Limit view progression
+    /\ Cardinality(messages) <= 1000
+    /\ Cardinality(deliveredBlocks) <= 50
+    /\ \A v \in Validators : votorView[v] <= 5
+    /\ \A v \in Validators : bandwidthUsage[v] <= BandwidthLimit * 2
 
 \* Action constraint for model checking
 ActionConstraint ==
     /\ currentSlot' <= MaxSlot
     /\ \A v \in Validators : votorView'[v] <= MaxView
-    /\ Cardinality(votorGeneratedCerts') <= MaxView * 3
+    /\ Cardinality(UNION {votorGeneratedCerts[vw] : vw \in 1..MaxView}) <= MaxView * 3
 
 \* Symmetry reduction using SymPerms defined above
 Symmetry == SymPerms
+
+\* Fairness conditions to ensure progress
+Fairness ==
+    /\ WF_vars(AdvanceClock)
+    /\ WF_vars(AdvanceSlot)
+    /\ \A v \in HonestValidators : WF_vars(AdvanceView(v))
+    /\ WF_vars(VotorAction)
+    /\ WF_vars(RotorAction)
 
 ============================================================================

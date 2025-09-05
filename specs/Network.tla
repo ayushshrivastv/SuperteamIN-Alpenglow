@@ -62,7 +62,15 @@ NetworkPartition == [
 
 \* Compute actual delay based on network conditions
 ComputeActualDelay(sender, recipient, congestionLevel) ==
-    Delta  \* Simplified for now
+    LET baseDelay == Delta
+        congestionPenalty == IF congestionLevel > 50 THEN congestionLevel \div 10 ELSE 0
+        \* Deterministic variance based on validator pair
+        senderIndex == CHOOSE i \in 1..Cardinality(Validators) : 
+                      SetToSeq(Validators)[i] = sender
+        recipientIndex == CHOOSE j \in 1..Cardinality(Validators) :
+                         SetToSeq(Validators)[j] = recipient
+        variance == ((senderIndex + recipientIndex) % 5)  \* 0-4 variance
+    IN baseDelay + congestionPenalty + variance
 
 \* Check if two validators are in different partitions
 InPartition(sender, recipient, partitions) ==
@@ -73,14 +81,22 @@ InPartition(sender, recipient, partitions) ==
 
 \* Available bandwidth at current time
 AvailableBandwidth(time) ==
-    NetworkCapacity  \* Simplified
+    LET utilizationFactor == (congestionLevel * MaxMessageSize) \div NetworkCapacity
+        timeVariance == (time % 10)  \* Deterministic time-based variance
+        availableCapacity == NetworkCapacity - (congestionLevel * MaxMessageSize) - timeVariance
+    IN IF availableCapacity > 0 THEN availableCapacity ELSE MaxMessageSize
 
 \* Check if two validators can communicate
 CanCommunicate(sender, recipient) ==
     ~InPartition(sender, recipient, networkPartitions)
 
-\* Generate new message ID (using unique name to avoid conflict)
-GenerateNetworkMessageId(time, validator) == time * 10000 + validator
+\* Generate new message ID with collision avoidance
+GenerateNetworkMessageId(time, validator) == 
+    LET validatorIndex == CHOOSE i \in 1..Cardinality(Validators) : 
+                         SetToSeq(Validators)[i] = validator
+        \* Include more entropy to avoid collisions
+        entropy == (time % 1000) * 1000000 + validatorIndex * 1000 + (congestionLevel % 1000)
+    IN entropy
 
 \* Get congestion level
 congestionLevel == Cardinality(messageQueue)
@@ -96,17 +112,25 @@ messages == messageQueue
 \* Message delay before and after GST
 MessageDelay(time, sender, recipient) ==
     IF time < GST
-    THEN CHOOSE d \in Nat : TRUE  \* Unbounded delay before GST
+    THEN LET \* Deterministic delay based on sender, recipient, and time
+             senderIndex == CHOOSE i \in 1..Cardinality(Validators) : 
+                           SetToSeq(Validators)[i] = sender
+             recipientIndex == CHOOSE j \in 1..Cardinality(Validators) :
+                              SetToSeq(Validators)[j] = recipient
+             delayFactor == ((senderIndex + recipientIndex + time) % 100) + 1
+         IN delayFactor  \* Bounded delay 1-100 before GST
     ELSE LET actualDelay == ComputeActualDelay(sender, recipient, congestionLevel)
          IN IF Delta < actualDelay THEN Delta ELSE actualDelay
 
-\* Check if message can be delivered
+\* Check if message can be delivered with error handling
 CanDeliver(msg, time) ==
     /\ msg \in messages
     /\ msg.id \in DOMAIN deliveryTime
     /\ time >= deliveryTime[msg.id]
+    /\ msg.sender \in Validators  \* Validate sender exists
+    /\ msg.recipient \in Validators \cup {"broadcast"}  \* Validate recipient
     /\ ~InPartition(msg.sender, msg.recipient, networkPartitions)
-    /\ MaxMessageSize <= AvailableBandwidth(time)  \* Use constant instead of msg.size
+    /\ MaxMessageSize <= AvailableBandwidth(time)
 
 \* Eventual delivery guarantee after GST
 EventualDelivery(msg, time) ==
@@ -179,31 +203,35 @@ BroadcastMessage(sender, content, time) ==
           /\ deliveryTime' = deliveryTime @@ newDeliveryTimesFunc
     /\ UNCHANGED <<messageBuffer, networkPartitions, droppedMessages, clock>>
 
-\* Deliver message respecting network conditions (properly exported)
+\* Deliver message respecting network conditions with error handling
 DeliverMessage ==
     \E message \in messageQueue :
         /\ message.id \in DOMAIN deliveryTime
         /\ deliveryTime[message.id] <= clock  \* Time to deliver
-        /\ CanCommunicate(message.sender, message.recipient)
+        /\ message.sender \in Validators  \* Validate sender
         /\ message.recipient \in Validators  \* Can't deliver to "broadcast"
+        /\ message.recipient \in DOMAIN messageBuffer  \* Validate buffer exists
+        /\ CanCommunicate(message.sender, message.recipient)
         /\ \* GST-based delivery guarantee
            (clock >= GST /\ message.sender \notin ByzantineValidators) =>
                deliveryTime[message.id] <= message.timestamp + Delta
         /\ messageBuffer' = [messageBuffer EXCEPT ![message.recipient] = @ \cup {message}]
-        /\ messageQueue' = messageQueue \ {message}
-        /\ deliveryTime' = [m \in DOMAIN deliveryTime \ {message.id} |-> deliveryTime[m]]
+        /\ messageQueue' = messageQueue \\ {message}
+        /\ deliveryTime' = [m \in DOMAIN deliveryTime \\ {message.id} |-> deliveryTime[m]]
         /\ UNCHANGED <<networkPartitions, droppedMessages, clock>>
 
-\* Drop a message (before GST) - properly exported
+\* Drop a message (before GST) with validation
 DropMessage ==
     \E msg \in messageQueue :
         /\ clock < GST  \* Can only drop before GST
+        /\ msg.id \in DOMAIN deliveryTime  \* Validate delivery time exists
+        /\ msg.sender \in Validators  \* Validate sender
         /\ \* Allow dropping of Byzantine messages or under adversarial control
            \/ msg.sender \in ByzantineValidators
            \/ msg.recipient \in ByzantineValidators
            \/ ~msg.signature.valid
-        /\ messageQueue' = messageQueue \ {msg}
-        /\ deliveryTime' = [m \in DOMAIN deliveryTime \ {msg.id} |-> deliveryTime[m]]
+        /\ messageQueue' = messageQueue \\ {msg}
+        /\ deliveryTime' = [m \in DOMAIN deliveryTime \\ {msg.id} |-> deliveryTime[m]]
         /\ droppedMessages' = droppedMessages + 1
         /\ UNCHANGED <<messageBuffer, networkPartitions, clock>>
 
@@ -264,12 +292,14 @@ AdversarialDelay ==
         /\ deliveryTime' = [deliveryTime EXCEPT ![msg.id] = clock + newDelay]
         /\ UNCHANGED <<messageQueue, messageBuffer, networkPartitions, droppedMessages, clock>>
 
-\* Adversarial message reordering
+\* Adversarial message reordering with validation
 AdversarialReorder ==
     \E msg1, msg2 \in messageQueue :
         /\ clock < GST
+        /\ msg1 # msg2  \* Ensure different messages
         /\ msg1.id \in DOMAIN deliveryTime /\ msg2.id \in DOMAIN deliveryTime
         /\ deliveryTime[msg1.id] < deliveryTime[msg2.id]
+        /\ msg1.sender \in Validators /\ msg2.sender \in Validators  \* Validate senders
         /\ \/ msg1.sender \in ByzantineValidators
            \/ msg2.sender \in ByzantineValidators
         /\ LET temp == deliveryTime[msg1.id]
@@ -438,6 +468,147 @@ FairScheduling ==
         /\ clock >= GST
         /\ m1.id \in DOMAIN deliveryTime /\ m2.id \in DOMAIN deliveryTime
         => deliveryTime[m1.id] <= deliveryTime[m2.id] + Delta
+
+----------------------------------------------------------------------------
+\* Network Partition Recovery Proofs
+
+\* Partition recovery theorem: All partitions heal after GST + timeout
+PartitionRecoveryTheorem ==
+    \A p \in networkPartitions :
+        clock >= GST + PartitionTimeout => p.healed
+
+\* Network connectivity restoration after partition healing
+ConnectivityRestoration ==
+    \A p \in networkPartitions :
+        p.healed => \A v1, v2 \in Validators :
+            CanCommunicate(v1, v2)
+
+\* Message delivery resumption after partition recovery
+DeliveryResumption ==
+    \A p \in networkPartitions :
+        p.healed => \A msg \in messageQueue :
+            /\ msg.sender \notin ByzantineValidators
+            /\ msg.recipient \in Validators \ ByzantineValidators
+            /\ msg.timestamp >= p.startTime
+            => <>(msg \notin messageQueue)
+
+\* Partition isolation bounds: No partition isolates majority honest stake
+PartitionIsolationBounds ==
+    \A p \in networkPartitions :
+        ~p.healed =>
+            LET honestInP1 == p.partition1 \ ByzantineValidators
+                honestInP2 == p.partition2 \ ByzantineValidators
+                totalHonest == Validators \ ByzantineValidators
+                p1HonestStake == Utils!TotalStake(honestInP1, Stake)
+                p2HonestStake == Utils!TotalStake(honestInP2, Stake)
+                totalHonestStake == Utils!TotalStake(totalHonest, Stake)
+            IN /\ p1HonestStake <= totalHonestStake \div 2
+               /\ p2HonestStake <= totalHonestStake \div 2
+
+\* Network partition recovery progress
+PartitionRecoveryProgress ==
+    \A p \in networkPartitions :
+        /\ ~p.healed
+        /\ clock >= p.startTime + PartitionTimeout
+        => <>HealPartition
+
+\* Consensus progress after partition recovery
+ConsensusProgressAfterRecovery ==
+    \A p \in networkPartitions :
+        p.healed /\ clock >= GST =>
+            <>\E slot \in Nat : \* Eventually consensus progresses
+                \E block \in {msg \in messageQueue : msg.type = "block"} :
+                    block.payload > p.startTime  \* New block after partition
+
+----------------------------------------------------------------------------
+\* Performance Bounds Validation
+
+\* Throughput bounds: Messages processed within capacity limits
+ThroughputBounds ==
+    LET messagesPerSecond == Cardinality({msg \in messageQueue : msg.timestamp = clock})
+        maxThroughput == NetworkCapacity \div MaxMessageSize
+    IN messagesPerSecond <= maxThroughput
+
+\* Latency bounds: Message delivery within expected time after GST
+LatencyBounds ==
+    \A msg \in messageQueue :
+        /\ clock >= GST
+        /\ msg.timestamp >= GST
+        /\ msg.sender \notin ByzantineValidators
+        /\ msg.id \in DOMAIN deliveryTime
+        => deliveryTime[msg.id] <= msg.timestamp + Delta
+
+\* Memory bounds: Buffer usage stays within limits
+MemoryBounds ==
+    /\ Cardinality(messageQueue) <= NetworkCapacity \div MaxMessageSize
+    /\ \A v \in Validators : Cardinality(messageBuffer[v]) <= MaxBufferSize
+    /\ Cardinality(DOMAIN deliveryTime) <= 10000  \* Reasonable delivery time map size
+
+\* Network utilization efficiency
+NetworkUtilization ==
+    LET totalMessages == Cardinality(messageQueue)
+        utilizedCapacity == totalMessages * MaxMessageSize
+        efficiency == IF NetworkCapacity = 0 THEN 0
+                     ELSE (utilizedCapacity * 100) \div NetworkCapacity
+    IN efficiency <= 80  \* Keep utilization under 80% for performance
+
+\* Congestion control effectiveness with performance bounds
+CongestionControlBounds ==
+    LET congestionLevel == Cardinality(messageQueue)
+        criticalThreshold == (NetworkCapacity \div MaxMessageSize) * 3 \div 4  \* 75% capacity
+    IN congestionLevel > criticalThreshold =>
+        <>(Cardinality(messageQueue) < criticalThreshold \div 2)
+
+\* Message processing rate bounds
+ProcessingRateBounds ==
+    LET processedThisSecond == Cardinality({msg \in messageQueue :
+                                          msg.id \in DOMAIN deliveryTime /\
+                                          deliveryTime[msg.id] = clock})
+        maxProcessingRate == NetworkCapacity \div (MaxMessageSize * 2)  \* Conservative bound
+    IN processedThisSecond <= maxProcessingRate
+
+\* End-to-end performance bounds
+EndToEndPerformanceBounds ==
+    \A msg \in messageQueue :
+        /\ msg.sender \notin ByzantineValidators
+        /\ msg.recipient \in Validators \ ByzantineValidators
+        /\ clock >= GST
+        => LET deliveryLatency == IF msg.id \in DOMAIN deliveryTime
+                                 THEN deliveryTime[msg.id] - msg.timestamp
+                                 ELSE 0
+           IN deliveryLatency <= 2 * Delta  \* Conservative bound
+
+\* Performance degradation bounds under adversarial conditions
+PerformanceDegradationBounds ==
+    LET byzantineMessageRatio == Cardinality({msg \in messageQueue : msg.sender \in ByzantineValidators}) * 100 \div
+                                (IF Cardinality(messageQueue) = 0 THEN 1 ELSE Cardinality(messageQueue))
+        performanceDegradation == byzantineMessageRatio \div 2  \* Simplified metric
+    IN performanceDegradation <= 50  \* Performance shouldn't degrade more than 50%
+
+----------------------------------------------------------------------------
+\* Advanced Network Properties
+
+\* Network resilience under combined failures
+NetworkResilience ==
+    /\ Cardinality(ByzantineValidators) <= Cardinality(Validators) \div 3  \* < 1/3 Byzantine
+    /\ \A p \in networkPartitions :
+        ~p.healed => \E partition \in {p.partition1, p.partition2} :
+            Cardinality(partition \ ByzantineValidators) > Cardinality(Validators) \div 3
+
+\* Adaptive performance under network stress
+AdaptivePerformance ==
+    LET networkStress == Cardinality(messageQueue) + Cardinality(networkPartitions) * 10
+        adaptiveThreshold == NetworkCapacity \div (MaxMessageSize * 4)
+    IN networkStress > adaptiveThreshold =>
+        <>\E newThreshold \in Nat : newThreshold < adaptiveThreshold
+
+\* Quality of service guarantees
+QualityOfService ==
+    \A msg \in messageQueue :
+        /\ msg.sender \notin ByzantineValidators
+        /\ msg.type = "block"  \* High priority messages
+        /\ clock >= GST
+        => msg.id \in DOMAIN deliveryTime /\ deliveryTime[msg.id] <= msg.timestamp + Delta
 
 ----------------------------------------------------------------------------
 \* Performance Properties

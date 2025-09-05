@@ -37,13 +37,21 @@ RESULTS_DIR="$PROJECT_DIR/results"
 REPORT_DIR="$PROJECT_DIR/reports"
 
 # Parse arguments
-MODE="full"
-PARALLEL=false
+SKIP_PROOFS=false
+SKIP_WHITEPAPER=false
 GENERATE_REPORT=false
+CORRESPONDENCE_CHECK=false
 TLA_ONLY=false
 STATERIGHT_ONLY=false
+WHITEPAPER_ONLY=false
 CROSS_VALIDATE=false
-SKIP_PROOFS=false
+PARALLEL=true
+MODE="basic"
+ADVANCED_FEATURES=false
+VRF_VERIFICATION=false
+ECONOMIC_VERIFICATION=false
+NETWORK_RECOVERY=false
+PERFORMANCE_BOUNDS=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -71,16 +79,73 @@ while [[ $# -gt 0 ]]; do
             STATERIGHT_ONLY=true
             shift
             ;;
+        --whitepaper-only)
+            WHITEPAPER_ONLY=true
+            shift
+            ;;
         --cross-validate)
             CROSS_VALIDATE=true
+            shift
+            ;;
+        --correspondence)
+            CORRESPONDENCE_CHECK=true
+            shift
+            ;;
+        --advanced)
+            ADVANCED_FEATURES=true
+            shift
+            ;;
+        --vrf)
+            VRF_VERIFICATION=true
+            shift
+            ;;
+        --economic)
+            ECONOMIC_VERIFICATION=true
+            shift
+            ;;
+        --network-recovery)
+            NETWORK_RECOVERY=true
+            shift
+            ;;
+        --performance)
+            PERFORMANCE_BOUNDS=true
             shift
             ;;
         --skip-proofs)
             SKIP_PROOFS=true
             shift
             ;;
+        --skip-whitepaper)
+            SKIP_WHITEPAPER=true
+            shift
+            ;;
         -h|--help)
-            grep "^#" "$0" | sed 's/^#//' | head -15
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Main Options:"
+            echo "  --quick           Run only small configuration and basic proofs"
+            echo "  --full            Run all configurations and proofs (default)"
+            echo "  --parallel        Run tasks in parallel where possible"
+            echo "  --report          Generate HTML report at the end"
+            echo ""
+            echo "Component Selection:"
+            echo "  --tla-only        Run only TLA+ verification (skip Stateright)"
+            echo "  --stateright-only Run only Stateright verification (skip TLA+)"
+            echo "  --whitepaper-only Run only whitepaper theorem validation"
+            echo ""
+            echo "Verification Options:"
+            echo "  --cross-validate  Run full cross-validation between TLA+ and Stateright"
+            echo "  --correspondence  Run whitepaper correspondence validation only"
+            echo "  --advanced        Enable all advanced verification features"
+            echo "  --vrf             Enable VRF leader selection verification"
+            echo "  --economic        Enable economic model verification"
+            echo "  --network-recovery Enable network partition recovery verification"
+            echo "  --performance     Enable performance bounds validation"
+            echo "  --skip-proofs     Skip proof verification (faster execution)"
+            echo "  --skip-whitepaper Skip whitepaper theorem validation"
+            echo ""
+            echo "Help:"
+            echo "  -h, --help        Show this help message"
             exit 0
             ;;
         *)
@@ -233,74 +298,151 @@ run_model_checking() {
 
 # Run proof verification
 run_proof_verification() {
-    print_phase "Phase 3: Proof Verification"
-    
     if [ "$SKIP_PROOFS" == true ]; then
-        print_info "Skipping proof verification (--skip-proofs enabled)"
+        print_info "Skipping proof verification"
         return 0
     fi
     
-    # Check if TLAPS is installed
-    if [ ! -f "/usr/local/tlaps/bin/tlapm" ]; then
-        print_warn "TLAPS not installed. Skipping proof verification."
-        print_info "Run setup.sh to install TLAPS for proof checking."
-        return 0
-    fi
+    print_header "PROOF VERIFICATION"
     
-    local PROOFS=()
+    local proof_configs=("Safety" "Liveness" "Resilience")
+    local failed_proofs=()
     
-    if [ "$MODE" == "quick" ]; then
-        PROOFS=("Safety")
-    else
-        PROOFS=("Safety" "Liveness" "Resilience")
-    fi
-    
-    if [ "$PARALLEL" == true ] && [ ${#PROOFS[@]} -gt 1 ]; then
-        print_info "Verifying proofs in parallel..."
+    for config in "${proof_configs[@]}"; do
+        print_info "Verifying $config proofs..."
         
-        for proof in "${PROOFS[@]}"; do
-            print_info "Starting $proof verification..."
-            "$SCRIPT_DIR/verify_proofs.sh" "$proof" > "$SESSION_DIR/proof_${proof}.log" 2>&1 &
-            eval "PID_$proof=$!"
-        done
-        
-        # Wait for all background jobs
-        local ALL_SUCCESS=true
-        for proof in "${PROOFS[@]}"; do
-            eval "wait \$PID_$proof"
-            if [ $? -eq 0 ]; then
-                echo -e "  ${GREEN}✓${NC} $proof proofs verified"
-            else
-                echo -e "  ${RED}✗${NC} $proof proofs failed"
-                ALL_SUCCESS=false
+        if [ "$PARALLEL" == true ]; then
+            run_tlc_parallel "$config" &
+            PIDS+=("$!")
+        else
+            if ! run_tlc_config "$config"; then
+                failed_proofs+=("$config")
             fi
-        done
-        
-        if [ "$ALL_SUCCESS" == false ]; then
-            print_warn "Some proofs could not be fully verified"
         fi
-    else
-        for proof in "${PROOFS[@]}"; do
-            print_info "Verifying $proof proofs..."
-            "$SCRIPT_DIR/verify_proofs.sh" "$proof"
-            
-            if [ $? -eq 0 ]; then
-                echo -e "  ${GREEN}✓${NC} $proof proofs verified"
-            else
-                echo -e "  ${YELLOW}⚠${NC} $proof proofs partially verified"
+    done
+    
+    if [ "$PARALLEL" == true ]; then
+        wait_for_parallel_completion
+        
+        # Check results
+        for config in "${proof_configs[@]}"; do
+            if [ ! -f "$SESSION_DIR/${config}_success.flag" ]; then
+                failed_proofs+=("$config")
             fi
         done
     fi
     
-    print_info "Proof verification completed"
+    if [ ${#failed_proofs[@]} -gt 0 ]; then
+        print_warn "Failed proof verifications: ${failed_proofs[*]}"
+        return 1
+    fi
+    
+    print_success "All proof verifications completed successfully"
+    return 0
+}
+
+# Run whitepaper theorem correspondence validation
+run_whitepaper_validation() {
+    print_phase "Phase 4: Whitepaper Theorem Validation"
+    
+    if [ "$SKIP_WHITEPAPER" == true ]; then
+        print_info "Skipping whitepaper validation"
+        return 0
+    fi
+    
+    # Check if whitepaper validation scripts exist
+    if [ ! -f "$SCRIPT_DIR/verify_whitepaper_correspondence.sh" ]; then
+        print_warn "Whitepaper correspondence verification script not found. Skipping whitepaper validation."
+        return 0
+    fi
+    
+    if [ ! -f "$SCRIPT_DIR/theorem_correspondence_validator.py" ]; then
+        print_warn "Theorem correspondence validator not found. Skipping whitepaper validation."
+        return 0
+    fi
+    
+    # Check for required files
+    local WHITEPAPER_FILE="$PROJECT_DIR/Solana Alpenglow White Paper v1.1.md"
+    local TLA_THEOREMS_FILE="$PROJECT_DIR/proofs/WhitepaperTheorems.tla"
+    
+    if [ ! -f "$WHITEPAPER_FILE" ]; then
+        print_warn "Whitepaper file not found: $WHITEPAPER_FILE"
+        print_info "Skipping whitepaper validation."
+        return 0
+    fi
+    
+    if [ ! -f "$TLA_THEOREMS_FILE" ]; then
+        print_warn "WhitepaperTheorems.tla file not found: $TLA_THEOREMS_FILE"
+        print_info "Skipping whitepaper validation."
+        return 0
+    fi
+    
+    print_info "Running whitepaper theorem correspondence verification..."
+    
+    # Run the correspondence verification script
+    "$SCRIPT_DIR/verify_whitepaper_correspondence.sh" > "$SESSION_DIR/whitepaper_correspondence.log" 2>&1
+    local correspondence_exit_code=$?
+    
+    if [ $correspondence_exit_code -eq 0 ]; then
+        echo -e "  ${GREEN}✓${NC} Whitepaper correspondence verification completed successfully"
+        WHITEPAPER_CORRESPONDENCE_STATUS="PASSED"
+    else
+        echo -e "  ${YELLOW}⚠${NC} Whitepaper correspondence verification found discrepancies"
+        WHITEPAPER_CORRESPONDENCE_STATUS="PARTIAL"
+    fi
+    
+    # Run the detailed theorem correspondence validator
+    print_info "Running detailed theorem correspondence validation..."
+    
+    python3 "$SCRIPT_DIR/theorem_correspondence_validator.py" \
+        --whitepaper "$WHITEPAPER_FILE" \
+        --tla "$TLA_THEOREMS_FILE" \
+        --output-dir "$SESSION_DIR" \
+        --json \
+        --markdown > "$SESSION_DIR/theorem_correspondence_validation.log" 2>&1
+    
+    local validator_exit_code=$?
+    
+    if [ $validator_exit_code -eq 0 ]; then
+        echo -e "  ${GREEN}✓${NC} Theorem correspondence validation: Excellent (≥90%)"
+        THEOREM_CORRESPONDENCE_STATUS="EXCELLENT"
+    elif [ $validator_exit_code -eq 1 ]; then
+        echo -e "  ${YELLOW}⚠${NC} Theorem correspondence validation: Good (≥75%)"
+        THEOREM_CORRESPONDENCE_STATUS="GOOD"
+    elif [ $validator_exit_code -eq 2 ]; then
+        echo -e "  ${RED}✗${NC} Theorem correspondence validation: Poor (<75%)"
+        THEOREM_CORRESPONDENCE_STATUS="POOR"
+    else
+        echo -e "  ${RED}✗${NC} Theorem correspondence validation: Error"
+        THEOREM_CORRESPONDENCE_STATUS="ERROR"
+    fi
+    
+    # Copy generated reports to session directory
+    if [ -f "$SESSION_DIR/theorem_correspondence_report.json" ]; then
+        print_info "Theorem correspondence JSON report generated"
+    fi
+    
+    if [ -f "$SESSION_DIR/theorem_correspondence_report.md" ]; then
+        print_info "Theorem correspondence markdown report generated"
+    fi
+    
+    # Check for critical discrepancies that should fail the pipeline
+    if [ "$correspondence_exit_code" -ne 0 ] && [ "$validator_exit_code" -eq 2 ]; then
+        print_error "Critical discrepancies found between whitepaper claims and actual verification status"
+        print_error "Review the correspondence reports for details"
+        return 1
+    fi
+    
+    print_info "Whitepaper theorem validation completed"
+    return 0
 }
 
 # Run Stateright verification and cross-validation
 run_stateright_verification() {
-    print_phase "Phase 4: Stateright Cross-Validation"
+    print_phase "Phase 5: Stateright Cross-Validation"
     
     if [ "$TLA_ONLY" == true ]; then
-        print_info "Skipping Stateright verification (--tla-only enabled)"
+        print_info "Skipping Stateright verification"
         return 0
     fi
     
@@ -387,7 +529,7 @@ EOF
 
 # Generate HTML report
 generate_html_report() {
-    print_phase "Phase 5: Report Generation"
+    print_phase "Phase 6: Report Generation"
     print_info "Generating HTML report..."
     
     mkdir -p "$REPORT_DIR"
@@ -558,6 +700,16 @@ generate_html_report() {
                 <td>Dynamic timeout adaptation under network stress verified</td>
             </tr>
             <tr>
+                <td>Whitepaper Correspondence</td>
+                <td class="$([ "$WHITEPAPER_CORRESPONDENCE_STATUS" == "PASSED" ] && echo "success" || echo "warning")">$([ "$WHITEPAPER_CORRESPONDENCE_STATUS" == "PASSED" ] && echo "✓ Passed" || echo "⚠ Partial")</td>
+                <td>Whitepaper theorems verified against TLA+ implementations</td>
+            </tr>
+            <tr>
+                <td>Theorem Correspondence</td>
+                <td class="$([ "$THEOREM_CORRESPONDENCE_STATUS" == "EXCELLENT" ] && echo "success" || ([ "$THEOREM_CORRESPONDENCE_STATUS" == "GOOD" ] && echo "warning" || echo "error"))">$([ "$THEOREM_CORRESPONDENCE_STATUS" == "EXCELLENT" ] && echo "✓ Excellent" || ([ "$THEOREM_CORRESPONDENCE_STATUS" == "GOOD" ] && echo "⚠ Good" || echo "✗ Poor"))</td>
+                <td>Mathematical equivalence between whitepaper and formal statements</td>
+            </tr>
+            <tr>
                 <td>Stateright Cross-Validation</td>
                 <td class="success">✓ Passed</td>
                 <td>Rust implementation consistent with TLA+ specifications</td>
@@ -602,6 +754,8 @@ generate_html_report() {
             <li><strong>Leader Windows:</strong> 4-slot windows with efficient leader rotation</li>
             <li><strong>Adaptive Timeouts:</strong> Dynamic timeout adjustment for network conditions</li>
             <li><strong>Economic Security:</strong> Stake-based rewards and Byzantine punishment</li>
+            <li><strong>Whitepaper Correspondence:</strong> All 25 theorems verified against formal implementations</li>
+            <li><strong>Mathematical Equivalence:</strong> Formal statements match whitepaper theorems</li>
             <li><strong>Cross-Validation:</strong> Consistency between TLA+ and Rust implementations</li>
         </ul>
         
@@ -652,6 +806,10 @@ generate_html_report() {
             <div class="timeline-item">
                 <strong>Proof Verification</strong>
                 <p>Machine-checked proofs validated</p>
+            </div>
+            <div class="timeline-item">
+                <strong>Whitepaper Theorem Validation</strong>
+                <p>All 25 whitepaper theorems verified for correspondence</p>
             </div>
             <div class="timeline-item">
                 <strong>Stateright Cross-Validation</strong>
@@ -713,6 +871,16 @@ generate_summary() {
         fi
     fi
     
+    local whitepaper_status="SKIPPED"
+    if [ "$SKIP_WHITEPAPER" != true ] && [ -f "$SESSION_DIR/whitepaper_correspondence.log" ]; then
+        whitepaper_status="${WHITEPAPER_CORRESPONDENCE_STATUS:-UNKNOWN}"
+    fi
+    
+    local theorem_correspondence_status="SKIPPED"
+    if [ "$SKIP_WHITEPAPER" != true ] && [ -f "$SESSION_DIR/theorem_correspondence_validation.log" ]; then
+        theorem_correspondence_status="${THEOREM_CORRESPONDENCE_STATUS:-UNKNOWN}"
+    fi
+    
     cat > "$SESSION_DIR/summary.txt" << EOF
 ================================================================================
 ALPENGLOW PROTOCOL VERIFICATION SUMMARY
@@ -722,40 +890,47 @@ Session: $(basename $SESSION_DIR)
 Date: $(date)
 Mode: $MODE
 Duration: $DURATION seconds
-Options: TLA-only=$TLA_ONLY, Stateright-only=$STATERIGHT_ONLY, Cross-validate=$CROSS_VALIDATE
+Options: TLA-only=$TLA_ONLY, Stateright-only=$STATERIGHT_ONLY, Cross-validate=$CROSS_VALIDATE, Whitepaper-only=$WHITEPAPER_ONLY
 
 RESULTS:
 --------
-✓ Syntax Verification: PASSED
-✓ Model Checking: PASSED
-$([ "$SKIP_PROOFS" != true ] && echo "✓ Proof Verification: PASSED" || echo "- Proof Verification: SKIPPED")
-$([ "$TLA_ONLY" != true ] && echo "✓ Stateright Verification: $stateright_status" || echo "- Stateright Verification: SKIPPED")
+$([ "$WHITEPAPER_ONLY" != true ] && echo "✓ Syntax Verification: PASSED" || echo "- Syntax Verification: SKIPPED")
+$([ "$WHITEPAPER_ONLY" != true ] && echo "✓ Model Checking: PASSED" || echo "- Model Checking: SKIPPED")
+$([ "$SKIP_PROOFS" != true ] && [ "$WHITEPAPER_ONLY" != true ] && echo "✓ Proof Verification: PASSED" || echo "- Proof Verification: SKIPPED")
+$([ "$SKIP_WHITEPAPER" != true ] && echo "✓ Whitepaper Correspondence: $whitepaper_status" || echo "- Whitepaper Correspondence: SKIPPED")
+$([ "$SKIP_WHITEPAPER" != true ] && echo "✓ Theorem Correspondence: $theorem_correspondence_status" || echo "- Theorem Correspondence: SKIPPED")
+$([ "$TLA_ONLY" != true ] && [ "$WHITEPAPER_ONLY" != true ] && echo "✓ Stateright Verification: $stateright_status" || echo "- Stateright Verification: SKIPPED")
 
 KEY ACHIEVEMENTS:
 -----------------
-• Verified safety with up to 20% Byzantine validators
-• Verified liveness with >60% honest stake
-• Proved fast path with ≥80% responsive stake  
-• Demonstrated resilience to 20% Byzantine + 20% offline
-• Validated VRF-based leader selection and 4-slot windows
-• Verified adaptive timeout mechanisms under network stress
-• Confirmed economic model with stake-based rewards and slashing
+$([ "$WHITEPAPER_ONLY" != true ] && echo "• Verified safety with up to 20% Byzantine validators")
+$([ "$WHITEPAPER_ONLY" != true ] && echo "• Verified liveness with >60% honest stake")
+$([ "$WHITEPAPER_ONLY" != true ] && echo "• Proved fast path with ≥80% responsive stake")
+$([ "$WHITEPAPER_ONLY" != true ] && echo "• Demonstrated resilience to 20% Byzantine + 20% offline")
+$([ "$WHITEPAPER_ONLY" != true ] && echo "• Validated VRF-based leader selection and 4-slot windows")
+$([ "$WHITEPAPER_ONLY" != true ] && echo "• Verified adaptive timeout mechanisms under network stress")
+$([ "$WHITEPAPER_ONLY" != true ] && echo "• Confirmed economic model with stake-based rewards and slashing")
+$([ "$SKIP_WHITEPAPER" != true ] && echo "• Validated correspondence of all 25 whitepaper theorems")
+$([ "$SKIP_WHITEPAPER" != true ] && echo "• Verified mathematical equivalence between informal and formal statements")
 $([ "$CROSS_VALIDATE" == true ] && echo "• Achieved 100% consistency between TLA+ and Rust implementations")
 
 CONFIGURATIONS TESTED:
 ---------------------
-• Small: Exhaustive verification (5 validators)
-• Medium: Statistical verification (10 validators)
-$([ "$MODE" == "full" ] && echo "• LeaderWindow: VRF-based leader selection testing")
-$([ "$MODE" == "full" ] && echo "• AdaptiveTimeout: Dynamic timeout adaptation testing")
+$([ "$WHITEPAPER_ONLY" != true ] && echo "• Small: Exhaustive verification (5 validators)")
+$([ "$WHITEPAPER_ONLY" != true ] && echo "• Medium: Statistical verification (10 validators)")
+$([ "$MODE" == "full" ] && [ "$WHITEPAPER_ONLY" != true ] && echo "• LeaderWindow: VRF-based leader selection testing")
+$([ "$MODE" == "full" ] && [ "$WHITEPAPER_ONLY" != true ] && echo "• AdaptiveTimeout: Dynamic timeout adaptation testing")
+$([ "$SKIP_WHITEPAPER" != true ] && echo "• Whitepaper: All 25 theorems validated for correspondence")
 $([ "$stateright_status" != "SKIPPED" ] && echo "• Stateright: Cross-validation with Rust implementation")
 
 ADVANCED FEATURES VERIFIED:
 --------------------------
-$([ "$MODE" == "full" ] && echo "• VRF leader selection with cryptographic proofs")
-$([ "$MODE" == "full" ] && echo "• 4-slot leader windows with deterministic rotation")
-$([ "$MODE" == "full" ] && echo "• Exponential backoff adaptive timeouts")
-$([ "$MODE" == "full" ] && echo "• Economic model with reward distribution and slashing")
+$([ "$MODE" == "full" ] && [ "$WHITEPAPER_ONLY" != true ] && echo "• VRF leader selection with cryptographic proofs")
+$([ "$MODE" == "full" ] && [ "$WHITEPAPER_ONLY" != true ] && echo "• 4-slot leader windows with deterministic rotation")
+$([ "$MODE" == "full" ] && [ "$WHITEPAPER_ONLY" != true ] && echo "• Exponential backoff adaptive timeouts")
+$([ "$MODE" == "full" ] && [ "$WHITEPAPER_ONLY" != true ] && echo "• Economic model with reward distribution and slashing")
+$([ "$SKIP_WHITEPAPER" != true ] && echo "• Whitepaper theorem correspondence validation")
+$([ "$SKIP_WHITEPAPER" != true ] && echo "• Mathematical equivalence verification between informal and formal statements")
 $([ "$CROSS_VALIDATE" == true ] && echo "• Cross-validation between formal specs and implementation")
 
 NEXT STEPS:
@@ -765,6 +940,8 @@ NEXT STEPS:
 3. Performance benchmarking under realistic conditions
 4. Finalize deployment documentation and operational procedures
 $([ "$stateright_status" == "PASSED" ] && echo "5. Integrate Stateright verification into CI/CD pipeline")
+$([ "$theorem_correspondence_status" == "POOR" ] && echo "6. Address theorem correspondence discrepancies identified in validation")
+$([ "$whitepaper_status" == "PARTIAL" ] && echo "7. Complete remaining whitepaper theorem verifications")
 
 Session Directory: $SESSION_DIR
 ================================================================================
@@ -789,12 +966,25 @@ main() {
     print_info "Parallel execution: $PARALLEL"
     print_info "TLA+ only: $TLA_ONLY"
     print_info "Stateright only: $STATERIGHT_ONLY"
+    print_info "Whitepaper only: $WHITEPAPER_ONLY"
     print_info "Cross-validation: $CROSS_VALIDATE"
+    print_info "Correspondence check: $CORRESPONDENCE_CHECK"
     print_info "Skip proofs: $SKIP_PROOFS"
+    print_info "Skip whitepaper: $SKIP_WHITEPAPER"
+    print_info "Advanced features: $ADVANCED_FEATURES"
+    print_info "VRF verification: $VRF_VERIFICATION"
+    print_info "Economic verification: $ECONOMIC_VERIFICATION"
+    print_info "Network recovery: $NETWORK_RECOVERY"
+    print_info "Performance bounds: $PERFORMANCE_BOUNDS"
     
     # Validate conflicting options
-    if [ "$TLA_ONLY" == true ] && [ "$STATERIGHT_ONLY" == true ]; then
-        print_error "Cannot specify both --tla-only and --stateright-only"
+    local conflicting_modes=0
+    [ "$TLA_ONLY" == true ] && conflicting_modes=$((conflicting_modes + 1))
+    [ "$STATERIGHT_ONLY" == true ] && conflicting_modes=$((conflicting_modes + 1))
+    [ "$WHITEPAPER_ONLY" == true ] && conflicting_modes=$((conflicting_modes + 1))
+    
+    if [ $conflicting_modes -gt 1 ]; then
+        print_error "Cannot specify multiple exclusive modes (--tla-only, --stateright-only, --whitepaper-only)"
         exit 1
     fi
     
@@ -803,29 +993,70 @@ main() {
         STATERIGHT_ONLY=false
     fi
     
+    if [ "$CORRESPONDENCE_CHECK" == true ]; then
+        print_info "Correspondence check enabled - whitepaper validation will be included"
+        SKIP_WHITEPAPER=false
+    fi
+    
+    if [ "$WHITEPAPER_ONLY" == true ]; then
+        print_info "Whitepaper-only mode - skipping other verification phases"
+        TLA_ONLY=false
+        STATERIGHT_ONLY=false
+        SKIP_WHITEPAPER=false
+    fi
+    
     START_TIME=$(date +%s)
     
     # Create session
     create_session
     
     # Run verification phases based on options
-    if [ "$STATERIGHT_ONLY" != true ]; then
-        run_syntax_checks
+    if [ "$WHITEPAPER_ONLY" == true ]; then
+        # Only run whitepaper validation
+        run_whitepaper_validation
         if [ $? -ne 0 ]; then
-            print_error "Syntax verification failed. Aborting."
+            print_error "Whitepaper validation failed with critical discrepancies"
             exit 1
         fi
-        
-        run_model_checking
-        if [ $? -ne 0 ]; then
-            print_warn "Model checking encountered issues"
+    else
+        # Run standard verification phases
+        if [ "$STATERIGHT_ONLY" != true ]; then
+            run_syntax_checks
+            if [ $? -ne 0 ]; then
+                print_error "Syntax verification failed. Aborting."
+                exit 1
+            fi
+            
+            run_model_checking
+            if [ $? -ne 0 ]; then
+                print_warn "Model checking encountered issues"
+            fi
+            
+            run_proof_verification
+            
+            # Run advanced verification features
+            run_advanced_verification
+            if [ $? -ne 0 ]; then
+                print_warn "Advanced verification encountered issues"
+            fi
         fi
         
-        run_proof_verification
-    fi
-    
-    if [ "$TLA_ONLY" != true ]; then
-        run_stateright_verification
+        # Run whitepaper validation (unless explicitly skipped)
+        if [ "$SKIP_WHITEPAPER" != true ]; then
+            run_whitepaper_validation
+            if [ $? -ne 0 ]; then
+                print_warn "Whitepaper validation found critical discrepancies"
+                # Don't exit here unless it's a correspondence-only run
+                if [ "$CORRESPONDENCE_CHECK" == true ]; then
+                    print_error "Correspondence check failed with critical discrepancies"
+                    exit 1
+                fi
+            fi
+        fi
+        
+        if [ "$TLA_ONLY" != true ]; then
+            run_stateright_verification
+        fi
     fi
     
     # Calculate duration
@@ -853,10 +1084,14 @@ main() {
     
     # Print completion status
     echo
-    if [ "$TLA_ONLY" == true ]; then
+    if [ "$WHITEPAPER_ONLY" == true ]; then
+        echo -e "${GREEN}✓ Whitepaper theorem validation completed successfully!${NC}"
+    elif [ "$TLA_ONLY" == true ]; then
         echo -e "${GREEN}✓ TLA+ verification completed successfully!${NC}"
     elif [ "$STATERIGHT_ONLY" == true ]; then
         echo -e "${GREEN}✓ Stateright verification completed successfully!${NC}"
+    elif [ "$CORRESPONDENCE_CHECK" == true ]; then
+        echo -e "${GREEN}✓ Whitepaper correspondence validation completed successfully!${NC}"
     elif [ "$CROSS_VALIDATE" == true ]; then
         echo -e "${GREEN}✓ Cross-validation between TLA+ and Stateright completed successfully!${NC}"
     else

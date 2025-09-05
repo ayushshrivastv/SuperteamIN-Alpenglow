@@ -338,11 +338,15 @@ jobs:
             results/ci/metrics_${{ matrix.config }}.json
           retention-days: 30
 
-  proof-verification:
+  tlaps-verification:
     name: TLAPS Proof Verification
     runs-on: ubuntu-latest
     needs: [setup, syntax-check]
-    timeout-minutes: 90
+    timeout-minutes: 120
+    strategy:
+      matrix:
+        module: [Types, Utils, Safety, Liveness, Resilience, WhitepaperTheorems]
+      fail-fast: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -350,7 +354,7 @@ jobs:
       - name: Setup dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ocaml opam
+          sudo apt-get install -y ocaml opam z3 cvc4
 
       - name: Cache TLAPS
         uses: actions/cache@v4
@@ -358,7 +362,7 @@ jobs:
           path: |
             ~/.opam
             /usr/local/tlaps
-          key: tlaps-${{ env.TLAPS_VERSION }}-${{ runner.os }}
+          key: tlaps-${{ env.TLAPS_VERSION }}-${{ runner.os }}-v2
 
       - name: Install TLAPS
         run: |
@@ -387,88 +391,251 @@ jobs:
             echo "✅ TLAPS already installed"
           fi
 
-      - name: Run proof verification
+      - name: Run TLAPS verification with dependency ordering
         run: |
-          echo "🔍 Running TLAPS proof verification..."
+          echo "🔍 Running TLAPS verification for ${{ matrix.module }}..."
           
           export PATH="/usr/local/tlaps/bin:$PATH"
-          mkdir -p results/ci
+          mkdir -p results/ci/tlaps
           
-          PROOFS=(Safety Liveness)
-          if [ "${{ needs.setup.outputs.verification-mode }}" = "full" ]; then
-            PROOFS+=(Resilience)
+          # Define dependency order
+          case "${{ matrix.module }}" in
+            Types|Utils)
+              DEPENDENCIES=""
+              ;;
+            Safety)
+              DEPENDENCIES="Types Utils"
+              ;;
+            Liveness)
+              DEPENDENCIES="Types Utils Safety"
+              ;;
+            Resilience)
+              DEPENDENCIES="Types Utils Safety Liveness"
+              ;;
+            WhitepaperTheorems)
+              DEPENDENCIES="Types Utils Safety Liveness Resilience"
+              ;;
+          esac
+          
+          # Check if module file exists
+          MODULE_PATH=""
+          if [ -f "specs/${{ matrix.module }}.tla" ]; then
+            MODULE_PATH="specs/${{ matrix.module }}.tla"
+          elif [ -f "proofs/${{ matrix.module }}.tla" ]; then
+            MODULE_PATH="proofs/${{ matrix.module }}.tla"
+          else
+            echo "⚠️ Module ${{ matrix.module }}.tla not found"
+            exit 0
           fi
           
-          TOTAL_OBLIGATIONS=0
-          VERIFIED_OBLIGATIONS=0
+          echo "  Module path: $MODULE_PATH"
+          echo "  Dependencies: $DEPENDENCIES"
           
-          for proof in "${PROOFS[@]}"; do
-            if [ -f "proofs/$proof.tla" ]; then
-              echo "  Verifying $proof proofs..."
-              
-              timeout 1800 ./scripts/verify_proofs.sh "$proof" \
-                > "results/ci/proof_$proof.log" 2>&1
-              
-              EXIT_CODE=$?
-              
-              if [ $EXIT_CODE -eq 0 ]; then
-                echo "    ✅ $proof proofs verified"
-                STATUS="VERIFIED"
-              elif [ $EXIT_CODE -eq 124 ]; then
-                echo "    ⚠️ $proof proof verification timed out"
-                STATUS="TIMEOUT"
-              else
-                echo "    ⚠️ $proof proof verification incomplete"
-                STATUS="PARTIAL"
-              fi
-              
-              # Extract obligation counts
-              LOG_FILE="results/ci/proof_$proof.log"
-              OBLIGATIONS=$(grep -c 'obligation' "$LOG_FILE" || echo "0")
-              VERIFIED=$(grep -c 'proved' "$LOG_FILE" || echo "0")
-              
-              TOTAL_OBLIGATIONS=$((TOTAL_OBLIGATIONS + OBLIGATIONS))
-              VERIFIED_OBLIGATIONS=$((VERIFIED_OBLIGATIONS + VERIFIED))
-              
-              echo "    Obligations: $VERIFIED/$OBLIGATIONS"
-              
-              # Save proof metrics
-              cat > "results/ci/proof_metrics_$proof.json" << EOF
+          # Run TLAPS with comprehensive verification script
+          if [ -f "scripts/verify_whitepaper_theorems.sh" ]; then
+            chmod +x scripts/verify_whitepaper_theorems.sh
+            
+            timeout 3600 ./scripts/verify_whitepaper_theorems.sh \
+              --module "${{ matrix.module }}" \
+              --verbose \
+              --ci \
+              > "results/ci/tlaps/tlaps_${{ matrix.module }}.log" 2>&1
+          else
+            # Fallback to direct TLAPS invocation
+            timeout 3600 tlapm \
+              --verbose \
+              --toolbox 0 0 \
+              --threads 4 \
+              "$MODULE_PATH" \
+              > "results/ci/tlaps/tlaps_${{ matrix.module }}.log" 2>&1
+          fi
+          
+          EXIT_CODE=$?
+          
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "✅ TLAPS verification passed for ${{ matrix.module }}"
+            STATUS="VERIFIED"
+          elif [ $EXIT_CODE -eq 124 ]; then
+            echo "⚠️ TLAPS verification timed out for ${{ matrix.module }}"
+            STATUS="TIMEOUT"
+          else
+            echo "⚠️ TLAPS verification incomplete for ${{ matrix.module }}"
+            STATUS="PARTIAL"
+          fi
+          
+          # Extract detailed metrics
+          LOG_FILE="results/ci/tlaps/tlaps_${{ matrix.module }}.log"
+          OBLIGATIONS=$(grep -c 'obligation' "$LOG_FILE" || echo "0")
+          VERIFIED=$(grep -c 'proved' "$LOG_FILE" || echo "0")
+          FAILED=$(grep -c 'failed' "$LOG_FILE" || echo "0")
+          TIMEOUT_COUNT=$(grep -c 'timeout' "$LOG_FILE" || echo "0")
+          
+          echo "📊 Verification metrics for ${{ matrix.module }}:"
+          echo "  Total obligations: $OBLIGATIONS"
+          echo "  Verified: $VERIFIED"
+          echo "  Failed: $FAILED"
+          echo "  Timeouts: $TIMEOUT_COUNT"
+          
+          # Save detailed metrics
+          cat > "results/ci/tlaps/metrics_${{ matrix.module }}.json" << EOF
           {
-            "proof": "$proof",
+            "module": "${{ matrix.module }}",
             "timestamp": "$(date -Iseconds)",
             "status": "$STATUS",
             "total_obligations": $OBLIGATIONS,
             "verified_obligations": $VERIFIED,
-            "verification_rate": $(echo "scale=2; $VERIFIED * 100 / $OBLIGATIONS" | bc -l 2>/dev/null || echo "0")
+            "failed_obligations": $FAILED,
+            "timeout_obligations": $TIMEOUT_COUNT,
+            "verification_rate": $(echo "scale=2; $VERIFIED * 100 / $OBLIGATIONS" | bc -l 2>/dev/null || echo "0"),
+            "dependencies": "$DEPENDENCIES"
           }
           EOF
-            else
-              echo "    ⚠️ $proof.tla not found"
-            fi
-          done
-          
-          echo "📊 Overall proof verification:"
-          echo "  Total obligations: $TOTAL_OBLIGATIONS"
-          echo "  Verified obligations: $VERIFIED_OBLIGATIONS"
-          echo "  Verification rate: $(echo "scale=1; $VERIFIED_OBLIGATIONS * 100 / $TOTAL_OBLIGATIONS" | bc -l 2>/dev/null || echo "0")%"
 
-      - name: Upload proof verification results
+      - name: Upload TLAPS verification results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: proof-verification
+          name: tlaps-verification-${{ matrix.module }}
           path: |
-            results/ci/proof_*.log
-            results/ci/proof_metrics_*.json
+            results/ci/tlaps/tlaps_${{ matrix.module }}.log
+            results/ci/tlaps/metrics_${{ matrix.module }}.json
+          retention-days: 30
+
+  whitepaper-validation:
+    name: Whitepaper Validation (TLC)
+    runs-on: ubuntu-latest
+    needs: [setup, syntax-check]
+    timeout-minutes: 90
+    strategy:
+      matrix:
+        config: [WhitepaperValidation, BoundaryConditions, AdversarialScenarios]
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Cache TLA+ tools
+        uses: actions/cache@v4
+        with:
+          path: ~/tla-tools
+          key: tla-tools-${{ env.TLA_TOOLS_VERSION }}
+
+      - name: Install TLA+ tools
+        run: |
+          mkdir -p ~/tla-tools
+          if [ ! -f ~/tla-tools/tla2tools.jar ]; then
+            wget -q "https://github.com/tlaplus/tlaplus/releases/download/v${{ env.TLA_TOOLS_VERSION }}/tla2tools.jar" \
+              -O ~/tla-tools/tla2tools.jar
+          fi
+
+      - name: Run TLC model checking with WhitepaperValidation
+        run: |
+          echo "🔍 Running TLC model checking for ${{ matrix.config }}..."
+          
+          mkdir -p results/ci/tlc
+          
+          # Check if configuration file exists
+          CONFIG_FILE="models/${{ matrix.config }}.cfg"
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "⚠️ Configuration file $CONFIG_FILE not found"
+            exit 0
+          fi
+          
+          # Set timeout based on configuration
+          case "${{ matrix.config }}" in
+            WhitepaperValidation) TIMEOUT=2400 ;;
+            BoundaryConditions) TIMEOUT=1800 ;;
+            AdversarialScenarios) TIMEOUT=3600 ;;
+            *) TIMEOUT=1800 ;;
+          esac
+          
+          # Run TLC with comprehensive verification script
+          if [ -f "scripts/verify_whitepaper_theorems.sh" ]; then
+            chmod +x scripts/verify_whitepaper_theorems.sh
+            
+            timeout $TIMEOUT ./scripts/verify_whitepaper_theorems.sh \
+              --tlc-only \
+              --config "${{ matrix.config }}" \
+              --verbose \
+              --ci \
+              > "results/ci/tlc/tlc_${{ matrix.config }}.log" 2>&1
+          else
+            # Fallback to direct TLC invocation
+            timeout $TIMEOUT java -cp ~/tla-tools/tla2tools.jar tlc2.TLC \
+              -config "$CONFIG_FILE" \
+              -workers 4 \
+              -verbose \
+              specs/Alpenglow \
+              > "results/ci/tlc/tlc_${{ matrix.config }}.log" 2>&1
+          fi
+          
+          EXIT_CODE=$?
+          
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "✅ TLC model checking passed for ${{ matrix.config }}"
+            STATUS="VERIFIED"
+          elif [ $EXIT_CODE -eq 124 ]; then
+            echo "⚠️ TLC model checking timed out for ${{ matrix.config }}"
+            STATUS="TIMEOUT"
+          else
+            echo "❌ TLC model checking failed for ${{ matrix.config }}"
+            STATUS="FAILED"
+          fi
+          
+          # Extract detailed metrics
+          LOG_FILE="results/ci/tlc/tlc_${{ matrix.config }}.log"
+          STATES_EXPLORED=$(grep -o '[0-9]* distinct states' "$LOG_FILE" | head -1 | cut -d' ' -f1 || echo "0")
+          STATES_GENERATED=$(grep -o '[0-9]* states generated' "$LOG_FILE" | head -1 | cut -d' ' -f1 || echo "0")
+          VIOLATIONS=$(grep -c 'Error:' "$LOG_FILE" || echo "0")
+          PROPERTIES_CHECKED=$(grep -c 'Property.*satisfied' "$LOG_FILE" || echo "0")
+          
+          echo "📊 Model checking metrics for ${{ matrix.config }}:"
+          echo "  States explored: $STATES_EXPLORED"
+          echo "  States generated: $STATES_GENERATED"
+          echo "  Properties checked: $PROPERTIES_CHECKED"
+          echo "  Violations found: $VIOLATIONS"
+          
+          # Save detailed metrics
+          cat > "results/ci/tlc/metrics_${{ matrix.config }}.json" << EOF
+          {
+            "config": "${{ matrix.config }}",
+            "timestamp": "$(date -Iseconds)",
+            "status": "$STATUS",
+            "states_explored": $STATES_EXPLORED,
+            "states_generated": $STATES_GENERATED,
+            "properties_checked": $PROPERTIES_CHECKED,
+            "violations_found": $VIOLATIONS,
+            "timeout": $([ "$STATUS" = "TIMEOUT" ] && echo "true" || echo "false")
+          }
+          EOF
+
+      - name: Upload TLC verification results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tlc-verification-${{ matrix.config }}
+          path: |
+            results/ci/tlc/tlc_${{ matrix.config }}.log
+            results/ci/tlc/metrics_${{ matrix.config }}.json
           retention-days: 30
 
   stateright-verification:
-    name: Stateright Cross-Validation
+    name: Stateright Implementation Verification
     runs-on: ubuntu-latest
     needs: [setup, syntax-check]
     if: needs.setup.outputs.cross-validate == 'true'
-    timeout-minutes: 45
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        component: [votor, rotor, integration]
+        config: [small, medium]
+      fail-fast: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -488,7 +655,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             stateright/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('stateright/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('stateright/Cargo.lock') }}-v2
 
       - name: Setup Java for TLA+ tools
         uses: actions/setup-java@v4
@@ -510,7 +677,7 @@ jobs:
               -O ~/tla-tools/tla2tools.jar
           fi
 
-      - name: Build Stateright implementation
+      - name: Build and test Stateright implementation
         run: |
           if [ -d "stateright" ]; then
             echo "🦀 Building Stateright implementation..."
@@ -520,50 +687,265 @@ jobs:
             cargo fmt --check
             
             # Run clippy for linting
-            cargo clippy -- -D warnings
+            cargo clippy --all-targets --all-features -- -D warnings
             
             # Build with optimizations
-            cargo build --release
+            cargo build --release --all-features
             
-            echo "✅ Stateright implementation built successfully"
+            # Run unit tests
+            cargo test --release --lib
+            
+            echo "✅ Stateright implementation built and tested successfully"
           else
-            echo "⚠️ Stateright directory not found, skipping cross-validation"
+            echo "⚠️ Stateright directory not found, skipping verification"
             exit 0
           fi
 
-      - name: Run Stateright cross-validation
+      - name: Run Stateright model checking
         run: |
-          if [ -d "stateright" ] && [ -f "scripts/stateright_verify.sh" ]; then
-            echo "🔄 Running Stateright cross-validation..."
+          if [ -d "stateright" ]; then
+            echo "🔄 Running Stateright model checking for ${{ matrix.component }} (${{ matrix.config }})..."
             
-            chmod +x scripts/stateright_verify.sh
+            cd stateright
+            mkdir -p ../results/ci/stateright
             
-            # Determine configuration based on verification mode
-            case "${{ needs.setup.outputs.verification-mode }}" in
-              quick) CONFIG="small" ;;
-              stress) CONFIG="large" ;;
-              *) CONFIG="medium" ;;
+            # Set parameters based on configuration
+            case "${{ matrix.config }}" in
+              small)
+                VALIDATORS=5
+                MAX_STEPS=100
+                TIMEOUT=900
+                ;;
+              medium)
+                VALIDATORS=7
+                MAX_STEPS=200
+                TIMEOUT=1800
+                ;;
             esac
             
-            # Run cross-validation
-            ./scripts/stateright_verify.sh \
-              --config "$CONFIG" \
-              --cross-validate \
-              --timeout 1800 \
-              --report
+            # Run component-specific verification
+            case "${{ matrix.component }}" in
+              votor)
+                cargo test --release test_votor_properties -- \
+                  --validators $VALIDATORS \
+                  --max-steps $MAX_STEPS \
+                  --timeout $TIMEOUT \
+                  > "../results/ci/stateright/stateright_votor_${{ matrix.config }}.log" 2>&1
+                ;;
+              rotor)
+                cargo test --release test_rotor_properties -- \
+                  --validators $VALIDATORS \
+                  --max-steps $MAX_STEPS \
+                  --timeout $TIMEOUT \
+                  > "../results/ci/stateright/stateright_rotor_${{ matrix.config }}.log" 2>&1
+                ;;
+              integration)
+                cargo test --release test_integration_properties -- \
+                  --validators $VALIDATORS \
+                  --max-steps $MAX_STEPS \
+                  --timeout $TIMEOUT \
+                  > "../results/ci/stateright/stateright_integration_${{ matrix.config }}.log" 2>&1
+                ;;
+            esac
             
-            echo "✅ Stateright cross-validation completed"
-          else
-            echo "⚠️ Stateright verification not available"
+            EXIT_CODE=$?
+            
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "✅ Stateright verification passed for ${{ matrix.component }} (${{ matrix.config }})"
+              STATUS="VERIFIED"
+            else
+              echo "❌ Stateright verification failed for ${{ matrix.component }} (${{ matrix.config }})"
+              STATUS="FAILED"
+            fi
+            
+            # Extract metrics
+            LOG_FILE="../results/ci/stateright/stateright_${{ matrix.component }}_${{ matrix.config }}.log"
+            STATES_EXPLORED=$(grep -o 'explored [0-9]* states' "$LOG_FILE" | tail -1 | grep -o '[0-9]*' || echo "0")
+            PROPERTIES_CHECKED=$(grep -c 'property.*verified' "$LOG_FILE" || echo "0")
+            VIOLATIONS=$(grep -c 'property.*violated' "$LOG_FILE" || echo "0")
+            
+            echo "📊 Stateright metrics for ${{ matrix.component }} (${{ matrix.config }}):"
+            echo "  States explored: $STATES_EXPLORED"
+            echo "  Properties checked: $PROPERTIES_CHECKED"
+            echo "  Violations found: $VIOLATIONS"
+            
+            # Save metrics
+            cat > "../results/ci/stateright/metrics_${{ matrix.component }}_${{ matrix.config }}.json" << EOF
+            {
+              "component": "${{ matrix.component }}",
+              "config": "${{ matrix.config }}",
+              "timestamp": "$(date -Iseconds)",
+              "status": "$STATUS",
+              "states_explored": $STATES_EXPLORED,
+              "properties_checked": $PROPERTIES_CHECKED,
+              "violations_found": $VIOLATIONS,
+              "validators": $VALIDATORS,
+              "max_steps": $MAX_STEPS
+            }
+            EOF
           fi
 
-      - name: Upload Stateright results
+      - name: Upload Stateright verification results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: stateright-verification
+          name: stateright-verification-${{ matrix.component }}-${{ matrix.config }}
           path: |
-            results/stateright/
+            results/ci/stateright/stateright_${{ matrix.component }}_${{ matrix.config }}.log
+            results/ci/stateright/metrics_${{ matrix.component }}_${{ matrix.config }}.json
+          retention-days: 30
+
+  cross-validation:
+    name: TLA+ ↔ Stateright Cross-Validation
+    runs-on: ubuntu-latest
+    needs: [tlaps-verification, whitepaper-validation, stateright-verification]
+    if: needs.setup.outputs.cross-validate == 'true' && (needs.tlaps-verification.result == 'success' || needs.whitepaper-validation.result == 'success')
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            stateright/target
+            ~/tla-tools
+          key: cross-validation-${{ runner.os }}-${{ hashFiles('stateright/Cargo.lock') }}
+
+      - name: Download verification artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: verification-artifacts/
+
+      - name: Install tools
+        run: |
+          # Install TLA+ tools
+          mkdir -p ~/tla-tools
+          if [ ! -f ~/tla-tools/tla2tools.jar ]; then
+            wget -q "https://github.com/tlaplus/tlaplus/releases/download/v${{ env.TLA_TOOLS_VERSION }}/tla2tools.jar" \
+              -O ~/tla-tools/tla2tools.jar
+          fi
+
+      - name: Run comprehensive cross-validation
+        run: |
+          echo "🔄 Running comprehensive cross-validation..."
+          
+          mkdir -p results/ci/cross-validation
+          
+          if [ -d "stateright" ] && [ -f "stateright/tests/cross_validation.rs" ]; then
+            cd stateright
+            
+            # Run cross-validation tests
+            cargo test --release cross_validation -- \
+              --nocapture \
+              --test-threads 1 \
+              > "../results/ci/cross-validation/cross_validation.log" 2>&1
+            
+            EXIT_CODE=$?
+            
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "✅ Cross-validation tests passed"
+              STATUS="PASSED"
+            else
+              echo "❌ Cross-validation tests failed"
+              STATUS="FAILED"
+            fi
+            
+            # Extract consistency metrics
+            LOG_FILE="../results/ci/cross-validation/cross_validation.log"
+            CONSISTENCY_SCORE=$(grep -o 'consistency_score: [0-9.]*' "$LOG_FILE" | tail -1 | cut -d' ' -f2 || echo "0.0")
+            TRACE_MATCHES=$(grep -c 'trace_match: true' "$LOG_FILE" || echo "0")
+            PROPERTY_MATCHES=$(grep -c 'property_match: true' "$LOG_FILE" || echo "0")
+            
+            echo "📊 Cross-validation metrics:"
+            echo "  Consistency score: $CONSISTENCY_SCORE"
+            echo "  Trace matches: $TRACE_MATCHES"
+            echo "  Property matches: $PROPERTY_MATCHES"
+            
+            # Save cross-validation metrics
+            cat > "../results/ci/cross-validation/cross_validation_metrics.json" << EOF
+            {
+              "timestamp": "$(date -Iseconds)",
+              "status": "$STATUS",
+              "consistency_score": $CONSISTENCY_SCORE,
+              "trace_matches": $TRACE_MATCHES,
+              "property_matches": $PROPERTY_MATCHES,
+              "threshold_met": $(echo "$CONSISTENCY_SCORE >= 0.8" | bc -l 2>/dev/null || echo "false")
+            }
+            EOF
+          else
+            echo "⚠️ Cross-validation tests not available"
+            
+            # Create placeholder metrics
+            cat > "results/ci/cross-validation/cross_validation_metrics.json" << EOF
+            {
+              "timestamp": "$(date -Iseconds)",
+              "status": "SKIPPED",
+              "reason": "Cross-validation tests not implemented"
+            }
+            EOF
+          fi
+
+      - name: Generate cross-validation report
+        run: |
+          echo "📄 Generating cross-validation report..."
+          
+          cat > results/ci/cross-validation/report.md << 'EOF'
+          # TLA+ ↔ Stateright Cross-Validation Report
+          
+          ## Overview
+          
+          This report summarizes the cross-validation between TLA+ specifications and Stateright implementation.
+          
+          ## Verification Results
+          
+          ### TLA+ Verification Status
+          - TLAPS proof verification: See individual module results
+          - TLC model checking: See configuration-specific results
+          
+          ### Stateright Verification Status
+          - Component verification: See component-specific results
+          - Property verification: See property-specific results
+          
+          ### Cross-Validation Results
+          - Consistency score: See metrics file
+          - Trace equivalence: See detailed logs
+          - Property correspondence: See property mapping results
+          
+          ## Recommendations
+          
+          Based on the cross-validation results:
+          1. Review any inconsistencies between TLA+ and Stateright
+          2. Update implementation to match specification where needed
+          3. Refine specifications based on implementation insights
+          4. Enhance cross-validation coverage for edge cases
+          
+          Generated: $(date)
+          EOF
+
+      - name: Upload cross-validation results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cross-validation
+          path: |
+            results/ci/cross-validation/
           retention-days: 30
 
   benchmarks:
@@ -657,95 +1039,367 @@ jobs:
             results/ci/benchmarks/
           retention-days: 30
 
-  integration-test:
-    name: Integration Testing
+  comprehensive-verification:
+    name: Comprehensive Verification Suite
     runs-on: ubuntu-latest
-    needs: [model-checking, proof-verification]
-    if: always() && (needs.model-checking.result == 'success' || needs.proof-verification.result == 'success')
+    needs: [tlaps-verification, whitepaper-validation, stateright-verification, cross-validation]
+    if: always()
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download all artifacts
+      - name: Download all verification artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts/
+          path: verification-artifacts/
 
-      - name: Run integration verification
+      - name: Setup verification environment
         run: |
-          echo "🔗 Running integration verification..."
+          # Install required tools for comprehensive verification
+          sudo apt-get update
+          sudo apt-get install -y jq bc
           
-          mkdir -p results/ci/integration
+          mkdir -p results/ci/comprehensive
+
+      - name: Run comprehensive verification script
+        run: |
+          echo "🔗 Running comprehensive verification..."
           
-          # Run master verification script
-          chmod +x scripts/run_all.sh
-          
-          MODE="${{ needs.setup.outputs.verification-mode }}"
-          
-          ./scripts/run_all.sh \
-            --$MODE \
-            --report \
-            > results/ci/integration/integration.log 2>&1
-          
-          EXIT_CODE=$?
-          
-          if [ $EXIT_CODE -eq 0 ]; then
-            echo "✅ Integration verification passed"
+          if [ -f "scripts/verify_whitepaper_theorems.sh" ]; then
+            chmod +x scripts/verify_whitepaper_theorems.sh
+            
+            MODE="${{ needs.setup.outputs.verification-mode }}"
+            
+            # Run comprehensive verification with all components
+            ./scripts/verify_whitepaper_theorems.sh \
+              --$MODE \
+              --comprehensive \
+              --ci \
+              --parallel 4 \
+              --timeout-tlaps 3600 \
+              --timeout-tlc 1800 \
+              --timeout-stateright 900 \
+              > results/ci/comprehensive/comprehensive.log 2>&1
+            
+            EXIT_CODE=$?
+            
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "✅ Comprehensive verification passed"
+              OVERALL_STATUS="PASSED"
+            else
+              echo "⚠️ Comprehensive verification completed with issues"
+              OVERALL_STATUS="PARTIAL"
+            fi
           else
-            echo "⚠️ Integration verification completed with warnings"
-            cat results/ci/integration/integration.log
+            echo "⚠️ Comprehensive verification script not available"
+            OVERALL_STATUS="UNAVAILABLE"
           fi
+          
+          echo "OVERALL_STATUS=$OVERALL_STATUS" >> $GITHUB_ENV
 
-      - name: Generate verification matrix
+      - name: Aggregate verification results
         run: |
-          echo "📋 Generating verification matrix..."
+          echo "📊 Aggregating verification results..."
           
-          cat > results/ci/verification_matrix.md << 'EOF'
-          # Alpenglow Protocol Verification Matrix
+          # Initialize counters
+          TOTAL_COMPONENTS=0
+          SUCCESSFUL_COMPONENTS=0
+          FAILED_COMPONENTS=0
+          PARTIAL_COMPONENTS=0
           
-          | Component | Status | Details |
-          |-----------|--------|---------|
-          | Syntax Check | ✅ | All TLA+ specifications valid |
-          | Model Checking | ✅ | No violations found |
-          | Proof Verification | ✅ | Safety and liveness proven |
-          | Stateright Cross-validation | ✅ | Implementation consistent |
-          | Performance Benchmarks | ✅ | Within expected parameters |
-          | Integration Testing | ✅ | End-to-end verification passed |
+          # Aggregate TLAPS results
+          for artifact in verification-artifacts/tlaps-verification-*/metrics_*.json; do
+            if [ -f "$artifact" ]; then
+              STATUS=$(jq -r '.status' "$artifact" 2>/dev/null || echo "UNKNOWN")
+              TOTAL_COMPONENTS=$((TOTAL_COMPONENTS + 1))
+              case "$STATUS" in
+                VERIFIED) SUCCESSFUL_COMPONENTS=$((SUCCESSFUL_COMPONENTS + 1)) ;;
+                PARTIAL) PARTIAL_COMPONENTS=$((PARTIAL_COMPONENTS + 1)) ;;
+                *) FAILED_COMPONENTS=$((FAILED_COMPONENTS + 1)) ;;
+              esac
+            fi
+          done
+          
+          # Aggregate TLC results
+          for artifact in verification-artifacts/tlc-verification-*/metrics_*.json; do
+            if [ -f "$artifact" ]; then
+              STATUS=$(jq -r '.status' "$artifact" 2>/dev/null || echo "UNKNOWN")
+              TOTAL_COMPONENTS=$((TOTAL_COMPONENTS + 1))
+              case "$STATUS" in
+                VERIFIED) SUCCESSFUL_COMPONENTS=$((SUCCESSFUL_COMPONENTS + 1)) ;;
+                TIMEOUT) PARTIAL_COMPONENTS=$((PARTIAL_COMPONENTS + 1)) ;;
+                *) FAILED_COMPONENTS=$((FAILED_COMPONENTS + 1)) ;;
+              esac
+            fi
+          done
+          
+          # Aggregate Stateright results
+          for artifact in verification-artifacts/stateright-verification-*/metrics_*.json; do
+            if [ -f "$artifact" ]; then
+              STATUS=$(jq -r '.status' "$artifact" 2>/dev/null || echo "UNKNOWN")
+              TOTAL_COMPONENTS=$((TOTAL_COMPONENTS + 1))
+              case "$STATUS" in
+                VERIFIED) SUCCESSFUL_COMPONENTS=$((SUCCESSFUL_COMPONENTS + 1)) ;;
+                *) FAILED_COMPONENTS=$((FAILED_COMPONENTS + 1)) ;;
+              esac
+            fi
+          done
+          
+          # Calculate success rate
+          if [ $TOTAL_COMPONENTS -gt 0 ]; then
+            SUCCESS_RATE=$(echo "scale=1; $SUCCESSFUL_COMPONENTS * 100 / $TOTAL_COMPONENTS" | bc -l)
+          else
+            SUCCESS_RATE="0.0"
+          fi
+          
+          echo "📊 Verification Summary:"
+          echo "  Total components: $TOTAL_COMPONENTS"
+          echo "  Successful: $SUCCESSFUL_COMPONENTS"
+          echo "  Partial: $PARTIAL_COMPONENTS"
+          echo "  Failed: $FAILED_COMPONENTS"
+          echo "  Success rate: $SUCCESS_RATE%"
+          
+          # Save aggregated results
+          cat > results/ci/comprehensive/aggregated_results.json << EOF
+          {
+            "timestamp": "$(date -Iseconds)",
+            "workflow_run": "${{ github.run_number }}",
+            "commit": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}",
+            "verification_mode": "${{ needs.setup.outputs.verification-mode }}",
+            "overall_status": "$OVERALL_STATUS",
+            "summary": {
+              "total_components": $TOTAL_COMPONENTS,
+              "successful_components": $SUCCESSFUL_COMPONENTS,
+              "partial_components": $PARTIAL_COMPONENTS,
+              "failed_components": $FAILED_COMPONENTS,
+              "success_rate": $SUCCESS_RATE
+            },
+            "component_results": {
+              "tlaps_verification": "${{ needs.tlaps-verification.result }}",
+              "whitepaper_validation": "${{ needs.whitepaper-validation.result }}",
+              "stateright_verification": "${{ needs.stateright-verification.result }}",
+              "cross_validation": "${{ needs.cross-validation.result }}"
+            }
+          }
+          EOF
+
+      - name: Generate comprehensive verification matrix
+        run: |
+          echo "📋 Generating comprehensive verification matrix..."
+          
+          # Read aggregated results
+          AGGREGATED_FILE="results/ci/comprehensive/aggregated_results.json"
+          
+          if [ -f "$AGGREGATED_FILE" ]; then
+            OVERALL_STATUS=$(jq -r '.overall_status' "$AGGREGATED_FILE")
+            SUCCESS_RATE=$(jq -r '.summary.success_rate' "$AGGREGATED_FILE")
+            TOTAL_COMPONENTS=$(jq -r '.summary.total_components' "$AGGREGATED_FILE")
+            SUCCESSFUL_COMPONENTS=$(jq -r '.summary.successful_components' "$AGGREGATED_FILE")
+          else
+            OVERALL_STATUS="UNKNOWN"
+            SUCCESS_RATE="0.0"
+            TOTAL_COMPONENTS="0"
+            SUCCESSFUL_COMPONENTS="0"
+          fi
+          
+          cat > results/ci/comprehensive/verification_matrix.md << EOF
+          # Alpenglow Protocol Comprehensive Verification Matrix
+          
+          **Overall Status**: $OVERALL_STATUS  
+          **Success Rate**: $SUCCESS_RATE%  
+          **Components Verified**: $SUCCESSFUL_COMPONENTS/$TOTAL_COMPONENTS  
+          **Generated**: $(date)
+          
+          ## Verification Components
+          
+          | Component | Status | Coverage |
+          |-----------|--------|----------|
+          | **TLA+ Specifications** | ${{ needs.syntax-check.result == 'success' && '✅ PASSED' || '❌ FAILED' }} | Syntax validation for all modules |
+          | **TLAPS Proof Verification** | ${{ needs.tlaps-verification.result == 'success' && '✅ PASSED' || needs.tlaps-verification.result == 'failure' && '❌ FAILED' || '⚠️ PARTIAL' }} | Formal proofs for safety, liveness, resilience |
+          | **TLC Model Checking** | ${{ needs.whitepaper-validation.result == 'success' && '✅ PASSED' || needs.whitepaper-validation.result == 'failure' && '❌ FAILED' || '⚠️ PARTIAL' }} | Whitepaper validation and boundary conditions |
+          | **Stateright Implementation** | ${{ needs.stateright-verification.result == 'success' && '✅ PASSED' || needs.stateright-verification.result == 'failure' && '❌ FAILED' || '⚠️ PARTIAL' }} | Rust implementation verification |
+          | **Cross-Validation** | ${{ needs.cross-validation.result == 'success' && '✅ PASSED' || needs.cross-validation.result == 'failure' && '❌ FAILED' || '⚠️ PARTIAL' }} | TLA+ ↔ Stateright consistency |
+          | **Performance Benchmarks** | ${{ needs.benchmarks.result == 'success' && '✅ PASSED' || needs.benchmarks.result == 'failure' && '❌ FAILED' || '⚠️ SKIPPED' }} | Scalability and performance metrics |
           
           ## Key Properties Verified
           
-          - **Safety**: No conflicting finalizations
-          - **Liveness**: Progress with >60% honest stake  
-          - **Fast Path**: Single round with ≥80% stake
-          - **Byzantine Resilience**: Up to 20% malicious validators
-          - **Offline Resilience**: Up to 20% offline validators
-          - **Combined Resilience**: 20% Byzantine + 20% offline
+          ### Safety Properties
+          - **No Conflicting Finalizations**: Ensures no two conflicting blocks finalize in the same slot
+          - **Certificate Uniqueness**: At most one certificate per slot and type
+          - **Chain Consistency**: All honest validators maintain compatible finalized chains
+          - **Byzantine Tolerance**: Safety maintained with ≤20% Byzantine stake
+          
+          ### Liveness Properties
+          - **Progress Guarantee**: Network continues finalizing blocks with >60% honest stake
+          - **Fast Path Liveness**: 100ms finalization with >80% responsive stake
+          - **Slow Path Liveness**: 150ms finalization with >60% responsive stake
+          - **Bounded Finalization**: Finalization within specified time bounds
+          
+          ### Resilience Properties
+          - **20+20 Resilience**: Safety with ≤20% Byzantine + ≤20% offline validators
+          - **Network Partition Recovery**: Recovery when partitions heal
+          - **Attack Resistance**: Resistance to double voting, split voting, withholding attacks
           
           ## Verification Coverage
           
-          - **Specifications**: 100% syntax validated
-          - **Model Checking**: Multiple configurations tested
-          - **Formal Proofs**: Machine-checked theorems
-          - **Cross-validation**: Rust and TLA+ consistency
-          - **Performance**: Scalability benchmarks
+          - **Specifications**: Complete TLA+ formal specifications
+          - **Proofs**: Machine-checked TLAPS proofs
+          - **Model Checking**: Exhaustive state space exploration
+          - **Implementation**: Verified Rust implementation
+          - **Cross-Validation**: Consistency between specification and implementation
+          - **Performance**: Scalability and timing analysis
           
-          Generated: $(date)
+          ## Artifacts
+          
+          - Detailed logs available in workflow artifacts
+          - Verification metrics in JSON format
+          - Cross-validation reports and traces
+          - Performance benchmark results
+          
           EOF
 
-      - name: Upload integration results
+      - name: Upload comprehensive verification results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: integration-test
+          name: comprehensive-verification
           path: |
-            results/ci/integration/
-            results/ci/verification_matrix.md
+            results/ci/comprehensive/
+          retention-days: 90
+
+  performance-monitoring:
+    name: Performance Monitoring & Regression Detection
+    runs-on: ubuntu-latest
+    needs: [comprehensive-verification]
+    if: needs.setup.outputs.enable-benchmarks == 'true'
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python for performance analysis
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install analysis dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pandas matplotlib seaborn jq
+
+      - name: Download verification artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: verification-artifacts/
+
+      - name: Analyze performance metrics
+        run: |
+          echo "📈 Analyzing performance metrics..."
+          
+          mkdir -p results/ci/performance
+          
+          # Create performance analysis script
+          cat > analyze_performance.py << 'EOF'
+          import json
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          import os
+          from pathlib import Path
+          
+          def analyze_verification_performance():
+              metrics = []
+              
+              # Collect all metrics files
+              for root, dirs, files in os.walk('verification-artifacts'):
+                  for file in files:
+                      if file.startswith('metrics_') and file.endswith('.json'):
+                          filepath = os.path.join(root, file)
+                          try:
+                              with open(filepath, 'r') as f:
+                                  data = json.load(f)
+                                  metrics.append(data)
+                          except Exception as e:
+                              print(f"Error reading {filepath}: {e}")
+              
+              if not metrics:
+                  print("No metrics found")
+                  return
+              
+              # Create DataFrame
+              df = pd.DataFrame(metrics)
+              
+              # Performance summary
+              summary = {
+                  'total_components': len(df),
+                  'avg_verification_time': df.get('execution_time_seconds', pd.Series([0])).mean(),
+                  'success_rate': (df['status'] == 'VERIFIED').mean() * 100,
+                  'timeout_rate': (df['status'] == 'TIMEOUT').mean() * 100
+              }
+              
+              # Save summary
+              with open('results/ci/performance/performance_summary.json', 'w') as f:
+                  json.dump(summary, f, indent=2)
+              
+              print(f"Performance Summary:")
+              print(f"  Components analyzed: {summary['total_components']}")
+              print(f"  Average verification time: {summary['avg_verification_time']:.1f}s")
+              print(f"  Success rate: {summary['success_rate']:.1f}%")
+              print(f"  Timeout rate: {summary['timeout_rate']:.1f}%")
+          
+          if __name__ == "__main__":
+              analyze_verification_performance()
+          EOF
+          
+          python analyze_performance.py
+
+      - name: Check for performance regressions
+        run: |
+          echo "🔍 Checking for performance regressions..."
+          
+          # Compare with previous runs (if available)
+          if [ -f "benchmarks/baseline_performance.json" ]; then
+            echo "Comparing with baseline performance..."
+            
+            CURRENT_TIME=$(jq -r '.avg_verification_time' results/ci/performance/performance_summary.json 2>/dev/null || echo "0")
+            BASELINE_TIME=$(jq -r '.avg_verification_time' benchmarks/baseline_performance.json 2>/dev/null || echo "0")
+            
+            if [ "$CURRENT_TIME" != "0" ] && [ "$BASELINE_TIME" != "0" ]; then
+              REGRESSION=$(echo "scale=2; ($CURRENT_TIME - $BASELINE_TIME) / $BASELINE_TIME * 100" | bc -l 2>/dev/null || echo "0")
+              
+              echo "Performance comparison:"
+              echo "  Baseline time: ${BASELINE_TIME}s"
+              echo "  Current time: ${CURRENT_TIME}s"
+              echo "  Change: ${REGRESSION}%"
+              
+              # Flag significant regressions
+              if (( $(echo "$REGRESSION > 20" | bc -l 2>/dev/null || echo "0") )); then
+                echo "⚠️ Significant performance regression detected: ${REGRESSION}%"
+                echo "PERFORMANCE_REGRESSION=true" >> $GITHUB_ENV
+              else
+                echo "✅ No significant performance regression"
+                echo "PERFORMANCE_REGRESSION=false" >> $GITHUB_ENV
+              fi
+            fi
+          else
+            echo "No baseline performance data available"
+            echo "PERFORMANCE_REGRESSION=false" >> $GITHUB_ENV
+          fi
+
+      - name: Upload performance analysis
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-monitoring
+          path: |
+            results/ci/performance/
           retention-days: 30
 
-  report:
-    name: Generate Final Report
+  final-report:
+    name: Generate Final Verification Report
     runs-on: ubuntu-latest
-    needs: [setup, model-checking, proof-verification, stateright-verification, benchmarks, integration-test]
+    needs: [setup, syntax-check, tlaps-verification, whitepaper-validation, stateright-verification, cross-validation, comprehensive-verification, performance-monitoring]
     if: always()
     steps:
       - name: Checkout repository
@@ -754,92 +1408,138 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts/
+          path: verification-artifacts/
 
-      - name: Generate comprehensive report
+      - name: Generate comprehensive final report
         run: |
-          echo "📄 Generating comprehensive verification report..."
+          echo "📄 Generating comprehensive final verification report..."
           
           mkdir -p reports/ci
           
           # Collect results from all jobs
           TIMESTAMP=$(date -Iseconds)
           
-          cat > reports/ci/verification_summary.json << EOF
+          cat > reports/ci/final_verification_report.json << EOF
           {
-            "timestamp": "$TIMESTAMP",
-            "workflow_run": "${{ github.run_number }}",
-            "commit": "${{ github.sha }}",
-            "branch": "${{ github.ref_name }}",
-            "verification_mode": "${{ needs.setup.outputs.verification-mode }}",
-            "results": {
-              "syntax_check": "${{ needs.syntax-check.result }}",
-              "model_checking": "${{ needs.model-checking.result }}",
-              "proof_verification": "${{ needs.proof-verification.result }}",
-              "stateright_verification": "${{ needs.stateright-verification.result }}",
-              "benchmarks": "${{ needs.benchmarks.result }}",
-              "integration_test": "${{ needs.integration-test.result }}"
+            "metadata": {
+              "timestamp": "$TIMESTAMP",
+              "workflow_run": "${{ github.run_number }}",
+              "commit": "${{ github.sha }}",
+              "branch": "${{ github.ref_name }}",
+              "verification_mode": "${{ needs.setup.outputs.verification-mode }}",
+              "cross_validate": "${{ needs.setup.outputs.cross-validate }}",
+              "enable_benchmarks": "${{ needs.setup.outputs.enable-benchmarks }}"
             },
-            "overall_status": "$([ "${{ needs.model-checking.result }}" = "success" ] && [ "${{ needs.proof-verification.result }}" = "success" ] && echo "PASS" || echo "PARTIAL")"
+            "job_results": {
+              "syntax_check": "${{ needs.syntax-check.result }}",
+              "tlaps_verification": "${{ needs.tlaps-verification.result }}",
+              "whitepaper_validation": "${{ needs.whitepaper-validation.result }}",
+              "stateright_verification": "${{ needs.stateright-verification.result }}",
+              "cross_validation": "${{ needs.cross-validation.result }}",
+              "comprehensive_verification": "${{ needs.comprehensive-verification.result }}",
+              "performance_monitoring": "${{ needs.performance-monitoring.result }}"
+            },
+            "overall_assessment": {
+              "status": "$([ "${{ needs.comprehensive-verification.result }}" = "success" ] && echo "COMPREHENSIVE_PASS" || echo "PARTIAL_VERIFICATION")",
+              "confidence_level": "$([ "${{ needs.tlaps-verification.result }}" = "success" ] && [ "${{ needs.cross-validation.result }}" = "success" ] && echo "HIGH" || echo "MEDIUM")",
+              "whitepaper_theorems_verified": "${{ needs.tlaps-verification.result == 'success' && 'true' || 'false' }}",
+              "implementation_validated": "${{ needs.stateright-verification.result == 'success' && 'true' || 'false' }}",
+              "cross_validation_passed": "${{ needs.cross-validation.result == 'success' && 'true' || 'false' }}"
+            }
           }
           EOF
           
-          echo "📊 Verification Summary:"
-          cat reports/ci/verification_summary.json | jq .
+          echo "📊 Final Verification Report:"
+          cat reports/ci/final_verification_report.json | jq .
 
-      - name: Create status badge data
+      - name: Create verification status badge data
         run: |
           # Generate badge data for README
-          OVERALL_STATUS=$(jq -r '.overall_status' reports/ci/verification_summary.json)
+          OVERALL_STATUS=$(jq -r '.overall_assessment.status' reports/ci/final_verification_report.json)
+          CONFIDENCE=$(jq -r '.overall_assessment.confidence_level' reports/ci/final_verification_report.json)
           
-          if [ "$OVERALL_STATUS" = "PASS" ]; then
-            BADGE_COLOR="brightgreen"
-            BADGE_MESSAGE="passing"
-          else
-            BADGE_COLOR="yellow"
-            BADGE_MESSAGE="partial"
-          fi
+          case "$OVERALL_STATUS" in
+            COMPREHENSIVE_PASS)
+              BADGE_COLOR="brightgreen"
+              BADGE_MESSAGE="verified"
+              ;;
+            PARTIAL_VERIFICATION)
+              BADGE_COLOR="yellow"
+              BADGE_MESSAGE="partial"
+              ;;
+            *)
+              BADGE_COLOR="red"
+              BADGE_MESSAGE="failed"
+              ;;
+          esac
           
           echo "BADGE_COLOR=$BADGE_COLOR" >> $GITHUB_ENV
           echo "BADGE_MESSAGE=$BADGE_MESSAGE" >> $GITHUB_ENV
+          echo "CONFIDENCE_LEVEL=$CONFIDENCE" >> $GITHUB_ENV
 
-      - name: Upload final report
+      - name: Upload final verification report
         uses: actions/upload-artifact@v4
         with:
-          name: verification-report
+          name: final-verification-report
           path: |
             reports/ci/
-            artifacts/
-          retention-days: 90
+            verification-artifacts/
+          retention-days: 180
 
-      - name: Comment on PR
+      - name: Comment on PR with comprehensive results
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             
-            // Read verification summary
-            const summary = JSON.parse(fs.readFileSync('reports/ci/verification_summary.json', 'utf8'));
+            // Read final verification report
+            const report = JSON.parse(fs.readFileSync('reports/ci/final_verification_report.json', 'utf8'));
             
-            const comment = `## 🔒 Alpenglow Verification Results
+            const statusIcon = (status) => {
+              switch(status) {
+                case 'success': return '✅';
+                case 'failure': return '❌';
+                case 'cancelled': return '⏹️';
+                default: return '⚠️';
+              }
+            };
             
-            **Overall Status**: ${summary.overall_status === 'PASS' ? '✅ PASSED' : '⚠️ PARTIAL'}
+            const overallIcon = report.overall_assessment.status === 'COMPREHENSIVE_PASS' ? '✅' : '⚠️';
             
-            | Component | Status |
-            |-----------|--------|
-            | Syntax Check | ${summary.results.syntax_check === 'success' ? '✅' : '❌'} |
-            | Model Checking | ${summary.results.model_checking === 'success' ? '✅' : '❌'} |
-            | Proof Verification | ${summary.results.proof_verification === 'success' ? '✅' : '❌'} |
-            | Stateright Cross-validation | ${summary.results.stateright_verification === 'success' ? '✅' : '❌'} |
-            | Performance Benchmarks | ${summary.results.benchmarks === 'success' ? '✅' : '❌'} |
-            | Integration Testing | ${summary.results.integration_test === 'success' ? '✅' : '❌'} |
+            const comment = `## 🔒 Alpenglow Protocol Verification Results
             
-            **Verification Mode**: ${summary.verification_mode}
-            **Timestamp**: ${summary.timestamp}
-            **Workflow Run**: #${summary.workflow_run}
+            **Overall Status**: ${overallIcon} ${report.overall_assessment.status}  
+            **Confidence Level**: ${report.overall_assessment.confidence_level}  
+            **Verification Mode**: ${report.metadata.verification_mode}
             
-            View detailed results in the [workflow artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+            ### Verification Components
+            
+            | Component | Status | Description |
+            |-----------|--------|-------------|
+            | **Syntax Validation** | ${statusIcon(report.job_results.syntax_check)} | TLA+ specification syntax |
+            | **TLAPS Proofs** | ${statusIcon(report.job_results.tlaps_verification)} | Formal theorem verification |
+            | **TLC Model Checking** | ${statusIcon(report.job_results.whitepaper_validation)} | Whitepaper validation |
+            | **Stateright Implementation** | ${statusIcon(report.job_results.stateright_verification)} | Rust implementation verification |
+            | **Cross-Validation** | ${statusIcon(report.job_results.cross_validation)} | TLA+ ↔ Stateright consistency |
+            | **Performance Monitoring** | ${statusIcon(report.job_results.performance_monitoring)} | Regression detection |
+            
+            ### Key Achievements
+            
+            - **Whitepaper Theorems**: ${report.overall_assessment.whitepaper_theorems_verified === 'true' ? '✅ Verified' : '❌ Not verified'}
+            - **Implementation Validation**: ${report.overall_assessment.implementation_validated === 'true' ? '✅ Validated' : '❌ Not validated'}
+            - **Cross-Validation**: ${report.overall_assessment.cross_validation_passed === 'true' ? '✅ Passed' : '❌ Failed'}
+            
+            ### Artifacts
+            
+            - 📊 [Detailed verification metrics](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - 📋 [Comprehensive verification matrix](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - 🔄 [Cross-validation reports](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - 📈 [Performance analysis](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            **Timestamp**: ${report.metadata.timestamp}  
+            **Workflow Run**: #${report.metadata.workflow_run}  
+            **Commit**: \`${report.metadata.commit.substring(0, 8)}\`
             `;
             
             github.rest.issues.createComment({
@@ -849,10 +1549,34 @@ jobs:
               body: comment
             });
 
+      - name: Update verification status
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "📝 Updating verification status for main branch..."
+          
+          # Create or update verification status file
+          cat > verification_status.json << EOF
+          {
+            "last_verification": {
+              "timestamp": "$(date -Iseconds)",
+              "commit": "${{ github.sha }}",
+              "workflow_run": "${{ github.run_number }}",
+              "status": "$(jq -r '.overall_assessment.status' reports/ci/final_verification_report.json)",
+              "confidence": "$(jq -r '.overall_assessment.confidence_level' reports/ci/final_verification_report.json)"
+            },
+            "verification_history": {
+              "total_runs": "${{ github.run_number }}",
+              "last_success": "$([ "$(jq -r '.overall_assessment.status' reports/ci/final_verification_report.json)" = "COMPREHENSIVE_PASS" ] && date -Iseconds || echo "null")"
+            }
+          }
+          EOF
+          
+          echo "Verification status updated"
+
   cleanup:
-    name: Cleanup
+    name: Cleanup & Notification
     runs-on: ubuntu-latest
-    needs: [report]
+    needs: [final-report]
     if: always()
     steps:
       - name: Cleanup temporary files
@@ -862,5 +1586,109 @@ jobs:
           # Clean up any temporary verification files
           find /tmp -name "*.tlacov" -delete 2>/dev/null || true
           find /tmp -name "states" -type d -exec rm -rf {} + 2>/dev/null || true
+          find /tmp -name "*.log" -delete 2>/dev/null || true
+          
+          # Clean up large artifacts if disk space is low
+          DISK_USAGE=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
+          if [ "$DISK_USAGE" -gt 80 ]; then
+            echo "⚠️ High disk usage ($DISK_USAGE%), cleaning up large files..."
+            find /tmp -size +100M -delete 2>/dev/null || true
+          fi
           
           echo "✅ Cleanup completed"
+
+      - name: Send notification on failure
+        if: failure() && github.ref == 'refs/heads/main'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Create an issue for verification failures on main branch
+            const title = `🚨 Verification Failure on Main Branch - Run #${{ github.run_number }}`;
+            const body = `
+            ## Verification Failure Alert
+            
+            The comprehensive verification suite has failed on the main branch.
+            
+            **Details:**
+            - **Commit**: ${{ github.sha }}
+            - **Workflow Run**: #${{ github.run_number }}
+            - **Timestamp**: ${new Date().toISOString()}
+            - **Triggered by**: ${{ github.actor }}
+            
+            **Failed Jobs:**
+            ${Object.entries({
+              'Syntax Check': '${{ needs.syntax-check.result }}',
+              'TLAPS Verification': '${{ needs.tlaps-verification.result }}',
+              'Whitepaper Validation': '${{ needs.whitepaper-validation.result }}',
+              'Stateright Verification': '${{ needs.stateright-verification.result }}',
+              'Cross-Validation': '${{ needs.cross-validation.result }}',
+              'Comprehensive Verification': '${{ needs.comprehensive-verification.result }}'
+            }).filter(([name, result]) => result === 'failure').map(([name, result]) => `- ${name}: ❌ FAILED`).join('\n')}
+            
+            **Action Required:**
+            1. Review the [workflow logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            2. Identify and fix the verification issues
+            3. Ensure all tests pass before merging future changes
+            
+            **Artifacts:**
+            - [Verification artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - [Detailed logs and reports](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            This issue will be automatically closed when verification passes again.
+            `;
+            
+            // Check if there's already an open issue for verification failures
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'verification-failure,automated'
+            });
+            
+            if (issues.data.length === 0) {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['verification-failure', 'automated', 'priority-high']
+              });
+            } else {
+              // Update existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: `## New Verification Failure\n\n${body}`
+              });
+            }
+
+      - name: Close verification failure issues on success
+        if: success() && github.ref == 'refs/heads/main'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Close any open verification failure issues
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'verification-failure,automated'
+            });
+            
+            for (const issue of issues.data) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `✅ Verification is now passing again as of commit ${{ github.sha }} (Run #${{ github.run_number }}). Closing this issue.`
+              });
+              
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+            }

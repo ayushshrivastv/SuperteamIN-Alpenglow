@@ -311,4 +311,175 @@ SafeDiv(a, b) == IF b = 0 THEN 0 ELSE a \div b
 \* Safe modulo (returns 0 if divisor is 0)
 SafeMod(a, b) == IF b = 0 THEN 0 ELSE a % b
 
+(**************************************************************************)
+(* Alpenglow Protocol Specific Functions                                  *)
+(**************************************************************************)
+
+\* Stake calculation functions (parameterized to work with any validator set and stake mapping)
+TotalStake(validators, stake) == Sum([v \in validators |-> stake[v]])
+
+HonestStake(validators, byzantineValidators, offlineValidators, stake) ==
+    LET honestValidators == validators \ (byzantineValidators \cup offlineValidators)
+    IN Sum([v \in honestValidators |-> stake[v]])
+
+ByzantineStake(byzantineValidators, stake) == Sum([v \in byzantineValidators |-> stake[v]])
+
+OfflineStake(offlineValidators, stake) == Sum([v \in offlineValidators |-> stake[v]])
+
+\* Threshold calculation functions
+FastThreshold(validators, stake) ==
+    (4 * TotalStake(validators, stake)) \div 5  \* 80% threshold
+
+SlowThreshold(validators, stake) ==
+    (3 * TotalStake(validators, stake)) \div 5  \* 60% threshold
+
+NotarizationThreshold(validators, stake) ==
+    (3 * TotalStake(validators, stake)) \div 5  \* 60% threshold
+
+SkipThreshold(validators, stake) ==
+    (3 * TotalStake(validators, stake)) \div 5  \* 60% threshold
+
+\* Generic threshold function for different certificate types
+RequiredStake(certType, validators, stake) ==
+    CASE certType = "fast" -> FastThreshold(validators, stake)
+      [] certType = "slow" -> SlowThreshold(validators, stake)
+      [] certType = "notarization" -> NotarizationThreshold(validators, stake)
+      [] certType = "skip" -> SkipThreshold(validators, stake)
+      [] OTHER -> 0
+
+\* Percentage calculation functions
+PercentageOf(part, total) ==
+    IF total = 0 THEN 0 ELSE (part * 100) \div total
+
+StakePercentage(validatorStake, totalStake) ==
+    PercentageOf(validatorStake, totalStake)
+
+\* Validation helper functions
+IsValidStakeDistribution(validators, stake) ==
+    /\ \A v \in validators : stake[v] >= 0  \* Non-negative stakes
+    /\ TotalStake(validators, stake) > 0    \* Positive total stake
+
+SatisfiesThreshold(votes, threshold, stake) ==
+    LET voteStake == Sum([vote \in votes |-> stake[vote.validator]])
+    IN voteStake >= threshold
+
+SatisfiesFastThreshold(votes, validators, stake) ==
+    SatisfiesThreshold(votes, FastThreshold(validators, stake), stake)
+
+SatisfiesSlowThreshold(votes, validators, stake) ==
+    SatisfiesThreshold(votes, SlowThreshold(validators, stake), stake)
+
+\* Time helper functions
+CurrentTime(clock) == clock
+
+TimeoutExpired(timeout, currentTime) == currentTime >= timeout
+
+WithinBounds(time, lowerBound, upperBound) ==
+    /\ time >= lowerBound
+    /\ time <= upperBound
+
+TimeElapsed(startTime, currentTime) == currentTime - startTime
+
+IsAfterGST(currentTime, gst) == currentTime > gst
+
+\* Network timing helpers
+MessageDeliveryTime(sendTime, currentTime, delta) ==
+    IF currentTime >= sendTime + delta THEN TRUE ELSE FALSE
+
+WithinNetworkBounds(sendTime, receiveTime, delta) ==
+    receiveTime <= sendTime + delta
+
+\* Additional set operations for protocol use
+Cardinality(S) == Cardinality(S)  \* Already defined in TLA+, but explicit for clarity
+
+IsSubset(S1, S2) == S1 \subseteq S2  \* Already defined above, keeping for consistency
+
+Union(S1, S2) == S1 \cup S2  \* Already defined above, keeping for consistency
+
+Intersection(S1, S2) == S1 \cap S2
+
+SetDifference(S1, S2) == S1 \ S2
+
+\* Validator set operations
+HonestValidators(validators, byzantineValidators, offlineValidators) ==
+    validators \ (byzantineValidators \cup offlineValidators)
+
+ResponsiveValidators(validators, offlineValidators) ==
+    validators \ offlineValidators
+
+ActiveValidators(validators, byzantineValidators, offlineValidators) ==
+    validators \ (byzantineValidators \cup offlineValidators)
+
+\* Stake-weighted operations
+StakeWeightedMajority(validatorSet, validators, stake) ==
+    Sum([v \in validatorSet |-> stake[v]]) > TotalStake(validators, stake) \div 2
+
+StakeWeightedSupermajority(validatorSet, validators, stake) ==
+    Sum([v \in validatorSet |-> stake[v]]) >= (2 * TotalStake(validators, stake)) \div 3
+
+HasByzantineMajority(byzantineValidators, validators, stake) ==
+    ByzantineStake(byzantineValidators, stake) > TotalStake(validators, stake) \div 3
+
+\* Certificate validation helpers
+ValidCertificateStake(certStake, certType, validators, stake) ==
+    certStake >= RequiredStake(certType, validators, stake)
+
+CertificateHasValidThreshold(certificate, validators, stake) ==
+    ValidCertificateStake(certificate.stake, certificate.type, validators, stake)
+
+\* Vote aggregation helpers
+AggregateVoteStake(votes, stake) ==
+    Sum([vote \in votes |-> stake[vote.validator]])
+
+VotesFromValidators(votes, validatorSet) ==
+    {vote \in votes : vote.validator \in validatorSet}
+
+HonestVotes(votes, validators, byzantineValidators, offlineValidators) ==
+    VotesFromValidators(votes, HonestValidators(validators, byzantineValidators, offlineValidators))
+
+\* Arithmetic helpers for protocol calculations
+RoundUp(numerator, denominator) ==
+    (numerator + denominator - 1) \div denominator
+
+RoundDown(numerator, denominator) ==
+    numerator \div denominator
+
+\* Percentage threshold checks
+ExceedsPercentage(part, total, percentage) ==
+    part * 100 >= total * percentage
+
+MeetsPercentage(part, total, percentage) ==
+    part * 100 >= total * percentage
+
+\* Byzantine fault tolerance calculations
+MaxByzantineFaults(validators, stake) ==
+    TotalStake(validators, stake) \div 3
+
+RemainingByzantineTolerance(byzantineValidators, validators, stake) ==
+    MaxByzantineFaults(validators, stake) - ByzantineStake(byzantineValidators, stake)
+
+IsByzantineToleranceExceeded(byzantineValidators, validators, stake) ==
+    ByzantineStake(byzantineValidators, stake) > MaxByzantineFaults(validators, stake)
+
+\* Liveness condition checks
+HasLivenessCondition(validators, byzantineValidators, offlineValidators, stake) ==
+    LET honestStake == HonestStake(validators, byzantineValidators, offlineValidators, stake)
+        totalStake == TotalStake(validators, stake)
+    IN honestStake * 5 >= totalStake * 3  \* >= 60% honest stake
+
+HasFastPathCondition(validators, byzantineValidators, offlineValidators, stake) ==
+    LET responsiveStake == HonestStake(validators, byzantineValidators, offlineValidators, stake)
+        totalStake == TotalStake(validators, stake)
+    IN responsiveStake * 5 >= totalStake * 4  \* >= 80% responsive stake
+
+\* Utility functions for bounds checking
+StakeWithinBounds(stake, minStake, maxStake) ==
+    WithinBounds(stake, minStake, maxStake)
+
+ViewWithinBounds(view, maxView) ==
+    WithinBounds(view, 1, maxView)
+
+SlotWithinBounds(slot, maxSlot) ==
+    WithinBounds(slot, 1, maxSlot)
+
 ============================================================================

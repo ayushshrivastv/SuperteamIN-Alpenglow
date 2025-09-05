@@ -3,17 +3,54 @@
 (* Type definitions and common operators for the Alpenglow protocol       *)
 (**************************************************************************)
 
-EXTENDS Integers, Sequences, FiniteSets, TLC, Utils
+EXTENDS Integers, Sequences, FiniteSets, TLC
 
-CONSTANTS Validators  \* Set of validator identifiers
+\* Note: Utils module will be created separately to avoid circular dependency
+
+CONSTANTS
+    Validators,          \* Set of all validators (required)
+    ByzantineValidators, \* Set of Byzantine validators (required)
+    OfflineValidators,   \* Set of offline validators (required)
+    MaxSlot,             \* Maximum slot number (required)
+    MaxView,             \* Maximum view number (required)
+    GST,                 \* Global Stabilization Time (required)
+    Delta                \* Network delay bound (required)
+
+\* Assumptions for proper subset relationships (required)
+ASSUME
+    /\ ByzantineValidators \subseteq Validators
+    /\ OfflineValidators \subseteq Validators
+    /\ ByzantineValidators \cap OfflineValidators = {}
+    /\ GST >= 0
+    /\ Delta > 0
+    /\ MaxSlot > 0
+    /\ MaxView > 0
+
+\* Set Definitions with proper subset relationships (required)
+HonestValidators == Validators \ (ByzantineValidators \cup OfflineValidators)
+
+\* Constants (required)
+LeaderWindowSize == 4           \* 4-slot windows (required)
+FastPathTimeout == 100          \* Fast path timeout in ms (required)
+SlowPathTimeout == 200          \* Slow path timeout in ms (required)
+
+\* Certificate type constants (required)
+FastCert == "fast"              \* Fast certificate type constant
+SlowCert == "slow"              \* Slow certificate type constant
+SkipCert == "skip"              \* Skip certificate type constant
 
 ----------------------------------------------------------------------------
 (* Basic Types *)
 
-ValidatorId == Nat              \* Validator identifiers
-SlotNumber == Nat               \* Slot/epoch numbers
+ValidatorID == Nat              \* Validator identifiers (required name)
+ValidatorId == ValidatorID      \* Alias for compatibility
+Slot == Nat                     \* Slot/epoch numbers (required name)
+SlotNumber == Slot              \* Alias for compatibility
 ViewNumber == Nat               \* View numbers for consensus
 TimeValue == Nat                \* Time values (abstract units)
+BlockHash == Hash               \* Block hash type (required name)
+CertificateType == {"fast", "slow", "skip"}  \* Certificate types (required)
+VoteType == {"proposal", "echo", "commit", "notarization", "finalization", "skip"}  \* Vote types (required)
 
 ----------------------------------------------------------------------------
 (* Hash Types *)
@@ -228,7 +265,7 @@ ComputeLeaderOld(slot, validators, stakeMap) ==
 ----------------------------------------------------------------------------
 (* Vote Types *)
 
-VoteType == {"proposal", "echo", "commit"}
+\* VoteType already defined above with required values
 
 Vote == [
     voter: ValidatorId,
@@ -268,7 +305,7 @@ CreateCertificate(votes, slot, view) ==
 ----------------------------------------------------------------------------
 (* Certificate Types *)
 
-CertificateType == {"fast", "slow", "skip"}
+\* CertificateType already defined above with required values
 
 Certificate == [
     slot: SlotNumber,
@@ -422,6 +459,46 @@ MessagePayload == Nat  \* Abstract payload identifier
 
 
 ----------------------------------------------------------------------------
+(* Window and Chain Predicates *)
+
+\* Window size for leader selection (4 slots per window)
+WindowSize == LeaderWindowSize  \* Use the required constant
+
+\* Window Functions (required)
+\* Check if two slots are in the same leader window
+SameWindow(s1, s2) ==
+    (s1 \div LeaderWindowSize) = (s2 \div LeaderWindowSize)
+
+\* Return all slots in the window containing slot s (4-slot windows)
+WindowSlots(s) ==
+    LET windowIndex == s \div LeaderWindowSize
+        windowStart == windowIndex * LeaderWindowSize
+    IN {windowStart + i : i \in 0..(LeaderWindowSize - 1)}
+
+\* Check if one block is a descendant of another in the chain
+\* b_prime is a descendant of b if there's a chain from b to b_prime
+IsDescendant(b_prime, b) ==
+    \/ b_prime = b  \* A block is its own descendant
+    \/ /\ b_prime # b
+       /\ b_prime.parent = b.hash  \* Direct child
+    \/ /\ b_prime # b
+       /\ b_prime.parent # 0  \* Has a parent
+       /\ \E intermediate \in Block :
+           /\ intermediate.hash = b_prime.parent
+           /\ IsDescendant(intermediate, b)  \* Recursive descendant check
+
+\* Check direct parent-child relationship
+IsParent(child, parent) ==
+    /\ child.parent = parent.hash
+    /\ child.slot > parent.slot
+
+\* Extract the proposer of a block
+BlockProducer(b) ==
+    IF b = GenesisBlock THEN 0
+    ELSE IF "proposer" \in DOMAIN b THEN b.proposer
+    ELSE 0
+
+----------------------------------------------------------------------------
 (* Additional Helper Functions *)
 
 \* Check if sequence is prefix of another
@@ -484,12 +561,12 @@ ComputeDelegations(validators, delegationMap) ==
         THEN Cardinality({x \in DOMAIN delegationMap : delegationMap[x] = v})
         ELSE IF v \in DOMAIN delegationMap THEN delegationMap[v] ELSE 0]
 
-\* Enhanced VRF-style leader selection with proper stake weighting
-ComputeLeader(slot, validators, stakes) ==
+\* Leader Selection (required) - deterministic leader selection
+ComputeLeader(slot, validators, stake) ==
     IF validators = {} THEN 0  \* Handle empty validator set
     ELSE IF Cardinality(validators) = 1 THEN CHOOSE v \in validators : TRUE
     ELSE
-        LET totalStake == Sum(stakes)
+        LET totalStake == Sum(stake)
             \* VRF-style deterministic randomness
             vrfSeed == VRFEvaluate(slot, 0)  \* Use slot as seed
             targetValue == IF totalStake = 0 THEN 0 ELSE (vrfSeed % totalStake)
@@ -499,8 +576,8 @@ ComputeLeader(slot, validators, stakes) ==
                                     i < j => seq[i] # seq[j]
             \* Cumulative stake distribution by index
             cumulativeStake == [i \in 1..Cardinality(validators) |->
-                IF i = 1 THEN stakes[ValidatorOrder[1]]
-                ELSE SumSet({stakes[ValidatorOrder[j]] : j \in 1..i})
+                IF i = 1 THEN stake[ValidatorOrder[1]]
+                ELSE SumSet({stake[ValidatorOrder[j]] : j \in 1..i})
             ]
             \* Find index whose cumulative stake range contains target
             selectedIndex == IF totalStake = 0 THEN 1
@@ -509,6 +586,27 @@ ComputeLeader(slot, validators, stakes) ==
                                /\ \A j \in 1..Cardinality(validators) :
                                    (j < i => cumulativeStake[j] <= targetValue) \/ j >= i
         IN ValidatorOrder[selectedIndex]
+
+\* Stake Functions (required) - implement Stake[v] function mapping validators to stake weights
+Stake == [v \in Validators |->
+    IF v \in ByzantineValidators THEN 150  \* Byzantine validators have 15% stake
+    ELSE IF v \in OfflineValidators THEN 100  \* Offline validators have 10% stake
+    ELSE 200]  \* Honest validators have 20% stake
+
+\* Compute window leader for a given window index
+ComputeWindowLeader(windowIndex, validators, stakes) ==
+    ComputeLeader(windowIndex, validators, stakes)
+
+\* Check if validator is the leader for a specific slot within their window
+IsSlotLeader(validator, slot, validators, stakes) ==
+    LET windowIndex == slot \div WindowSize
+        windowLeader == ComputeWindowLeader(windowIndex, validators, stakes)
+    IN windowLeader = validator
+
+\* Get the leader for a specific slot
+GetSlotLeader(slot, validators, stakes) ==
+    LET windowIndex == slot \div WindowSize
+    IN ComputeWindowLeader(windowIndex, validators, stakes)
 
 \* Deterministic leader selection with VRF proof
 ComputeLeaderWithProof(slot, validators, stakes, vrfProof) ==

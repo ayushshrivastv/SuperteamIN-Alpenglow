@@ -8,14 +8,16 @@
 5. [Cross-Validation Methodology](#cross-validation-methodology)
 6. [Development Environment Setup](#development-environment-setup)
 7. [Running Stateright Model Checking](#running-stateright-model-checking)
-8. [Interpreting Results](#interpreting-results)
-9. [Debugging Stateright Models](#debugging-stateright-models)
-10. [Performance Tuning](#performance-tuning)
-11. [Property Checking Framework](#property-checking-framework)
-12. [Extending the Implementation](#extending-the-implementation)
-13. [Cross-Validation Workflows](#cross-validation-workflows)
-14. [Troubleshooting](#troubleshooting)
-15. [Best Practices](#best-practices)
+8. [Running Test Scenarios (CLI Integration)](#running-test-scenarios-cli-integration)
+9. [Interpreting Results](#interpreting-results)
+10. [Debugging Stateright Models](#debugging-stateright-models)
+11. [Performance Tuning](#performance-tuning)
+12. [Property Checking Framework](#property-checking-framework)
+13. [Extending the Implementation](#extending-the-implementation)
+14. [Cross-Validation Workflows](#cross-validation-workflows)
+15. [Troubleshooting](#troubleshooting)
+16. [Metrics and Result Interpretation](#metrics-and-result-interpretation)
+17. [Best Practices](#best-practices)
 
 ## Introduction
 
@@ -478,6 +480,203 @@ cargo test --jobs 8
 # Run with specific thread count
 RUST_TEST_THREADS=4 cargo test
 ```
+
+## Running Test Scenarios (CLI Integration)
+
+This section documents the new CLI integration used by the verification pipeline. Each major test scenario is exposed as a runnable binary or test entry that accepts standardized CLI arguments. The verification script (scripts/stateright_verify.sh) invokes these to run a scenario with a JSON configuration file and to write results as JSON.
+
+Supported scenario binaries (examples):
+- safety_properties
+- liveness_properties
+- byzantine_resilience
+- integration_tests
+- economic_model
+- vrf_leader_selection
+- adaptive_timeouts
+
+Each scenario binary accepts the following CLI flags:
+- --config <FILE>   Path to a JSON configuration file describing the test parameters.
+- --output <FILE>   Path where the JSON results/report will be written.
+- --verbose         (optional) Enable verbose logging.
+- --timeout <sec>   (optional) Override verification timeout in seconds.
+- --depth <n>       (optional) Maximum exploration depth to run.
+- --cross-validate  (optional) Enable cross-validation hooks (TLA+, external tooling).
+- --external_stateright (optional) Enable/disable usage of the external Stateright crate if configured.
+
+Examples
+
+1) Run safety checks via direct binary (after building the binaries or using cargo run):
+
+```bash
+# Direct run of a compiled binary (if present in target/release)
+./target/release/safety_properties --config ./configs/small_stateright.json --output ./results/safety_small.json
+
+# Using cargo run
+cargo run --bin safety_properties -- --config ./configs/small_stateright.json --output ./results/safety_small.json --verbose
+```
+
+2) Run from the test harness (cargo test) style as used in CI script:
+
+```bash
+# The stateright_verify.sh script uses cargo test to invoke test binaries and passes flags after --
+# Example (equivalent to what the script does)
+cargo test --release --test safety_properties -- --config=./results/session/stateright_config.json --output=./results/session/stateright_safety.json
+```
+
+Exit codes:
+- 0: All properties verified successfully (no violations).
+- 1: Violations found or verification error occurred.
+- Timeout handling: when invoked through the verification script, a system timeout may return 124 (if GNU timeout is used). The script maps and treats timeouts specially in summary output.
+
+Recommended workflow for manual runs:
+1. Prepare a JSON config (see next subsection).
+2. Run the scenario binary with --config and --output.
+3. Inspect the JSON report and the console summary.
+4. For cross-validation, enable --cross-validate or run the separate TLA+ comparison workflow.
+
+### JSON Configuration Format (expected by scenario binaries)
+
+Each test binary expects a JSON file whose fields are defined below. The values shown are typical defaults.
+
+Example (configs/small_stateright.json):
+```json
+{
+  "validators": 5,
+  "byzantine_count": 1,
+  "offline_count": 1,
+  "max_rounds": 10,
+  "network_delay": 100,
+  "timeout_ms": 5000,
+  "exploration_depth": 1000,
+  "leader_window_size": 4,
+  "adaptive_timeouts": true,
+  "vrf_enabled": true,
+  "network_partitions": false,
+  "stress_test": false,
+  "test_edge_cases": false,
+  "stake_distribution": null,
+  "bandwidth_limit": 1000000,
+  "erasure_coding": null,
+  "fast_path_threshold": 0.67,
+  "slow_path_threshold": 0.51
+}
+```
+
+Field definitions:
+- validators (usize): number of participating validators.
+- byzantine_count (usize): number of Byzantine (malicious) validators.
+- offline_count (usize): number of validators simulated as offline.
+- max_rounds (usize): maximum consensus rounds to simulate/explore.
+- network_delay (u64): base network delay in milliseconds.
+- timeout_ms (u64): per-operation timeout in milliseconds.
+- exploration_depth (usize): model checker exploration depth limit.
+- leader_window_size (usize): VRF leader selection window size.
+- adaptive_timeouts (bool): enable adaptive timeout logic.
+- vrf_enabled (bool): enable VRF-based leader selection.
+- network_partitions (bool): allow creating network partitions in simulation.
+- stress_test (bool): enable stress testing mode for larger loads.
+- test_edge_cases (bool): include selected edge-case scenarios.
+- stake_distribution (Option<Map<ValidatorId, StakeAmount>>): optional per-validator stake mapping.
+- bandwidth_limit (u64): bytes per second bandwidth limit per validator.
+- erasure_coding (Option<(k, n)>): erasure coding parameters used by rotor.
+- fast_path_threshold (f64): fraction of total stake required for fast path certificate.
+- slow_path_threshold (f64): fraction of total stake required for slow path certificate.
+
+Validation rules:
+- validators > 0
+- byzantine_count + offline_count < validators
+- byzantine_count < validators / 3 (for safety-focused runs)
+- exploration_depth > 0
+- timeout_ms > 0
+- thresholds are between 0.0 and 1.0
+
+### JSON Output Format (what scenario binaries emit)
+
+Scenario binaries will write a structured JSON `TestReport` to the path provided via --output. The report contains aggregated verification metrics and per-property results.
+
+Example output (trimmed):
+```json
+{
+  "scenario": "safety_properties",
+  "states_explored": 1234,
+  "properties_checked": 8,
+  "violations": 0,
+  "duration_ms": 5123,
+  "success": true,
+  "property_results": [
+    {
+      "name": "NoConflictingFinalization",
+      "passed": true,
+      "states_explored": 400,
+      "duration_ms": 1200,
+      "error": null,
+      "counterexample_length": null,
+      "cross_validation": {
+        "local_result": true,
+        "external_result": true,
+        "tla_result": true,
+        "consistent": true,
+        "details": "All verification approaches agree"
+      }
+    }
+  ],
+  "metrics": {
+    "peak_memory_bytes": 12345678,
+    "states_per_second": 240.7,
+    "cpu_time_ms": 5000,
+    "timeouts": 0,
+    "byzantine_events": 5,
+    "network_events": 2300,
+    "coverage": {
+      "state_space_coverage": 0.0002,
+      "unique_states": 1234,
+      "transitions": 1233,
+      "code_coverage": 37.5
+    }
+  },
+  "config": {
+    "...": "as provided in input config"
+  },
+  "timestamp": "2025-01-01T12:00:00Z",
+  "metadata": {
+    "rust_version": "rustc 1.70.0",
+    "stateright_version": "0.29",
+    "hostname": "ci-worker",
+    "environment": {
+      "CI": "true"
+    },
+    "git_commit": "abcdef123456..."
+  }
+}
+```
+
+Key fields:
+- scenario: name of the test scenario run.
+- states_explored: total states explored during model checking.
+- properties_checked: total number of properties evaluated.
+- violations: number of properties that failed.
+- duration_ms: total run time in milliseconds.
+- success: boolean overall success (true iff violations == 0).
+- property_results: array with per-property execution details and any cross-validation results.
+- metrics: performance and coverage metrics, memory and timing.
+- config: the resolved configuration used for the run.
+- timestamp and metadata: environment and provenance information.
+
+Interpretation guidance is provided in the "Metrics and Result Interpretation" section below.
+
+### Integration with stateright_verify.sh
+
+The repository includes scripts/stateright_verify.sh — a pipeline wrapper that:
+- Produces a JSON configuration file from a named profile (small/medium/large/boundary/stress).
+- Builds the stateright crate (cargo build / cargo test).
+- Invokes each scenario via cargo test (or the scenario binary) passing `--config` and `--output` after `--`.
+- Collects logs and JSON results into a session directory and aggregates a stateright_summary.json.
+- Optionally runs TLA+ model checking for cross-validation and produces cross_validation.json.
+
+When running the script:
+- Default scenarios: safety, liveness, byzantine (configurable with --scenarios).
+- Timeouts are applied to each cargo invocation by the script; a GNU `timeout` command returns code 124 on timeout.
+- The script expects scenario binaries to write JSON to the provided --output path and to exit with non-zero on errors or detected violations.
 
 ## Interpreting Results
 
@@ -1229,210 +1428,113 @@ jobs:
 
 ## Troubleshooting
 
+This section expands on common problems encountered when running Stateright verification and the scenario binaries, including dependency conflicts, timeout handling, and cross-validation issues.
+
 ### Common Issues
 
 #### 1. State Synchronization Problems
 
 **Problem**: Rust and TLA+ models have different initial states
 
-**Solution**:
-```rust
-// Debug state initialization
-#[test]
-fn debug_state_init() {
-    let config = Config::new().with_validators(3);
-    let rust_state = AlpenglowState::init(&config);
-    
-    println!("Rust initial state:");
-    println!("  clock: {}", rust_state.clock);
-    println!("  current_slot: {}", rust_state.current_slot);
-    println!("  votor_view: {:?}", rust_state.votor_view);
-    
-    // Compare with TLA+ initial state
-    let tla_state = import_tla_initial_state("Small.cfg").unwrap();
-    
-    // Find differences
-    if rust_state.clock != tla_state.clock {
-        println!("Clock mismatch: Rust={}, TLA+={}", rust_state.clock, tla_state.clock);
-    }
-}
-```
+**Solution**: Ensure the same initial config is used by both models. Export the initial TLA+ config and compare fields with the Rust TestConfig. Use the debug helper functions to print and diff state initialization.
 
 #### 2. Action Execution Differences
 
 **Problem**: Same action produces different results
 
-**Solution**:
-```rust
-// Debug action execution step by step
-#[test]
-fn debug_action_execution() {
-    let config = Config::new().with_validators(3);
-    let model = AlpenglowModel::new(config);
-    let action = AlpenglowAction::AdvanceClock;
-    
-    println!("Before action: {:?}", model.state);
-    
-    let result = model.execute_action(action.clone());
-    
-    match result {
-        Ok(new_state) => {
-            println!("After action: {:?}", new_state);
-            
-            // Compare with TLA+ result
-            let tla_result = execute_tla_action(&model.state, action);
-            if new_state != tla_result {
-                println!("Execution mismatch detected!");
-                println!("Rust result: {:?}", new_state);
-                println!("TLA+ result: {:?}", tla_result);
-            }
-        },
-        Err(error) => {
-            println!("Action failed: {:?}", error);
-        }
-    }
-}
-```
+**Solution**: Step through executions in both models using trace replay and diff tools. Validate helper code that maps TLA+ actions to Rust actions.
 
 #### 3. Property Evaluation Differences
 
 **Problem**: Property evaluates differently in Rust vs TLA+
 
-**Solution**:
-```rust
-// Debug property evaluation
-fn debug_property_evaluation(state: &AlpenglowState) -> bool {
-    let result = properties::safety_no_conflicting_finalization(state);
-    
-    if !result {
-        println!("Safety property violated!");
-        println!("Finalized blocks: {:?}", state.finalized_blocks);
-        
-        // Check each slot for conflicts
-        for (slot, blocks) in &state.finalized_blocks {
-            if blocks.len() > 1 {
-                println!("Conflict in slot {}: {:?}", slot, blocks);
-            }
-        }
-    }
-    
-    result
-}
-```
+**Solution**: Ensure property predicates are semantically equivalent. Use cross-validation traces to reproduce failing scenario and inspect counterexample states saved by the Rust checker.
 
 #### 4. Performance Issues
 
 **Problem**: Rust model checking is too slow
 
 **Solutions**:
+- Use state constraints and symmetry reduction to reduce state space.
+- Run simulation rather than exhaustive checking for large configurations.
+- Increase resources (CPU, memory) or parallelize scenarios (see Performance Tuning).
+- Use targeted exploration depths and per-scenario timeouts.
 
-```rust
-// 1. Use state constraints
-impl AlpenglowModel {
-    pub fn with_constraints(mut self) -> Self {
-        self.config.max_slot = 10;  // Limit exploration
-        self.config.max_view = 5;   // Limit view changes
-        self
-    }
-}
+### Dependency Conflicts
 
-// 2. Use simulation instead of exhaustive checking
-#[test]
-fn test_with_simulation() {
-    let config = Config::new().with_validators(10);
-    let model = AlpenglowModel::new(config);
-    
-    let mut checker = Checker::new(&model);
-    checker.simulate(1000);  // Random exploration
-}
+**Problem**: Cargo build or tests fail due to crate version conflicts (common with stateright or tokio variants).
 
-// 3. Parallelize property checking
-use rayon::prelude::*;
+Checklist:
+- Ensure the stateright crate dependency is enabled in stateright/Cargo.toml (e.g. stateright = "0.29").
+- Pin conflicting transitive dependencies where necessary and consider disabling default features on heavy crates (default-features = false).
+- Use a [patch.crates-io] override in Cargo.toml temporarily to resolve incompatible transitive versions across workspace crates.
+- Run cargo update -p <crate> to attempt resolution or cargo tree -d to inspect dependency duplicates.
 
-#[test]
-fn test_parallel_properties() {
-    let properties = vec![
-        properties::no_conflicting_finalization(),
-        properties::chain_consistency(),
-        properties::certificate_validity(config.clone()),
-    ];
-    
-    let results: Vec<_> = properties.par_iter().map(|prop| {
-        // Check property in parallel
-        check_property_on_model(prop, &model)
-    }).collect();
-    
-    assert!(results.iter().all(|r| r.is_ok()));
-}
-```
+### Timeout Handling
 
-### Debugging Tools
+**Problem**: Long runs are terminated by CI or the verification script.
 
-#### 1. State Diff Tool
+Guidance:
+- The verification script wraps each cargo invocation with a `timeout` command. Increase the --timeout parameter passed to the script to allow more time for complex scenarios.
+- Scenario binaries accept --timeout to set a run-specific timeout. Use reasonable per-scenario depth/timeout adjustments for large/complex configs.
+- When using GNU timeout, an exit code of 124 indicates a timeout — the script treats this specially in summaries.
 
-```rust
-pub fn diff_states(rust_state: &AlpenglowState, tla_state: &AlpenglowState) -> Vec<String> {
-    let mut diffs = Vec::new();
-    
-    if rust_state.clock != tla_state.clock {
-        diffs.push(format!("clock: {} vs {}", rust_state.clock, tla_state.clock));
-    }
-    
-    if rust_state.current_slot != tla_state.current_slot {
-        diffs.push(format!("current_slot: {} vs {}", rust_state.current_slot, tla_state.current_slot));
-    }
-    
-    // Compare complex fields
-    for validator in rust_state.votor_view.keys() {
-        let rust_view = rust_state.votor_view.get(validator);
-        let tla_view = tla_state.votor_view.get(validator);
-        if rust_view != tla_view {
-            diffs.push(format!("votor_view[{}]: {:?} vs {:?}", validator, rust_view, tla_view));
-        }
-    }
-    
-    diffs
-}
-```
+### IO / Permissions
 
-#### 2. Trace Comparison Tool
+**Problem**: Failure writing output JSON or log files.
 
-```rust
-pub fn compare_traces(rust_trace: &[AlpenglowState], tla_trace: &[AlpenglowState]) -> Result<(), String> {
-    if rust_trace.len() != tla_trace.len() {
-        return Err(format!("Trace length mismatch: {} vs {}", rust_trace.len(), tla_trace.len()));
-    }
-    
-    for (i, (rust_state, tla_state)) in rust_trace.iter().zip(tla_trace.iter()).enumerate() {
-        let diffs = diff_states(rust_state, tla_state);
-        if !diffs.is_empty() {
-            return Err(format!("State mismatch at step {}: {}", i, diffs.join(", ")));
-        }
-    }
-    
-    Ok(())
-}
-```
+Solution:
+- Ensure the directory provided to --output exists or is creatable by the runner.
+- The scenario binaries attempt to create parent directories; if they can't, check permissions and free disk space.
 
-#### 3. Property Debugging
+### External Stateright Framework Integration
 
-```rust
-pub fn debug_property_failure<F>(state: &AlpenglowState, property: F, name: &str) 
-where F: Fn(&AlpenglowState) -> bool
-{
-    if !property(state) {
-        println!("Property '{}' failed on state:", name);
-        println!("  Clock: {}", state.clock);
-        println!("  Current slot: {}", state.current_slot);
-        println!("  Finalized blocks: {}", state.finalized_blocks.len());
-        println!("  Message queue size: {}", state.network_message_queue.len());
-        
-        // Save state for further analysis
-        let state_json = serde_json::to_string_pretty(state).unwrap();
-        std::fs::write(format!("debug_state_{}.json", name), state_json).unwrap();
-    }
-}
-```
+If the project is configured to use the external stateright crate (e.g. stateright = "0.29"), ensure:
+- Cargo.toml in the stateright folder includes the dependency (not commented out).
+- If you prefer the local copy of the stateright framework bundled in the repository, confirm the local module path and feature flags do not conflict.
+- When combining both local and external crates, explicitly control features and versions to avoid duplicate symbols or diverging APIs.
+
+### Cross-Validation Issues with TLA+
+
+**Problem**: TLA+ model checking fails or produces unexpected outputs.
+
+Checklist:
+- Confirm TLA+ tools (tla2tools.jar) are installed and reachable at $HOME/tla-tools/tla2tools.jar or installed per local paths.
+- Use the same abstract configuration mapping used by the cross validation workflow (scripts/check_model.sh).
+- Validate trace import/export format matches the TLA+ TLC trace output; small format differences can break the trace parser.
+
+### Useful Debugging Commands
+
+- Show dependency tree: cargo tree
+- Check for duplicate features: cargo tree -d
+- Rebuild cleanly: cargo clean && cargo build --release
+- Run single scenario with verbose logs:
+  cargo run --bin safety_properties -- --config ./configs/small_stateright.json --output ./results/safety.json --verbose
+
+## Metrics and Result Interpretation
+
+This section expands on the metrics reported in TestReport and how to interpret them.
+
+Important metric fields:
+- states_explored (usize): Absolute number of states the checker visited. High numbers mean extensive exploration; low numbers may mean shallow search.
+- properties_checked (usize): How many properties were evaluated. If this is zero, check that the test harness loaded properties correctly.
+- violations (usize): Number of properties that failed. Any nonzero value indicates an issue requiring investigation.
+- duration_ms (u64): Wall-clock time for the run. Use this with states_explored to compute states/sec.
+- metrics.states_per_second (f64): Throughput indicator. Use it to compare runs or understand performance regressions.
+- metrics.peak_memory_bytes (u64): Peak memory usage observed (approximate).
+- metrics.coverage.state_space_coverage (f64): A coarse estimate of the portion of the theoretical state space explored; treat as heuristic.
+- property_results[].counterexample_length (Option<usize>): Useful to prioritize debugging — shorter counterexamples are easier to analyze.
+- cross_validation fields: agreement between local, external, and TLA+ results. Disagreements are high-priority investigation items.
+
+Interpreting values:
+- A rapid increase in states_explored with little increase in violations typically indicates broader exploration or denser branching.
+- Low states_per_second with high memory usage suggests GC or allocation pressure; profile memory usage and optimize data structures.
+- If coverage metrics are low for large configs, consider symmetry reduction or parametric constraints to focus verification on meaningful slices.
+
+Suggested thresholds (guidance, not prescriptive):
+- For small configs: states_explored < 10k and duration_ms < 30s are typical.
+- For medium configs: states_explored 10k–100k and duration_ms 30s–10m.
+- For large/stress configs: use simulation or targeted property checks; exhaustive runs may be infeasible.
 
 ## Best Practices
 

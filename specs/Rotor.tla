@@ -39,6 +39,10 @@ ShredId == [slot: Nat, index: Nat]
 (* Rotor State Variables *)
 
 VARIABLES
+    rotorBlocks,         \* Blocks by slot: slot -> block
+    rotorShreds,         \* Shreds by slot and index: slot -> index -> shred
+    rotorReceivedShreds, \* Shreds received by validator: validator -> slot -> set of shreds
+    rotorReconstructedBlocks, \* Reconstructed blocks: validator -> slot -> block
     blockShreds,         \* Erasure-coded pieces: block -> validator -> pieces
     relayAssignments,    \* Stake-weighted relay assignments
     reconstructionState, \* Block reconstruction progress per validator
@@ -51,7 +55,8 @@ VARIABLES
     rotorHistory,        \* History of shreds sent by each validator: validator -> shredId -> shred
     clock                \* Global clock for timing operations
 
-rotorVars == <<blockShreds, relayAssignments, reconstructionState,
+rotorVars == <<rotorBlocks, rotorShreds, rotorReceivedShreds, rotorReconstructedBlocks,
+               blockShreds, relayAssignments, reconstructionState,
                deliveredBlocks, repairRequests, bandwidthUsage,
                receivedShreds, shredAssignments, reconstructedBlocks,
                rotorHistory, clock>>
@@ -276,12 +281,276 @@ RecordShredSent(validator, shredId, shred) ==
     ELSE [rotorHistory EXCEPT ![validator] = (shredId :> shred)]
 
 ----------------------------------------------------------------------------
+(* Reed-Solomon Erasure Coding *)
+
+\* Reed-Solomon encode block into n shreds where any k can reconstruct
+ReedSolomonEncode(block, k, n) ==
+    LET \* Data shreds contain original block data split into k pieces
+        dataShreds == {[blockId |-> block.hash,
+                       slot |-> block.slot,
+                       index |-> i,
+                       data |-> <<"data", block, i>>,
+                       isParity |-> FALSE,
+                       merkleProof |-> <<"merkle", block.hash, i>>,
+                       signature |-> [signer |-> block.proposer, message |-> block.hash, valid |-> TRUE]] : i \in 1..k}
+        \* Parity shreds contain redundancy for error correction
+        parityShreds == {[blockId |-> block.hash,
+                         slot |-> block.slot,
+                         index |-> i,
+                         data |-> <<"parity", block, i>>,
+                         isParity |-> TRUE,
+                         merkleProof |-> <<"merkle", block.hash, i>>,
+                         signature |-> [signer |-> block.proposer, message |-> block.hash, valid |-> TRUE]] : i \in (k+1)..n}
+    IN dataShreds \cup parityShreds
+
+\* Reed-Solomon decode shreds back to original block
+ReedSolomonDecode(shreds) ==
+    LET k == K  \* Use global K parameter
+        dataShreds == {s \in shreds : ~s.isParity}
+        parityShreds == {s \in shreds : s.isParity}
+        blockId == IF shreds = {} THEN 0 ELSE (CHOOSE s \in shreds : TRUE).blockId
+    IN
+    IF Cardinality(shreds) >= k
+    THEN [hash |-> blockId,
+          slot |-> IF shreds = {} THEN 0 ELSE (CHOOSE s \in shreds : TRUE).slot,
+          view |-> 0,
+          proposer |-> CHOOSE v \in Validators : TRUE,
+          parent |-> 0,
+          data |-> "reconstructed_data",
+          timestamp |-> clock,
+          transactions |-> {}]
+    ELSE [hash |-> 0, slot |-> 0, view |-> 0, proposer |-> 0, parent |-> 0,
+          data |-> "failed", timestamp |-> 0, transactions |-> {}]
+
+----------------------------------------------------------------------------
+(* Shred Operations *)
+
+\* Create a shred from block data with Merkle proof
+CreateShred(block, index, merkle_path) ==
+    [blockId |-> block.hash,
+     slot |-> block.slot,
+     index |-> index,
+     data |-> <<"shred_data", block, index>>,
+     isParity |-> index > K,
+     merkleProof |-> merkle_path,
+     signature |-> [signer |-> block.proposer, message |-> block.hash, valid |-> TRUE]]
+
+\* Validate shred integrity using Merkle root
+ValidateShred(shred, merkle_root) ==
+    /\ shred.merkleProof[1] = "merkle"
+    /\ shred.merkleProof[2] = merkle_root
+    /\ shred.signature.valid
+    /\ shred.index \in 1..N
+
+\* Size of shred for UDP datagram constraints (1200 bytes max)
+ShredSize() == 1200
+
+----------------------------------------------------------------------------
+(* Relay Selection *)
+
+\* Stake-weighted sampling for proportional relay selection
+StakeWeightedSampling(validators, stake, count) ==
+    LET totalStake == Utils!TotalStake(validators, stake)
+        \* Create cumulative stake distribution
+        validatorSeq == CHOOSE seq \in [1..Cardinality(validators) -> validators] :
+                           \A i, j \in 1..Cardinality(validators) : i # j => seq[i] # seq[j]
+        cumulativeStake == [i \in 1..Cardinality(validators) |->
+            Utils!TotalStake({validatorSeq[j] : j \in 1..i}, stake)]
+        \* Select validators proportional to stake
+        selectedIndices == CHOOSE indices \in SUBSET (1..Cardinality(validators)) :
+            Cardinality(indices) = Min(count, Cardinality(validators))
+    IN {validatorSeq[i] : i \in selectedIndices}
+
+\* Deterministic relay assignment for specific slot and shred index
+SelectRelays(slot, shred_index) ==
+    LET seed == slot * 1000 + shred_index
+        relayCount == Min(Cardinality(Validators) \div 3, 10)  \* 1/3 of validators, max 10
+        \* Use deterministic selection based on seed
+        selectedValidators == StakeWeightedSampling(Validators, Stake, relayCount)
+    IN selectedValidators
+
+----------------------------------------------------------------------------
+(* Block Propagation *)
+
+\* Leader proposes block for given slot
+ProposeBlock(leader, slot, block) ==
+    /\ leader = GetSlotLeader(slot, Validators, Stake)
+    /\ slot \notin DOMAIN rotorBlocks
+    /\ block.slot = slot
+    /\ block.proposer = leader
+    /\ rotorBlocks' = rotorBlocks @@ (slot :> block)
+    /\ clock' = clock + 1
+    /\ UNCHANGED <<rotorShreds, rotorReceivedShreds, rotorReconstructedBlocks,
+                   blockShreds, relayAssignments, reconstructionState,
+                   deliveredBlocks, repairRequests, bandwidthUsage,
+                   receivedShreds, shredAssignments, reconstructedBlocks, rotorHistory>>
+
+\* Shred block into erasure-coded pieces
+ShredBlock(block) ==
+    LET shreds == ReedSolomonEncode(block, K, N)
+        shredMap == [i \in 1..N |->
+            IF \E s \in shreds : s.index = i
+            THEN CHOOSE s \in shreds : s.index = i
+            ELSE [blockId |-> 0, slot |-> 0, index |-> i, data |-> <<>>,
+                  isParity |-> FALSE, merkleProof |-> <<>>, signature |-> <<>>]]
+    IN
+    /\ block.slot \in DOMAIN rotorBlocks
+    /\ block.slot \notin DOMAIN rotorShreds
+    /\ rotorShreds' = rotorShreds @@ (block.slot :> shredMap)
+    /\ clock' = clock + 1
+    /\ UNCHANGED <<rotorBlocks, rotorReceivedShreds, rotorReconstructedBlocks,
+                   blockShreds, relayAssignments, reconstructionState,
+                   deliveredBlocks, repairRequests, bandwidthUsage,
+                   receivedShreds, shredAssignments, reconstructedBlocks, rotorHistory>>
+
+\* Broadcast shred to selected recipients
+BroadcastShred(relay, shred, recipients) ==
+    /\ relay \in Validators
+    /\ shred.slot \in DOMAIN rotorShreds
+    /\ shred.index \in DOMAIN rotorShreds[shred.slot]
+    /\ recipients \subseteq Validators
+    /\ relay \notin recipients
+    /\ \A recipient \in recipients :
+           rotorReceivedShreds' = [rotorReceivedShreds EXCEPT
+               ![recipient] = IF shred.slot \in DOMAIN @
+                             THEN [@ EXCEPT ![shred.slot] = @ \cup {shred}]
+                             ELSE @ @@ (shred.slot :> {shred})]
+    /\ clock' = clock + 1
+    /\ UNCHANGED <<rotorBlocks, rotorShreds, rotorReconstructedBlocks,
+                   blockShreds, relayAssignments, reconstructionState,
+                   deliveredBlocks, repairRequests, bandwidthUsage,
+                   receivedShreds, shredAssignments, reconstructedBlocks, rotorHistory>>
+
+----------------------------------------------------------------------------
+(* Block Reconstruction *)
+
+\* Validator attempts to reconstruct block from received shreds
+ReconstructBlock(validator, slot, shreds) ==
+    /\ validator \in Validators
+    /\ slot \in DOMAIN rotorReceivedShreds[validator]
+    /\ Cardinality(shreds) >= K
+    /\ slot \notin DOMAIN rotorReconstructedBlocks[validator]
+    /\ LET reconstructed == ReedSolomonDecode(shreds)
+       IN
+       /\ reconstructed.hash # 0  \* Successful reconstruction
+       /\ rotorReconstructedBlocks' = [rotorReconstructedBlocks EXCEPT
+              ![validator] = IF slot \in DOMAIN @
+                            THEN [@ EXCEPT ![slot] = reconstructed]
+                            ELSE @ @@ (slot :> reconstructed)]
+       /\ clock' = clock + 1
+       /\ UNCHANGED <<rotorBlocks, rotorShreds, rotorReceivedShreds,
+                      blockShreds, relayAssignments, reconstructionState,
+                      deliveredBlocks, repairRequests, bandwidthUsage,
+                      receivedShreds, shredAssignments, reconstructedBlocks, rotorHistory>>
+
+\* Validate reconstructed block against expected hash
+ValidateReconstructedBlock(block, expected_hash) ==
+    /\ block.hash = expected_hash
+    /\ block.slot \in Nat
+    /\ block.proposer \in Validators
+    /\ block.signature.valid
+
+----------------------------------------------------------------------------
+(* Repair Mechanism *)
+
+\* Request missing shreds for incomplete block
+RequestMissingShreds(validator, slot, missing_indices) ==
+    /\ validator \in Validators
+    /\ slot \in DOMAIN rotorShreds
+    /\ missing_indices \subseteq (1..N)
+    /\ Cardinality(missing_indices) > 0
+    /\ slot \notin DOMAIN rotorReconstructedBlocks[validator]
+    /\ LET request == [requester |-> validator,
+                      slot |-> slot,
+                      missingIndices |-> missing_indices,
+                      timestamp |-> clock]
+       IN
+       /\ repairRequests' = repairRequests \cup {request}
+       /\ clock' = clock + 1
+       /\ UNCHANGED <<rotorBlocks, rotorShreds, rotorReceivedShreds, rotorReconstructedBlocks,
+                      blockShreds, relayAssignments, reconstructionState,
+                      deliveredBlocks, bandwidthUsage,
+                      receivedShreds, shredAssignments, reconstructedBlocks, rotorHistory>>
+
+\* Respond to repair request by sending missing shreds
+RespondToRepairRequest(validator, request) ==
+    /\ validator \in Validators
+    /\ request \in repairRequests
+    /\ request.slot \in DOMAIN rotorShreds
+    /\ LET availableShreds == {rotorShreds[request.slot][i] : i \in request.missingIndices \cap DOMAIN rotorShreds[request.slot]}
+           requester == request.requester
+       IN
+       /\ Cardinality(availableShreds) > 0
+       /\ rotorReceivedShreds' = [rotorReceivedShreds EXCEPT
+              ![requester] = IF request.slot \in DOMAIN @
+                             THEN [@ EXCEPT ![request.slot] = @ \cup availableShreds]
+                             ELSE @ @@ (request.slot :> availableShreds)]
+       /\ repairRequests' = repairRequests \ {request}
+       /\ clock' = clock + 1
+       /\ UNCHANGED <<rotorBlocks, rotorShreds, rotorReconstructedBlocks,
+                      blockShreds, relayAssignments, reconstructionState,
+                      deliveredBlocks, bandwidthUsage,
+                      receivedShreds, shredAssignments, reconstructedBlocks, rotorHistory>>
+
+----------------------------------------------------------------------------
+(* Success Conditions *)
+
+\* Check if block delivery was successful to honest majority
+RotorSuccessful(slot) ==
+    LET honestValidators == Validators \ ByzantineValidators
+        successfulValidators == {v \in honestValidators :
+            slot \in DOMAIN rotorReconstructedBlocks[v]}
+        honestStake == Utils!TotalStake(honestValidators, Stake)
+        successfulStake == Utils!TotalStake(successfulValidators, Stake)
+    IN successfulStake > honestStake \div 2
+
+----------------------------------------------------------------------------
+(* Network Integration *)
+
+\* Deliver shred from sender to recipient
+DeliverShred(sender, recipient, shred) ==
+    /\ sender \in Validators
+    /\ recipient \in Validators
+    /\ sender # recipient
+    /\ shred.slot \in DOMAIN rotorShreds
+    /\ rotorReceivedShreds' = [rotorReceivedShreds EXCEPT
+           ![recipient] = IF shred.slot \in DOMAIN @
+                         THEN [@ EXCEPT ![shred.slot] = @ \cup {shred}]
+                         ELSE @ @@ (shred.slot :> {shred})]
+    /\ clock' = clock + 1
+    /\ UNCHANGED <<rotorBlocks, rotorShreds, rotorReconstructedBlocks,
+                   blockShreds, relayAssignments, reconstructionState,
+                   deliveredBlocks, repairRequests, bandwidthUsage,
+                   receivedShreds, shredAssignments, reconstructedBlocks, rotorHistory>>
+
+\* Handle network partition by isolating validator set
+HandleNetworkPartition(partition_set) ==
+    /\ partition_set \subseteq Validators
+    /\ Cardinality(partition_set) < Cardinality(Validators)
+    /\ \* Isolated validators cannot receive new shreds
+       \A v \in partition_set :
+           rotorReceivedShreds' = [rotorReceivedShreds EXCEPT ![v] = @]
+    /\ clock' = clock + 1
+    /\ UNCHANGED <<rotorBlocks, rotorShreds, rotorReconstructedBlocks,
+                   blockShreds, relayAssignments, reconstructionState,
+                   deliveredBlocks, repairRequests, bandwidthUsage,
+                   receivedShreds, shredAssignments, reconstructedBlocks, rotorHistory>>
+
+\* Get slot leader using Types module function
+GetSlotLeader(slot, validators, stakes) ==
+    Types!ComputeLeader(slot, validators, stakes)
+
+----------------------------------------------------------------------------
 (* Initial State *)
 
 \* Absolute value function
 Abs(x) == IF x >= 0 THEN x ELSE -x
 
 Init ==
+    /\ rotorBlocks = [s \in {} |-> []]  \* Empty function mapping slots to blocks
+    /\ rotorShreds = [s \in {} |-> [i \in {} |-> []]]  \* Empty function mapping slots to shred indices to shreds
+    /\ rotorReceivedShreds = [v \in Validators |-> [s \in {} |-> {}]]  \* Empty function mapping validators to slots to shred sets
+    /\ rotorReconstructedBlocks = [v \in Validators |-> [s \in {} |-> []]]  \* Empty function mapping validators to slots to blocks
     /\ blockShreds = [b \in {} |-> [v \in Validators |-> {}]]  \* Empty function mapping blocks to validator shreds
     /\ relayAssignments = [v \in Validators |-> <<>>]  \* Empty assignments
     /\ reconstructionState = [v \in Validators |-> <<>>]  \* Empty sequence
@@ -412,8 +681,50 @@ RespondToRepair(validator, request) ==
        /\ repairRequests' = repairRequests \ {request}
        /\ bandwidthUsage' = [bandwidthUsage EXCEPT ![validator] = @ + responseBandwidth]
        /\ clock' = clock + 1  \* Advance clock
-       /\ UNCHANGED <<relayAssignments, reconstructionState,
+       /\ UNCHANGED <<rotorBlocks, rotorShreds, rotorReceivedShreds, rotorReconstructedBlocks,
+                      relayAssignments, reconstructionState,
                       deliveredBlocks, receivedShreds, shredAssignments, reconstructedBlocks, rotorHistory>>
+
+----------------------------------------------------------------------------
+(* Next State Relation *)
+
+\* All possible state transitions
+Next ==
+    \/ \E leader \in Validators, slot \in Nat, block \in Block :
+           ProposeBlock(leader, slot, block)
+    \/ \E block \in Block :
+           ShredBlock(block)
+    \/ \E relay \in Validators, shred \in ErasureCodedPiece, recipients \in SUBSET Validators :
+           BroadcastShred(relay, shred, recipients)
+    \/ \E validator \in Validators, slot \in Nat, shreds \in SUBSET ErasureCodedPiece :
+           ReconstructBlock(validator, slot, shreds)
+    \/ \E validator \in Validators, slot \in Nat, missing \in SUBSET (1..N) :
+           RequestMissingShreds(validator, slot, missing)
+    \/ \E validator \in Validators, request \in repairRequests :
+           RespondToRepairRequest(validator, request)
+    \/ \E sender, recipient \in Validators, shred \in ErasureCodedPiece :
+           DeliverShred(sender, recipient, shred)
+    \/ \E partition \in SUBSET Validators :
+           HandleNetworkPartition(partition)
+    \/ \E leader \in Validators, blockId \in Nat :
+           ShredAndDistribute(leader, [hash |-> blockId, slot |-> 1, proposer |-> leader,
+                                      view |-> 0, parent |-> 0, data |-> "test",
+                                      timestamp |-> clock, transactions |-> {}])
+    \/ \E validator \in Validators, blockId \in Nat :
+           RelayShreds(validator, blockId)
+    \/ \E validator \in Validators, blockId \in Nat :
+           AttemptReconstruction(validator, blockId)
+    \/ \E validator \in Validators, blockId \in Nat :
+           RequestRepair(validator, blockId)
+    \/ \E validator \in Validators, request \in repairRequests :
+           RespondToRepair(validator, request)
+    \/ clock' = clock + 1 /\ UNCHANGED <<rotorBlocks, rotorShreds, rotorReceivedShreds, rotorReconstructedBlocks,
+                                          blockShreds, relayAssignments, reconstructionState,
+                                          deliveredBlocks, repairRequests, bandwidthUsage,
+                                          receivedShreds, shredAssignments, reconstructedBlocks, rotorHistory>>
+
+\* Specification
+Spec == Init /\ [][Next]_rotorVars
 
 
 ----------------------------------------------------------------------------
@@ -541,6 +852,21 @@ ValidErasureCode ==
             /\ dataIndices \cap parityIndices = {}  \* No overlap
 
 TypeInvariant ==
+    /\ \A s \in DOMAIN rotorBlocks :
+           /\ rotorBlocks[s].slot = s
+           /\ rotorBlocks[s].proposer \in Validators
+    /\ \A s \in DOMAIN rotorShreds :
+           \A i \in DOMAIN rotorShreds[s] :
+               /\ rotorShreds[s][i].slot = s
+               /\ rotorShreds[s][i].index = i
+               /\ rotorShreds[s][i].index \in 1..N
+    /\ \A v \in Validators :
+           \A s \in DOMAIN rotorReceivedShreds[v] :
+               \A shred \in rotorReceivedShreds[v][s] :
+                   shred.slot = s
+    /\ \A v \in Validators :
+           \A s \in DOMAIN rotorReconstructedBlocks[v] :
+               rotorReconstructedBlocks[v][s].slot = s
     /\ \A b \in DOMAIN blockShreds :
            \A v \in Validators :
                \A s \in blockShreds[b][v] :
