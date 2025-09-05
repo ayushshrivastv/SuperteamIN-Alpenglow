@@ -69,13 +69,16 @@ jobs:
           export PATH="$HOME/tla-tools:$PATH"
           echo "Checking specification syntax..."
           
-          for spec in specs/*.tla; do
+          # Change to specs directory to ensure module imports work
+          cd specs
+          for spec in *.tla; do
             echo "Checking $spec..."
             java -cp ~/tla-tools/tla2tools.jar tla2sany.SANY "$spec"
           done
           
           echo "Checking proof syntax..."
-          for proof in proofs/*.tla; do
+          cd ../proofs
+          for proof in *.tla; do
             echo "Checking $proof..."
             java -cp ~/tla-tools/tla2tools.jar tla2sany.SANY "$proof"
           done
