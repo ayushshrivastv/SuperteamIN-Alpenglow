@@ -51,6 +51,11 @@ SumRec(f, S) ==
 \* Sum of function values over domain
 Sum(f) == SumRec(f, DOMAIN f)
 
+\* Average of a set of integers
+Average(S) ==
+    IF S = {} THEN 0
+    ELSE SumSet(S) \div Cardinality(S)
+
 (**************************************************************************)
 (* Set Operations                                                          *)
 (**************************************************************************)

@@ -137,8 +137,8 @@ CalculateByzantineDelay(validator, action) ==
 \* @param bandwidth: Available bandwidth (must be > 0)
 EstimateReconstructionTime(numShreds, bandwidth) ==
     IF bandwidth <= 0
-    THEN ReconstructionTime + (numShreds * 10 \div 1)  \* Use 1 as fallback
-    ELSE ReconstructionTime + (numShreds * 10 \div bandwidth)
+    THEN ReconstructionTime + ((numShreds * 10) \div 1)  \* Use 1 as fallback
+    ELSE ReconstructionTime + ((numShreds * 10) \div bandwidth)
 
 \* Calculate repair time
 \* @param missingShreds: Set of missing shred indices

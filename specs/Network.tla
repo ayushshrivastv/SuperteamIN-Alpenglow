@@ -216,8 +216,8 @@ DeliverMessage ==
            (clock >= GST /\ message.sender \notin ByzantineValidators) =>
                deliveryTime[message.id] <= message.timestamp + Delta
         /\ messageBuffer' = [messageBuffer EXCEPT ![message.recipient] = @ \cup {message}]
-        /\ messageQueue' = messageQueue \\ {message}
-        /\ deliveryTime' = [m \in DOMAIN deliveryTime \\ {message.id} |-> deliveryTime[m]]
+        /\ messageQueue' = messageQueue \ {message}
+        /\ deliveryTime' = [m \in (DOMAIN deliveryTime) \ {message.id} |-> deliveryTime[m]]
         /\ UNCHANGED <<networkPartitions, droppedMessages, clock>>
 
 \* Drop a message (before GST) with validation
@@ -230,8 +230,8 @@ DropMessage ==
            \/ msg.sender \in ByzantineValidators
            \/ msg.recipient \in ByzantineValidators
            \/ ~msg.signature.valid
-        /\ messageQueue' = messageQueue \\ {msg}
-        /\ deliveryTime' = [m \in DOMAIN deliveryTime \\ {msg.id} |-> deliveryTime[m]]
+        /\ messageQueue' = messageQueue \ {msg}
+        /\ deliveryTime' = [m \in (DOMAIN deliveryTime) \ {msg.id} |-> deliveryTime[m]]
         /\ droppedMessages' = droppedMessages + 1
         /\ UNCHANGED <<messageBuffer, networkPartitions, clock>>
 
@@ -555,7 +555,7 @@ NetworkUtilization ==
 \* Congestion control effectiveness with performance bounds
 CongestionControlBounds ==
     LET congestionLevel == Cardinality(messageQueue)
-        criticalThreshold == (NetworkCapacity \div MaxMessageSize) * 3 \div 4  \* 75% capacity
+        criticalThreshold == ((NetworkCapacity \div MaxMessageSize) * 3) \div 4  \* 75% capacity
     IN congestionLevel > criticalThreshold =>
         <>(Cardinality(messageQueue) < criticalThreshold \div 2)
 
@@ -580,7 +580,7 @@ EndToEndPerformanceBounds ==
 
 \* Performance degradation bounds under adversarial conditions
 PerformanceDegradationBounds ==
-    LET byzantineMessageRatio == Cardinality({msg \in messageQueue : msg.sender \in ByzantineValidators}) * 100 \div
+    LET byzantineMessageRatio == (Cardinality({msg \in messageQueue : msg.sender \in ByzantineValidators}) * 100) \div
                                 (IF Cardinality(messageQueue) = 0 THEN 1 ELSE Cardinality(messageQueue))
         performanceDegradation == byzantineMessageRatio \div 2  \* Simplified metric
     IN performanceDegradation <= 50  \* Performance shouldn't degrade more than 50%

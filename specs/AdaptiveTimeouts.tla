@@ -19,23 +19,33 @@ CONSTANTS
     Stake                \* Stake distribution function
 
 \* Import foundational modules
-INSTANCE Types WITH Validators <- Validators,
-                    ByzantineValidators <- ByzantineValidators,
-                    OfflineValidators <- OfflineValidators,
-                    MaxSlot <- MaxSlot,
-                    MaxView <- MaxView,
-                    GST <- GST,
-                    Delta <- Delta
+Types == INSTANCE Types WITH Validators <- Validators,
+                           ByzantineValidators <- ByzantineValidators,
+                           OfflineValidators <- OfflineValidators,
+                           MaxSlot <- MaxSlot,
+                           MaxView <- MaxView,
+                           GST <- GST,
+                           Delta <- Delta
 
-INSTANCE Timing WITH ByzantineValidators <- ByzantineValidators
+Timing == INSTANCE Timing WITH ByzantineValidators <- ByzantineValidators
 
-INSTANCE Network WITH Validators <- Validators,
-                      ByzantineValidators <- ByzantineValidators,
-                      GST <- GST,
-                      Delta <- Delta,
-                      Stake <- Stake
+Network == INSTANCE Network WITH Validators <- Validators,
+                            ByzantineValidators <- ByzantineValidators,
+                            GST <- GST,
+                            Delta <- Delta,
+                            Stake <- Stake,
+                            MaxMessageSize <- 1000,
+                            NetworkCapacity <- 100000,
+                            MaxBufferSize <- 1000,
+                            PartitionTimeout <- 100,
+                            messageQueue <- messageQueue,
+                            messageBuffer <- messageBuffer,
+                            deliveryTime <- deliveryTime,
+                            networkPartitions <- networkPartitions,
+                            droppedMessages <- droppedMessages,
+                            clock <- clock
 
-INSTANCE Utils
+Utils == INSTANCE Utils
 
 ----------------------------------------------------------------------------
 (* Adaptive Timeout State Variables *)
@@ -46,14 +56,20 @@ VARIABLES
     networkConditions,    \* Current network condition assessment [validator]
     performanceMetrics,   \* Performance tracking for timeout tuning [validator]
     timeoutAdjustments,   \* Recent timeout adjustments [validator][slot]
-    consensusProgress,    \* Consensus progress tracking for timeout optimization
+    consensusProgress,    \* Consensus progress tracking
     partitionDetection,   \* Network partition detection state [validator]
     gstEstimation,        \* GST estimation per validator [validator]
-    clock                 \* Global clock
+    clock,                \* Global clock for timing
+    messageQueue,         \* Network message queue
+    messageBuffer,        \* Message buffers per validator
+    deliveryTime,         \* Message delivery times
+    networkPartitions,    \* Network partition state
+    droppedMessages       \* Count of dropped messages
 
 adaptiveTimeoutVars == <<adaptiveTimeouts, timeoutHistory, networkConditions,
                         performanceMetrics, timeoutAdjustments, consensusProgress,
-                        partitionDetection, gstEstimation, clock>>
+                        partitionDetection, gstEstimation, clock, messageQueue,
+                        messageBuffer, deliveryTime, networkPartitions, droppedMessages>>
 
 ----------------------------------------------------------------------------
 (* Network Condition Types *)
@@ -136,10 +152,10 @@ AssessNetworkConditions(validator) ==
         avgLatency == IF recentMessages = {} THEN Delta
                      ELSE Utils!Average({msg.timestamp - (msg.timestamp - Delta) : msg \in recentMessages})
         jitterValue == IF recentMessages = {} THEN 0
-                      ELSE Utils!StandardDeviation({msg.timestamp - (msg.timestamp - Delta) : msg \in recentMessages})
+                      ELSE Utils!MaxSet({msg.latency : msg \in recentMessages}) - Utils!MinSet({msg.latency : msg \in recentMessages})
         lossRate == IF Cardinality(recentMessages) = 0 THEN 0
                    ELSE (10 - Cardinality(recentMessages)) * 10  \* Simplified loss calculation
-        congestionLevel == Min(Cardinality(Network!messageQueue) * 10, 100)
+        congestionLevel == Utils!Min(Cardinality(Network!messageQueue) * 10, 100)
         stability == IF avgLatency <= HighLatencyThreshold /\ jitterValue <= HighJitterThreshold /\ lossRate <= HighLossThreshold
                     THEN "stable"
                     ELSE IF avgLatency <= HighLatencyThreshold * 2 /\ lossRate <= HighLossThreshold * 2
@@ -148,7 +164,7 @@ AssessNetworkConditions(validator) ==
     IN [latency |-> avgLatency,
         jitter |-> jitterValue,
         packetLoss |-> lossRate,
-        bandwidth |-> Max(LowBandwidthThreshold, 10000 - congestionLevel * 100),
+        bandwidth |-> Utils!Max(LowBandwidthThreshold, 10000 - congestionLevel * 100),
         congestion |-> congestionLevel,
         stability |-> stability]
 
@@ -174,14 +190,14 @@ CalculateBaseTimeout(validator, timeoutType) ==
                                  [] conditions.stability = "degraded" -> 2
                                  [] conditions.stability = "unstable" -> 3
                                  [] OTHER -> 1
-    IN Min(MaxAdaptiveTimeout,
-           Max(MinAdaptiveTimeout,
+    IN Utils!Min(MaxAdaptiveTimeout,
+           Utils!Max(MinAdaptiveTimeout,
                (baseValue + latencyAdjustment + jitterAdjustment + lossAdjustment + congestionAdjustment) * stabilityMultiplier))
 
 \* Apply exponential backoff with network-aware adjustments
 ExponentialBackoffWithNetworkAwareness(validator, slot, currentTimeout, failureCount) ==
     LET conditions == networkConditions[validator]
-        backoffSteps == Min(failureCount, MaxBackoffSteps)
+        backoffSteps == Utils!Min(failureCount, MaxBackoffSteps)
         exponentialTimeout == currentTimeout * (BackoffMultiplier ^ backoffSteps)
         networkMultiplier == CASE conditions.stability = "stable" -> 1
                                [] conditions.stability = "degraded" -> AdaptationFactor
@@ -193,8 +209,8 @@ ExponentialBackoffWithNetworkAwareness(validator, slot, currentTimeout, failureC
                                      [] partitionDetection[validator].severity = "critical" -> 5
                                      [] OTHER -> 1
                               ELSE 1
-    IN Min(MaxAdaptiveTimeout,
-           Max(MinAdaptiveTimeout,
+    IN Utils!Min(MaxAdaptiveTimeout,
+           Utils!Max(MinAdaptiveTimeout,
                exponentialTimeout * networkMultiplier * partitionMultiplier))
 
 \* GST-based timeout optimization
@@ -205,10 +221,10 @@ GSTBasedTimeoutOptimization(validator, baseTimeout) ==
                         THEN (estimatedGST - currentTime) \div 2  \* Increase timeout before GST
                         ELSE 0  \* No adjustment after GST
         postGSTOptimization == IF currentTime >= estimatedGST
-                              THEN Max(baseTimeout \div 2, MinAdaptiveTimeout)  \* Optimize after GST
+                              THEN Utils!Max(baseTimeout \div 2, MinAdaptiveTimeout)  \* Optimize after GST
                               ELSE baseTimeout
-    IN Min(MaxAdaptiveTimeout,
-           Max(MinAdaptiveTimeout,
+    IN Utils!Min(MaxAdaptiveTimeout,
+           Utils!Max(MinAdaptiveTimeout,
                postGSTOptimization + gstAdjustment))
 
 \* Partition-aware timeout extensions
@@ -221,10 +237,10 @@ PartitionAwareTimeoutExtension(validator, baseTimeout) ==
                                  [] OTHER -> 1
                           ELSE 1
         recoveryAdjustment == IF partition.detected /\ partition.recoveryEstimate > 0
-                             THEN Min(partition.recoveryEstimate \div 2, MaxAdaptiveTimeout \div 4)
+                             THEN Utils!Min(partition.recoveryEstimate \div 2, MaxAdaptiveTimeout \div 4)
                              ELSE 0
-    IN Min(MaxAdaptiveTimeout,
-           Max(MinAdaptiveTimeout,
+    IN Utils!Min(MaxAdaptiveTimeout,
+           Utils!Max(MinAdaptiveTimeout,
                baseTimeout * extensionFactor + recoveryAdjustment))
 
 \* Performance-based timeout tuning
@@ -242,8 +258,8 @@ PerformanceBasedTimeoutTuning(validator, slot, baseTimeout) ==
         recoveryBonus == IF metrics.recoveryTime < baseTimeout \div 2
                         THEN -(baseTimeout \div 10)
                         ELSE 0
-    IN Min(MaxAdaptiveTimeout,
-           Max(MinAdaptiveTimeout,
+    IN Utils!Min(MaxAdaptiveTimeout,
+           Utils!Max(MinAdaptiveTimeout,
                baseTimeout + successRateAdjustment + latencyAdjustment + timeoutCountPenalty + recoveryBonus))
 
 \* Comprehensive adaptive timeout calculation
@@ -266,13 +282,13 @@ DetectNetworkPartition(validator) ==
     LET recentCommunications == {msg \in Network!messageBuffer[validator] :
                                 msg.timestamp >= clock - PartitionDetectionWindow}
         communicatingValidators == {msg.sender : msg \in recentCommunications}
-        expectedCommunications == Cardinality(Validators \ ByzantineValidators \ OfflineValidators)
+        expectedCommunications == Cardinality((Validators \ ByzantineValidators) \ OfflineValidators)
         actualCommunications == Cardinality(communicatingValidators)
         partitionSeverity == IF actualCommunications < expectedCommunications \div 3
                             THEN "critical"
                             ELSE IF actualCommunications < expectedCommunications \div 2
                             THEN "major"
-                            ELSE IF actualCommunications < expectedCommunications * 2 \div 3
+                            ELSE IF actualCommunications < (expectedCommunications * 2) \div 3
                             THEN "minor"
                             ELSE "none"
         isPartitioned == partitionSeverity # "none"
@@ -304,7 +320,7 @@ EstimateGST(validator) ==
         avgStableLatency == IF stabilityPeriods = {} THEN Delta * 2
                            ELSE Utils!Average({c.latency : c \in stabilityPeriods})
         confidenceLevel == IF Cardinality(stabilityPeriods) >= GSTEstimationWindow \div 2
-                          THEN Min(100, Cardinality(stabilityPeriods) * 10)
+                          THEN Utils!Min(100, Cardinality(stabilityPeriods) * 10)
                           ELSE 0
         estimatedGST == IF confidenceLevel >= GSTConfidenceThreshold
                        THEN clock + avgStableLatency
@@ -332,7 +348,7 @@ CalculatePerformanceMetrics(validator) ==
         consensusDelay == IF consensusProgress = {} THEN 0
                          ELSE Utils!Average({cp.delay : cp \in consensusProgress})
         recoveryTime == IF timeoutEvents = 0 THEN 0
-                       ELSE Utils!Average({h.recoveryTime : h \in recentEvents, h.result = "timeout"})
+                       ELSE Utils!Average({h.recoveryTime : h \in {e \in recentEvents : e.result = "timeout"}})
     IN [successRate |-> successRate,
         averageLatency |-> avgLatency,
         timeoutCount |-> timeoutEvents,
@@ -590,7 +606,5 @@ TypeInvariant ==
 ----------------------------------------------------------------------------
 (* Helper Functions *)
 
-Min(a, b) == IF a < b THEN a ELSE b
-Max(a, b) == IF a > b THEN a ELSE b
 
 ============================================================================
