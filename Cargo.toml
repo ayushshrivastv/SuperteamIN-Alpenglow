@@ -1,0 +1,166 @@
+[workspace]
+members = [
+    "stateright",
+    "implementation"
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Alpenglow Team"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/solana-labs/alpenglow"
+keywords = ["consensus", "blockchain", "formal-verification", "stateright", "solana"]
+categories = ["cryptography", "simulation", "development-tools"]
+
+[workspace.dependencies]
+# Core Stateright framework - external crate for cross-validation
+stateright = "0.29"
+
+# Async runtime for network simulation and timing
+tokio = { version = "1.0", features = ["full"] }
+tokio-util = "0.7"
+tokio-test = "0.4"
+
+# Serialization for message passing and state persistence
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bincode = "1.3"
+
+# Cryptographic primitives for signatures and hashing (matching TLA+ Crypto module)
+ed25519-dalek = { version = "2.0", features = ["rand_core"] }
+sha2 = "0.10"
+blake3 = "1.5"
+rand = "0.8"
+rand_core = "0.6"
+
+# Erasure coding for Rotor block propagation (K/N sharding from TLA+ specs)
+reed-solomon-erasure = "6.0"
+
+# Network simulation and timing (supporting GST, Delta bounds from TLA+)
+futures = "0.3"
+async-trait = "0.1"
+
+# Data structures and utilities
+indexmap = "2.0"
+smallvec = "1.11"
+bitvec = "1.0"
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging and diagnostics
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Testing and property-based testing
+proptest = "1.4"
+quickcheck = "1.0"
+serial_test = "3.0"
+tempfile = "3.8"
+env_logger = "0.10"
+
+# Performance monitoring
+criterion = "0.5"
+
+# Mathematical operations for stake calculations (Utils!Sum from TLA+)
+num-bigint = "0.4"
+num-rational = "0.4"
+num-traits = "0.2"
+
+# Time handling for consensus timing (clock, timeouts from TLA+)
+chrono = { version = "0.4", features = ["serde"] }
+
+# Configuration management
+config = "0.14"
+toml = "0.8"
+
+# Parallel processing for large-scale verification
+rayon = "1.8"
+
+# Memory-efficient collections
+dashmap = "5.5"
+
+# State space exploration and model checking utilities
+petgraph = "0.6"
+im = "15.1"
+
+# Stake-weighted sampling and leader selection
+rand_distr = "0.4"
+
+# Message ordering and delivery guarantees
+ordered-float = "4.2"
+
+# Bandwidth monitoring and throttling (for bandwidthUsage from TLA+)
+governor = "0.6"
+
+# Statistical analysis for cross-validation
+statrs = "0.16"
+
+[profile.release]
+# Optimize for verification performance
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+# Fast compilation for development
+opt-level = 0
+debug = true
+overflow-checks = true
+
+[profile.test]
+# Balanced profile for testing
+opt-level = 1
+debug = true
+
+[workspace.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+# TLA+ specification mapping metadata
+[workspace.metadata.tla-specs]
+alpenglow = "specs/Alpenglow.tla"
+votor = "specs/Votor.tla"
+rotor = "specs/Rotor.tla"
+network = "specs/Network.tla"
+
+# Cross-validation configuration
+[workspace.metadata.cross-validation]
+# Properties to verify against TLA+ specifications
+safety-properties = [
+    "Safety",
+    "CertificateUniqueness",
+    "ChainConsistency",
+    "ConsistentFinalization"
+]
+liveness-properties = [
+    "Progress",
+    "FastPath",
+    "BoundedFinalization"
+]
+resilience-properties = [
+    "ByzantineResilience",
+    "OfflineResilience",
+    "PartitionRecovery",
+    "Combined2020Resilience"
+]
+integration-properties = [
+    "RotorVotorIntegration",
+    "StakeProportionalBandwidth"
+]
+
+# Workspace-level features that can be enabled across all crates
+[workspace.metadata.features]
+default = ["tracing", "tracing-subscriber"]
+benchmarks = ["criterion"]
+byzantine = []
+large-scale = ["rayon"]
+profiling = ["criterion"]
+cross-validation = []
+economic-model = []
+advanced-network = []
+votor-validation = []
+rotor-validation = []
+tla-compliance = ["cross-validation", "votor-validation", "rotor-validation"]
