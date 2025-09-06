@@ -85,6 +85,12 @@ AggregatedSignature == [
 ----------------------------------------------------------------------------
 (* Helper Functions *)
 
+\* Min function for basic operations
+Min(a, b) == IF a <= b THEN a ELSE b
+
+\* Max function for basic operations
+Max(a, b) == IF a >= b THEN a ELSE b
+
 \* Sum function for sets (local definition to avoid circular dependency)
 RECURSIVE SumSet(_)
 SumSet(S) ==
@@ -246,21 +252,8 @@ NoSignatureForgeInvariant ==
     \A sig \in Signature :
         sig.valid => sig.signer \in Validators
 
-\* Deterministic leader selection using VRF-style stake-weighted selection (OLD - DEPRECATED)
-ComputeLeaderOld(slot, validators, stakeMap) ==
-    LET totalStake == TotalStake(validators, stakeMap)
-        seed == slot  \* Use slot as seed for determinism
-        \* Compute cumulative stake distribution
-        orderedVals == CHOOSE seq \in [1..Cardinality(validators) -> validators] :
-                        \A i, j \in 1..Cardinality(validators) :
-                            i < j => seq[i] # seq[j]
-        cumulativeStake == [i \in 1..Cardinality(validators) |->
-                            IF i = 1 THEN stakeMap[orderedVals[1]]
-                            ELSE SumSet({stakeMap[orderedVals[j]] : j \in 1..i})]
-        target == ((seed * totalStake) % totalStake) + 1
-        leaderIndex == CHOOSE i \in 1..Cardinality(validators) :
-                        cumulativeStake[i] >= target
-    IN orderedVals[leaderIndex]
+\* Remove deprecated ComputeLeader definition to avoid conflicts
+\* The main ComputeLeader function is defined later in the file
 
 ----------------------------------------------------------------------------
 (* Vote Types *)
@@ -477,6 +470,7 @@ WindowSlots(s) ==
 
 \* Check if one block is a descendant of another in the chain
 \* b_prime is a descendant of b if there's a chain from b to b_prime
+RECURSIVE IsDescendant(_, _)
 IsDescendant(b_prime, b) ==
     \/ b_prime = b  \* A block is its own descendant
     \/ /\ b_prime # b
@@ -507,6 +501,7 @@ IsPrefix(s1, s2) ==
     /\ \A i \in 1..Len(s1) : s1[i] = s2[i]
 
 \* Find common prefix of two sequences
+RECURSIVE CommonPrefix(_, _)
 CommonPrefix(s1, s2) ==
     LET minLen == Min(Len(s1), Len(s2))
         prefixLen == CHOOSE l \in 0..minLen :
@@ -576,8 +571,9 @@ ComputeLeader(slot, validators, stake) ==
                                     i < j => seq[i] # seq[j]
             \* Cumulative stake distribution by index
             cumulativeStake == [i \in 1..Cardinality(validators) |->
-                IF i = 1 THEN stake[ValidatorOrder[1]]
-                ELSE SumSet({stake[ValidatorOrder[j]] : j \in 1..i})
+                IF i = 1 THEN
+                    IF ValidatorOrder[1] \in DOMAIN stake THEN stake[ValidatorOrder[1]] ELSE 0
+                ELSE SumSet({IF ValidatorOrder[j] \in DOMAIN stake THEN stake[ValidatorOrder[j]] ELSE 0 : j \in 1..i})
             ]
             \* Find index whose cumulative stake range contains target
             selectedIndex == IF totalStake = 0 THEN 1
@@ -611,21 +607,23 @@ GetSlotLeader(slot, validators, stakes) ==
 \* Deterministic leader selection with VRF proof
 ComputeLeaderWithProof(slot, validators, stakes, vrfProof) ==
     LET totalStake == Sum(stakes)
-        vrfOutput == (vrfProof % totalStake)
+        vrfOutput == IF totalStake = 0 THEN 0 ELSE (vrfProof % totalStake)
         \* Create an ordered sequence of validators
         ValidatorOrder == CHOOSE seq \in [1..Cardinality(validators) -> validators] :
                             \A i, j \in 1..Cardinality(validators) :
                                 i < j => seq[i] # seq[j]
         \* Cumulative stake distribution by index
         cumulativeStake == [i \in 1..Cardinality(validators) |->
-            IF i = 1 THEN stakes[ValidatorOrder[1]]
-            ELSE SumSet({stakes[ValidatorOrder[j]] : j \in 1..i})
+            IF i = 1 THEN
+                IF ValidatorOrder[1] \in DOMAIN stakes THEN stakes[ValidatorOrder[1]] ELSE 0
+            ELSE SumSet({IF ValidatorOrder[j] \in DOMAIN stakes THEN stakes[ValidatorOrder[j]] ELSE 0 : j \in 1..i})
         ]
         \* Find index whose cumulative stake range contains target
-        selectedIndex == CHOOSE i \in 1..Cardinality(validators) :
-            /\ cumulativeStake[i] > vrfOutput
-            /\ \A j \in 1..Cardinality(validators) :
-                (j < i => cumulativeStake[j] <= vrfOutput) \/ j >= i
+        selectedIndex == IF totalStake = 0 THEN 1
+                       ELSE CHOOSE i \in 1..Cardinality(validators) :
+                           /\ cumulativeStake[i] > vrfOutput
+                           /\ \A j \in 1..Cardinality(validators) :
+                               (j < i => cumulativeStake[j] <= vrfOutput) \/ j >= i
     IN ValidatorOrder[selectedIndex]
 
 \* Validate VRF proof for leader selection
@@ -636,22 +634,24 @@ ValidVRFProof(slot, validator, proof, publicKey) ==
 
 \* Stake-weighted random selection
 StakeWeightedSelection(candidates, stakes, randomness) ==
-    LET totalStake == Sum([v \in candidates |-> stakes[v]])
-        target == (randomness % totalStake)
+    LET totalStake == Sum([v \in candidates |-> IF v \in DOMAIN stakes THEN stakes[v] ELSE 0])
+        target == IF totalStake = 0 THEN 0 ELSE (randomness % totalStake)
         \* Create an ordered sequence of candidates
         CandidateOrder == CHOOSE seq \in [1..Cardinality(candidates) -> candidates] :
                             \A i, j \in 1..Cardinality(candidates) :
                                 i < j => seq[i] # seq[j]
         \* Cumulative stake distribution by index
         cumulative == [i \in 1..Cardinality(candidates) |->
-            IF i = 1 THEN stakes[CandidateOrder[1]]
-            ELSE SumSet({stakes[CandidateOrder[j]] : j \in 1..i})
+            IF i = 1 THEN
+                IF CandidateOrder[1] \in DOMAIN stakes THEN stakes[CandidateOrder[1]] ELSE 0
+            ELSE SumSet({IF CandidateOrder[j] \in DOMAIN stakes THEN stakes[CandidateOrder[j]] ELSE 0 : j \in 1..i})
         ]
         \* Find index whose cumulative stake range contains target
-        selectedIndex == CHOOSE i \in 1..Cardinality(candidates) :
-            /\ cumulative[i] > target
-            /\ \A j \in 1..Cardinality(candidates) :
-                (j < i => cumulative[j] <= target) \/ j >= i
+        selectedIndex == IF totalStake = 0 THEN 1
+                       ELSE CHOOSE i \in 1..Cardinality(candidates) :
+                           /\ cumulative[i] > target
+                           /\ \A j \in 1..Cardinality(candidates) :
+                               (j < i => cumulative[j] <= target) \/ j >= i
     IN CandidateOrder[selectedIndex]
 
 \* Check if validator is leader for slot
@@ -664,16 +664,18 @@ ExtendsChain(chain1, chain2) ==
     IsPrefix(chain2, chain1)
 
 \* Find longest common prefix of chains
+RECURSIVE LongestCommonPrefix(_)
 LongestCommonPrefix(chains) ==
     IF Cardinality(chains) = 0 THEN <<>>
     ELSE IF Cardinality(chains) = 1 THEN CHOOSE c \in chains : TRUE
     ELSE LET c1 == CHOOSE c \in chains : TRUE
              rest == chains \ {c1}
-             FoldCommonPrefix[S \in SUBSET chains] ==
+             RECURSIVE FoldCommonPrefix(_)
+             FoldCommonPrefix(S) ==
                  IF S = {} THEN c1
                  ELSE LET x == CHOOSE x \in S : TRUE
-                      IN CommonPrefix(x, FoldCommonPrefix[S \ {x}])
-         IN FoldCommonPrefix[rest]
+                      IN CommonPrefix(x, FoldCommonPrefix(S \ {x}))
+         IN FoldCommonPrefix(rest)
 
 \* Check Byzantine agreement
 ByzantineAgreement(honest, byzantine, total) ==

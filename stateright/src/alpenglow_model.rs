@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! # Alpenglow Consensus Model
 //!
 //! This module implements the main Stateright model that mirrors the TLA+ Alpenglow specification
@@ -14,16 +15,14 @@
 //! - **Cross-Validation**: Behavioral equivalence with TLA+ specification
 
 use crate::votor::{
-    VotorState, VotorMessage, VotorActor, Vote, VoteType, Certificate, CertificateType,
-    Block, ViewNumber, TimeoutMs, VRFKeyPair, VRFProof, LEADER_WINDOW_SIZE, BASE_TIMEOUT,
-    ProtocolStateSummary, VotorPerformanceMetrics, RotorMessage as VotorRotorMessage,
+    VotorState, VotorMessage, Vote, VoteType, Certificate, CertificateType,
+    Block, ViewNumber, LEADER_WINDOW_SIZE,
 };
 use crate::rotor::{
-    RotorState, RotorMessage, RotorActor, Shred, ShredId, ErasureBlock, RepairRequest,
-    ReconstructionState, RotorMetrics,
+    RotorState, RotorMessage, Shred, RepairRequest,
 };
 use crate::{
-    AlpenglowError, AlpenglowResult, BlockHash, Config, Signature, SlotNumber, 
+    AlpenglowError, AlpenglowResult, BlockHash, Config, Signature, SlotNumber,
     StakeAmount, TlaCompatible, ValidatorId, Verifiable,
 };
 use serde::{Deserialize, Serialize};
@@ -81,7 +80,7 @@ impl NetworkMessage {
             signature: sender as Signature, // Simplified signature
         }
     }
-    
+
     /// Create a broadcast message
     pub fn broadcast(
         msg_type: String,
@@ -91,12 +90,12 @@ impl NetworkMessage {
     ) -> Self {
         Self::new(msg_type, sender, "broadcast".to_string(), payload, timestamp)
     }
-    
+
     /// Check if message is a broadcast
     pub fn is_broadcast(&self) -> bool {
         self.recipient == "broadcast"
     }
-    
+
     /// Validate message integrity
     pub fn validate(&self) -> bool {
         // Simplified validation - in practice would verify cryptographic signature
@@ -213,7 +212,8 @@ pub struct AlpenglowState {
     pub network_message_buffer: HashMap<ValidatorId, HashSet<NetworkMessage>>,
     
     /// Network partitions - mirrors TLA+ networkPartitions
-    pub network_partitions: HashSet<HashSet<ValidatorId>>,
+    /// Changed to Vec<HashSet<ValidatorId>> because HashSet<HashSet<...>> is not hashable.
+    pub network_partitions: Vec<HashSet<ValidatorId>>,
     
     /// Dropped messages count - mirrors TLA+ networkDroppedMessages
     pub network_dropped_messages: u64,
@@ -302,7 +302,7 @@ impl AlpenglowState {
             rotor_states,
             network_message_queue: HashSet::new(),
             network_message_buffer,
-            network_partitions: HashSet::new(),
+            network_partitions: Vec::new(),
             network_dropped_messages: 0,
             network_delivery_time: HashMap::new(),
             messages: HashSet::new(),
@@ -546,13 +546,14 @@ impl AlpenglowState {
             VotorMessage::FinalizeBlock { certificate } => {
                 // Process finalization on all validators
                 for (&validator_id, votor_state) in &mut self.votor_states {
-                    if let Err(_) = votor_state.finalize_block(certificate) {
-                        // Finalization failed, continue with other validators
-                        continue;
-                    }
-                    
                     // Find the block to finalize
                     if let Some(block) = self.find_block_for_certificate(certificate) {
+                        // Call votor_state.finalize_block with the canonical 3-arg signature
+                        if let Err(_) = votor_state.finalize_block(certificate.slot, &block, certificate) {
+                            // Finalization failed for this validator, continue with others
+                            continue;
+                        }
+                        
                         // Add to global finalized blocks
                         self.finalized_blocks
                             .entry(certificate.slot)
@@ -720,7 +721,7 @@ impl AlpenglowState {
             
             VotorMessage::ByzantineInvalidCert { certificate } => {
                 // Byzantine validator broadcasts invalid certificate
-                if self.byzantine_validators.contains(&certificate.validators.iter().next().unwrap_or(&0)) {
+                if certificate.validators.iter().next().map(|v| self.byzantine_validators.contains(v)).unwrap_or(false) {
                     let cert_msg = VotorMessage::FinalizeBlock { certificate: certificate.clone() };
                     let payload = serde_json::to_value(&cert_msg)
                         .map_err(|_| AlpenglowError::ProtocolViolation("Serialization failed".to_string()))?;
@@ -1074,12 +1075,17 @@ impl AlpenglowState {
             
             NetworkActionType::PartitionNetwork { partition } => {
                 // Create network partition
-                self.network_partitions.insert(partition);
+                if !partition.is_empty() {
+                    // Avoid duplicates
+                    if !self.network_partitions.iter().any(|p| p == &partition) {
+                        self.network_partitions.push(partition);
+                    }
+                }
             },
             
             NetworkActionType::HealPartition { partition } => {
-                // Heal network partition
-                self.network_partitions.remove(&partition);
+                // Heal network partition: remove matching partition if present
+                self.network_partitions.retain(|p| p != &partition);
             },
         }
         
@@ -1528,6 +1534,14 @@ impl AlpenglowModel {
 }
 
 impl Verifiable for AlpenglowState {
+    fn verify(&self) -> AlpenglowResult<()> {
+        // Default verify implementation that runs all checks
+        self.verify_safety()?;
+        self.verify_liveness()?;
+        self.verify_byzantine_resilience()?;
+        Ok(())
+    }
+
     fn verify_safety(&self) -> AlpenglowResult<()> {
         // Safety: No two blocks finalized in the same slot - mirrors TLA+ SafetyInvariant
         for (slot, blocks) in &self.finalized_blocks {
@@ -1696,281 +1710,186 @@ impl Verifiable for AlpenglowState {
 }
 
 impl TlaCompatible for AlpenglowState {
-    fn export_tla_state(&self) -> serde_json::Value {
-        // Export state in format compatible with TLA+ cross-validation
-        // Mirrors all TLA+ vars exactly
-        
-        // Export Votor states
-        let votor_states_json: HashMap<String, serde_json::Value> = self.votor_states
-            .iter()
-            .map(|(&validator, state)| (validator.to_string(), state.export_tla_state()))
-            .collect();
-        
-        // Export Rotor states
-        let rotor_states_json: HashMap<String, serde_json::Value> = self.rotor_states
-            .iter()
-            .map(|(&validator, state)| (validator.to_string(), state.export_tla_state()))
-            .collect();
-        
-        // Export network messages
-        let messages_json: Vec<serde_json::Value> = self.messages
-            .iter()
-            .map(|msg| serde_json::json!({
-                "type": msg.msg_type,
-                "sender": msg.sender,
-                "recipient": msg.recipient,
-                "payload": msg.payload,
-                "timestamp": msg.timestamp,
-                "signature": {
-                    "signer": msg.sender,
-                    "message": msg.msg_type,
-                    "valid": msg.validate()
-                }
-            }))
-            .collect();
-        
-        // Export finalized blocks
-        let finalized_blocks_json: HashMap<String, Vec<serde_json::Value>> = self.finalized_blocks
-            .iter()
-            .map(|(&slot, blocks)| {
-                let blocks_json: Vec<serde_json::Value> = blocks
-                    .iter()
-                    .map(|block| serde_json::json!({
-                        "slot": block.slot,
-                        "view": block.view,
-                        "hash": format!("{:?}", block.hash),
-                        "parent": format!("{:?}", block.parent),
-                        "proposer": block.proposer,
-                        "timestamp": block.timestamp,
-                        "signature": {
-                            "signer": block.proposer,
-                            "message": block.view,
-                            "valid": true
-                        },
-                        "data": block.data,
-                        "transactions": block.transactions.len()
-                    }))
-                    .collect();
-                (slot.to_string(), blocks_json)
-            })
-            .collect();
-        
-        // Export network partitions
-        let network_partitions_json: Vec<Vec<ValidatorId>> = self.network_partitions
-            .iter()
-            .map(|partition| partition.iter().cloned().collect())
-            .collect();
-        
-        // Export complete TLA+ state matching vars specification exactly
-        serde_json::json!({
-            // Time and scheduling - mirrors TLA+ time variables
-            "clock": self.clock,
-            "currentSlot": self.current_slot,
-            
-            // Votor consensus state - mirrors TLA+ votor variables
-            "votorStates": votor_states_json,
-            
-            // Rotor propagation state - mirrors TLA+ rotor variables
-            "rotorStates": rotor_states_json,
-            
-            // Network state - mirrors TLA+ network variables
-            "networkMessageQueue": self.network_message_queue.len(),
-            "networkMessageBuffer": self.network_message_buffer.iter()
-                .map(|(&v, msgs)| (v.to_string(), msgs.len()))
-                .collect::<HashMap<String, usize>>(),
-            "networkPartitions": network_partitions_json,
-            "networkDroppedMessages": self.network_dropped_messages,
-            "networkDeliveryTime": self.network_delivery_time.len(),
-            "messages": messages_json,
-            
-            // Finalized state - mirrors TLA+ finalization variables
-            "finalizedBlocks": finalized_blocks_json,
-            "finalizedBySlot": self.finalized_by_slot.iter()
-                .map(|(&slot, block_opt)| {
-                    let block_json = if let Some(block) = block_opt {
-                        serde_json::json!({
-                            "slot": block.slot,
-                            "hash": format!("{:?}", block.hash),
-                            "proposer": block.proposer
-                        })
-                    } else {
-                        serde_json::Value::Null
-                    };
-                    (slot.to_string(), block_json)
+    /// Convert to a TLA+ compatible string representation (JSON)
+    fn to_tla_string(&self) -> String {
+        // Build JSON value using existing export_tla_state_json logic, then serialize
+        let json_value = {
+            // Reuse export logic but produce serde_json::Value
+            // Export Votor states as parsed JSON values
+            let votor_states_json: HashMap<String, serde_json::Value> = self.votor_states
+                .iter()
+                .map(|(&validator, state)| {
+                    let s = state.export_tla_state();
+                    serde_json::from_str(&s).unwrap_or(serde_json::Value::Null)
                 })
-                .collect::<HashMap<String, serde_json::Value>>(),
-            
-            // Additional state - mirrors TLA+ additional variables
-            "failureStates": self.failure_states,
-            "nonceCounter": self.nonce_counter,
-            "latencyMetrics": self.latency_metrics.iter()
-                .map(|(&slot, &latency)| (slot.to_string(), latency))
-                .collect::<HashMap<String, u64>>(),
-            "bandwidthMetrics": self.bandwidth_metrics.iter()
-                .map(|(&validator, &bandwidth)| (validator.to_string(), bandwidth))
-                .collect::<HashMap<String, u64>>(),
-            
-            // Configuration and validator sets
-            "config": {
-                "validator_count": self.config.validator_count,
-                "total_stake": self.config.total_stake,
-                "fast_path_threshold": self.fast_path_threshold(),
-                "slow_path_threshold": self.slow_path_threshold(),
-                "byzantine_threshold": self.byzantine_threshold(),
-                "stake_distribution": self.config.stake_distribution.iter()
-                    .map(|(&v, &stake)| (v.to_string(), stake))
-                    .collect::<HashMap<String, StakeAmount>>()
-            },
-            "byzantineValidators": self.byzantine_validators.iter().collect::<Vec<_>>(),
-            "offlineValidators": self.offline_validators.iter().collect::<Vec<_>>(),
-            "honestValidators": self.honest_validators().iter().collect::<Vec<_>>(),
-            
-            // Protocol constants
-            "GST": GST,
-            "Delta": DELTA,
-            "SlotDuration": SLOT_DURATION,
-            "MaxSlot": MAX_SLOT,
-            "MaxView": MAX_VIEW,
-            
-            // Derived state for validation
-            "inSyncPeriod": self.in_sync_period(),
-            "totalFinalizedBlocks": self.finalized_blocks.len(),
-            "totalNetworkMessages": self.messages.len(),
-            "activeNetworkPartitions": self.network_partitions.len()
-        })
+                .zip(self.votor_states.keys().map(|k| k.to_string()))
+                .map(|(v, k)| (k, v))
+                .collect::<HashMap<String, serde_json::Value>>(); // fallback empty if conversion failed
+
+            // Note: above zip approach was to avoid borrow issues; but simpler approach:
+            let votor_states_json: HashMap<String, serde_json::Value> = self.votor_states
+                .iter()
+                .map(|(&validator, state)| {
+                    let parsed = serde_json::from_str(&state.export_tla_state()).unwrap_or(serde_json::Value::Null);
+                    (validator.to_string(), parsed)
+                })
+                .collect();
+
+            let rotor_states_json: HashMap<String, serde_json::Value> = self.rotor_states
+                .iter()
+                .map(|(&validator, state)| {
+                    let parsed = serde_json::from_str(&state.export_tla_state()).unwrap_or(serde_json::Value::Null);
+                    (validator.to_string(), parsed)
+                })
+                .collect();
+
+            let messages_json: Vec<serde_json::Value> = self.messages
+                .iter()
+                .map(|msg| serde_json::json!({
+                    "type": msg.msg_type,
+                    "sender": msg.sender,
+                    "recipient": msg.recipient,
+                    "payload": msg.payload,
+                    "timestamp": msg.timestamp,
+                    "signature": {
+                        "signer": msg.sender,
+                        "message": msg.msg_type,
+                        "valid": msg.validate()
+                    }
+                }))
+                .collect();
+
+            let finalized_blocks_json: HashMap<String, Vec<serde_json::Value>> = self.finalized_blocks
+                .iter()
+                .map(|(&slot, blocks)| {
+                    let blocks_json: Vec<serde_json::Value> = blocks
+                        .iter()
+                        .map(|block| serde_json::json!({
+                            "slot": block.slot,
+                            "view": block.view,
+                            "hash": format!("{:?}", block.hash),
+                            "parent": format!("{:?}", block.parent),
+                            "proposer": block.proposer,
+                            "timestamp": block.timestamp,
+                            "signature": {
+                                "signer": block.proposer,
+                                "message": block.view,
+                                "valid": true
+                            },
+                            "data": block.data,
+                            "transactions": block.transactions.len()
+                        }))
+                        .collect();
+                    (slot.to_string(), blocks_json)
+                })
+                .collect();
+
+            let network_partitions_json: Vec<Vec<ValidatorId>> = self.network_partitions
+                .iter()
+                .map(|partition| partition.iter().cloned().collect())
+                .collect();
+
+            serde_json::json!({
+                "clock": self.clock,
+                "currentSlot": self.current_slot,
+                "votorStates": votor_states_json,
+                "rotorStates": rotor_states_json,
+                "networkMessageQueue": self.network_message_queue.len(),
+                "networkMessageBuffer": self.network_message_buffer.iter()
+                    .map(|(&v, msgs)| (v.to_string(), msgs.len()))
+                    .collect::<HashMap<String, usize>>(),
+                "networkPartitions": network_partitions_json,
+                "networkDroppedMessages": self.network_dropped_messages,
+                "networkDeliveryTime": self.network_delivery_time.len(),
+                "messages": messages_json,
+                "finalizedBlocks": finalized_blocks_json,
+                "finalizedBySlot": self.finalized_by_slot.iter()
+                    .map(|(&slot, block_opt)| {
+                        let block_json = if let Some(block) = block_opt {
+                            serde_json::json!({
+                                "slot": block.slot,
+                                "hash": format!("{:?}", block.hash),
+                                "proposer": block.proposer
+                            })
+                        } else {
+                            serde_json::Value::Null
+                        };
+                        (slot.to_string(), block_json)
+                    })
+                    .collect::<HashMap<String, serde_json::Value>>(),
+                "failureStates": self.failure_states,
+                "nonceCounter": self.nonce_counter,
+                "latencyMetrics": self.latency_metrics.iter()
+                    .map(|(&slot, &latency)| (slot.to_string(), latency))
+                    .collect::<HashMap<String, u64>>(),
+                "bandwidthMetrics": self.bandwidth_metrics.iter()
+                    .map(|(&validator, &bandwidth)| (validator.to_string(), bandwidth))
+                    .collect::<HashMap<String, u64>>(),
+                "config": {
+                    "validator_count": self.config.validator_count,
+                    "total_stake": self.config.total_stake,
+                    "fast_path_threshold": self.fast_path_threshold(),
+                    "slow_path_threshold": self.slow_path_threshold(),
+                    "byzantine_threshold": self.byzantine_threshold(),
+                    "stake_distribution": self.config.stake_distribution.iter()
+                        .map(|(&v, &stake)| (v.to_string(), stake))
+                        .collect::<HashMap<String, StakeAmount>>()
+                },
+                "byzantineValidators": self.byzantine_validators.iter().collect::<Vec<_>>(),
+                "offlineValidators": self.offline_validators.iter().collect::<Vec<_>>(),
+                "honestValidators": self.honest_validators().iter().collect::<Vec<_>>(),
+                "GST": GST,
+                "Delta": DELTA,
+                "SlotDuration": SLOT_DURATION,
+                "MaxSlot": MAX_SLOT,
+                "MaxView": MAX_VIEW,
+                "inSyncPeriod": self.in_sync_period(),
+                "totalFinalizedBlocks": self.finalized_blocks.len(),
+                "totalNetworkMessages": self.messages.len(),
+                "activeNetworkPartitions": self.network_partitions.len()
+            })
+        };
+        serde_json::to_string(&json_value).unwrap_or_else(|_| "{}".to_string())
     }
     
-    fn import_tla_state(&mut self, state: serde_json::Value) -> AlpenglowResult<()> {
-        // Import all TLA+ state variables with comprehensive validation
+    /// Export TLA+ state as a JSON string for cross-validation
+    fn export_tla_state(&self) -> String {
+        self.to_tla_string()
+    }
+    
+    /// Import TLA+ state from another AlpenglowState representation (copy selected fields)
+    fn import_tla_state(&mut self, state: &Self) -> AlpenglowResult<()> {
+        // Copy time and scheduling
+        self.clock = state.clock;
+        self.current_slot = state.current_slot;
         
-        // Import time and scheduling
-        if let Some(clock) = state.get("clock").and_then(|v| v.as_u64()) {
-            self.clock = clock;
-        } else {
-            return Err(AlpenglowError::ProtocolViolation(
-                "Missing or invalid clock in TLA+ state".to_string()
-            ));
-        }
+        // Copy voter and rotor states by deep cloning
+        self.votor_states = state.votor_states.clone();
+        self.rotor_states = state.rotor_states.clone();
         
-        if let Some(current_slot) = state.get("currentSlot").and_then(|v| v.as_u64()) {
-            self.current_slot = current_slot;
-        } else {
-            return Err(AlpenglowError::ProtocolViolation(
-                "Missing or invalid currentSlot in TLA+ state".to_string()
-            ));
-        }
+        // Copy network buffers and messages
+        self.network_message_queue = state.network_message_queue.clone();
+        self.network_message_buffer = state.network_message_buffer.clone();
+        self.messages = state.messages.clone();
+        self.network_dropped_messages = state.network_dropped_messages;
+        self.network_delivery_time = state.network_delivery_time.clone();
         
-        // Import Votor states
-        if let Some(votor_states_json) = state.get("votorStates").and_then(|v| v.as_object()) {
-            for (validator_str, votor_state_json) in votor_states_json {
-                if let Ok(validator_id) = validator_str.parse::<ValidatorId>() {
-                    if let Some(votor_state) = self.votor_states.get_mut(&validator_id) {
-                        votor_state.import_tla_state(votor_state_json.clone())?;
-                    }
-                }
-            }
-        }
+        // Copy finalization data
+        self.finalized_blocks = state.finalized_blocks.clone();
+        self.finalized_by_slot = state.finalized_by_slot.clone();
+        self.latency_metrics = state.latency_metrics.clone();
         
-        // Import Rotor states
-        if let Some(rotor_states_json) = state.get("rotorStates").and_then(|v| v.as_object()) {
-            for (validator_str, rotor_state_json) in rotor_states_json {
-                if let Ok(validator_id) = validator_str.parse::<ValidatorId>() {
-                    if let Some(rotor_state) = self.rotor_states.get_mut(&validator_id) {
-                        rotor_state.import_tla_state(rotor_state_json.clone())?;
-                    }
-                }
-            }
-        }
+        // Copy validator sets and failure info
+        self.failure_states = state.failure_states.clone();
+        self.byzantine_validators = state.byzantine_validators.clone();
+        self.offline_validators = state.offline_validators.clone();
         
-        // Import network state
-        if let Some(dropped) = state.get("networkDroppedMessages").and_then(|v| v.as_u64()) {
-            self.network_dropped_messages = dropped;
-        }
+        // Copy partitions
+        self.network_partitions = state.network_partitions.clone();
         
-        if let Some(partitions_json) = state.get("networkPartitions").and_then(|v| v.as_array()) {
-            self.network_partitions.clear();
-            for partition_json in partitions_json {
-                if let Some(partition_array) = partition_json.as_array() {
-                    let partition: HashSet<ValidatorId> = partition_array
-                        .iter()
-                        .filter_map(|v| v.as_u64().map(|n| n as ValidatorId))
-                        .collect();
-                    if !partition.is_empty() {
-                        self.network_partitions.insert(partition);
-                    }
-                }
-            }
-        }
-        
-        // Import finalized blocks
-        if let Some(finalized_json) = state.get("finalizedBlocks").and_then(|v| v.as_object()) {
-            self.finalized_blocks.clear();
-            for (slot_str, blocks_json) in finalized_json {
-                if let (Ok(slot), Some(blocks_array)) = (
-                    slot_str.parse::<SlotNumber>(),
-                    blocks_json.as_array()
-                ) {
-                    let mut blocks = HashSet::new();
-                    for block_json in blocks_array {
-                        if let Some(block) = self.parse_block_from_json(block_json)? {
-                            blocks.insert(block);
-                        }
-                    }
-                    self.finalized_blocks.insert(slot, blocks);
-                }
-            }
-        }
-        
-        // Import additional state
-        if let Some(nonce) = state.get("nonceCounter").and_then(|v| v.as_u64()) {
-            self.nonce_counter = nonce;
-        }
-        
-        if let Some(latency_json) = state.get("latencyMetrics").and_then(|v| v.as_object()) {
-            self.latency_metrics.clear();
-            for (slot_str, latency_val) in latency_json {
-                if let (Ok(slot), Some(latency)) = (
-                    slot_str.parse::<SlotNumber>(),
-                    latency_val.as_u64()
-                ) {
-                    self.latency_metrics.insert(slot, latency);
-                }
-            }
-        }
-        
-        if let Some(bandwidth_json) = state.get("bandwidthMetrics").and_then(|v| v.as_object()) {
-            self.bandwidth_metrics.clear();
-            for (validator_str, bandwidth_val) in bandwidth_json {
-                if let (Ok(validator), Some(bandwidth)) = (
-                    validator_str.parse::<ValidatorId>(),
-                    bandwidth_val.as_u64()
-                ) {
-                    self.bandwidth_metrics.insert(validator, bandwidth);
-                }
-            }
-        }
-        
-        // Import validator sets
-        if let Some(byzantine_json) = state.get("byzantineValidators").and_then(|v| v.as_array()) {
-            self.byzantine_validators.clear();
-            for validator_val in byzantine_json {
-                if let Some(validator) = validator_val.as_u64() {
-                    self.byzantine_validators.insert(validator as ValidatorId);
-                }
-            }
-        }
-        
-        if let Some(offline_json) = state.get("offlineValidators").and_then(|v| v.as_array()) {
-            self.offline_validators.clear();
-            for validator_val in offline_json {
-                if let Some(validator) = validator_val.as_u64() {
-                    self.offline_validators.insert(validator as ValidatorId);
-                }
-            }
-        }
-        
-        // Validate imported state consistency
-        self.validate_imported_state()?;
+        // Copy counters and metrics
+        self.nonce_counter = state.nonce_counter;
+        self.bandwidth_metrics = state.bandwidth_metrics.clone();
         
         Ok(())
     }
@@ -2427,13 +2346,15 @@ mod tests {
         state.clock = 100;
         state.current_slot = 5;
         
-        let exported = state.export_tla_state();
-        assert_eq!(exported.get("clock").and_then(|v| v.as_u64()), Some(100));
-        assert_eq!(exported.get("currentSlot").and_then(|v| v.as_u64()), Some(5));
+        let exported_str = state.export_tla_state();
+        // Parse exported JSON string to value for inspection
+        let exported_val: serde_json::Value = serde_json::from_str(&exported_str).expect("Exported TLA state should be valid JSON");
+        assert_eq!(exported_val.get("clock").and_then(|v| v.as_u64()), Some(100));
+        assert_eq!(exported_val.get("currentSlot").and_then(|v| v.as_u64()), Some(5));
         
-        // Test import
+        // Test import by copying from another AlpenglowState
         let mut new_state = AlpenglowState::new(Config::new().with_validators(3));
-        assert!(new_state.import_tla_state(exported).is_ok());
+        assert!(new_state.import_tla_state(&state).is_ok());
         assert_eq!(new_state.clock, 100);
         assert_eq!(new_state.current_slot, 5);
     }

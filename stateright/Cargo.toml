@@ -11,7 +11,7 @@ categories = ["cryptography", "simulation", "development-tools"]
 
 [dependencies]
 # Core Stateright framework for model checking and formal verification
-stateright = { version = "0.27.0", default-features = false, features = ["model-checking"] }
+stateright = "0.30.1"
 
 # Async runtime for network simulation and timing
 tokio = { version = "1.0", features = ["rt", "time", "sync", "macros"] }
@@ -65,8 +65,8 @@ toml = "0.8"
 rayon = { version = "1.8", optional = true }
 
 # State space exploration and model checking utilities
-petgraph = "0.6"
-im = "15.1"
+petgraph = { version = "0.6", optional = true }
+im = { version = "15.1", optional = true }
 
 # Stake-weighted sampling and leader selection
 rand_distr = "0.4"
@@ -75,10 +75,10 @@ rand_distr = "0.4"
 ordered-float = "4.2"
 
 # Bandwidth monitoring and throttling (for bandwidthUsage from TLA+)
-governor = "0.6"
+governor = { version = "0.6", optional = true }
 
 # Memory-efficient collections for large state spaces
-dashmap = "5.5"
+dashmap = { version = "5.5", optional = true }
 
 [dev-dependencies]
 # Testing and property-based testing

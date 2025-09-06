@@ -46,7 +46,7 @@ VARIABLES
     clock                \* Global clock for timing
 
 voterVars == <<votorView, votorVotes, votorTimeouts, votorGeneratedCerts,
-               votorFinalizedChain, votorState, votorObservedCerts, clock>>
+               votorFinalizedChain, votorState, votorObservedCerts, clock, currentSlot>>
 
 ----------------------------------------------------------------------------
 (* Vote Types as required by the plan *)
@@ -96,6 +96,7 @@ TypeInvariant ==
     /\ votorState \in [Validators -> [1..MaxSlot -> SUBSET STRING]]
     /\ votorObservedCerts \in [Validators -> SUBSET Types!Certificate]
     /\ clock \in Types!TimeValue
+    /\ currentSlot \in 1..MaxSlot
 
 ----------------------------------------------------------------------------
 (* Timing and Threshold Functions *)
@@ -120,6 +121,18 @@ ViewTimeout(view, baseTimeout) ==
 
 \* Current slot calculation
 CurrentSlot == clock \div Types!SlotDuration + 1
+
+\* Add currentSlot variable to state
+VARIABLES
+    votorView,           \* Current view number for each validator [validator]
+    votorVotes,          \* Votes cast by each validator [validator]
+    votorTimeouts,       \* Timeout settings per validator per slot [validator][slot]
+    votorGeneratedCerts, \* Certificates generated per view [view]
+    votorFinalizedChain, \* Finalized chain per validator [validator]
+    votorState,          \* Internal state tracking per validator [validator][slot]
+    votorObservedCerts,  \* Certificates observed by each validator [validator]
+    clock,               \* Global clock for timing
+    currentSlot          \* Current protocol slot
 
 \* Check if timeout has expired
 TimeoutExpired(validator, slot) ==
@@ -226,7 +239,7 @@ CastNotarVote(validator, slot, block) ==
                          timestamp |-> clock]
        IN votorVotes' = [votorVotes EXCEPT ![validator] = votorVotes[validator] \cup {notarVote}]
     /\ votorState' = [votorState EXCEPT ![validator][slot] = votorState[validator][slot] \cup {"Voted"}]
-    /\ UNCHANGED <<votorView, votorTimeouts, votorGeneratedCerts, votorFinalizedChain, votorObservedCerts, clock>>
+    /\ UNCHANGED <<votorView, votorTimeouts, votorGeneratedCerts, votorFinalizedChain, votorObservedCerts, clock, currentSlot>>
 
 \* Cast skip vote for timeout handling
 CastSkipVote(validator, slot, reason) ==
@@ -244,7 +257,7 @@ CastSkipVote(validator, slot, reason) ==
                         timestamp |-> clock]
        IN votorVotes' = [votorVotes EXCEPT ![validator] = votorVotes[validator] \cup {skipVote}]
     /\ votorState' = [votorState EXCEPT ![validator][slot] = votorState[validator][slot] \cup {"Skipped"}]
-    /\ UNCHANGED <<votorView, votorTimeouts, votorGeneratedCerts, votorFinalizedChain, votorObservedCerts, clock>>
+    /\ UNCHANGED <<votorView, votorTimeouts, votorGeneratedCerts, votorFinalizedChain, votorObservedCerts, clock, currentSlot>>
 
 \* Cast finalization vote for second round of slow path
 CastFinalizationVote(validator, slot, block) ==
@@ -262,7 +275,7 @@ CastFinalizationVote(validator, slot, block) ==
                                 timestamp |-> clock]
        IN votorVotes' = [votorVotes EXCEPT ![validator] = votorVotes[validator] \cup {finalizationVote}]
     /\ votorState' = [votorState EXCEPT ![validator][slot] = votorState[validator][slot] \cup {"Finalized"}]
-    /\ UNCHANGED <<votorView, votorTimeouts, votorGeneratedCerts, votorFinalizedChain, votorObservedCerts, clock>>
+    /\ UNCHANGED <<votorView, votorTimeouts, votorGeneratedCerts, votorFinalizedChain, votorObservedCerts, clock, currentSlot>>
 
 ----------------------------------------------------------------------------
 (* Timeout Mechanisms *)
@@ -273,7 +286,7 @@ SetTimeout(validator, slot, timeout) ==
     /\ slot \in 1..MaxSlot
     /\ timeout \in Types!TimeValue
     /\ votorTimeouts' = [votorTimeouts EXCEPT ![validator][slot] = votorTimeouts[validator][slot] \cup {timeout}]
-    /\ UNCHANGED <<votorView, votorVotes, votorGeneratedCerts, votorFinalizedChain, votorState, votorObservedCerts, clock>>
+    /\ UNCHANGED <<votorView, votorVotes, votorGeneratedCerts, votorFinalizedChain, votorState, votorObservedCerts, clock, currentSlot>>
 
 \* Handle timeout expiration
 HandleTimeout(validator, slot) ==
@@ -297,7 +310,7 @@ FinalizeBlock(validator, slot, block, certificate) ==
     /\ ~\E b \in Range(votorFinalizedChain[validator]) : b.slot = slot  \* No duplicate slots
     /\ votorFinalizedChain' = [votorFinalizedChain EXCEPT ![validator] = Append(votorFinalizedChain[validator], block)]
     /\ votorState' = [votorState EXCEPT ![validator][slot] = votorState[validator][slot] \cup {"ItsOver"}]
-    /\ UNCHANGED <<votorView, votorVotes, votorTimeouts, votorGeneratedCerts, votorObservedCerts, clock>>
+    /\ UNCHANGED <<votorView, votorVotes, votorTimeouts, votorGeneratedCerts, votorObservedCerts, clock, currentSlot>>
 
 \* Update finalized chain for validator
 UpdateFinalizedChain(validator, block) ==
@@ -305,13 +318,14 @@ UpdateFinalizedChain(validator, block) ==
     /\ block \in Types!Block
     /\ ~\E b \in Range(votorFinalizedChain[validator]) : b.slot = block.slot
     /\ votorFinalizedChain' = [votorFinalizedChain EXCEPT ![validator] = Append(votorFinalizedChain[validator], block)]
-    /\ UNCHANGED <<votorView, votorVotes, votorTimeouts, votorGeneratedCerts, votorState, votorObservedCerts, clock>>
+    /\ UNCHANGED <<votorView, votorVotes, votorTimeouts, votorGeneratedCerts, votorState, votorObservedCerts, clock, currentSlot>>
 
 ----------------------------------------------------------------------------
 (* Initialization *)
 
 Init ==
     /\ clock = 0
+    /\ currentSlot = 1
     /\ votorView = [validator \in Validators |-> 1]
     /\ votorVotes = [validator \in Validators |-> {}]
     /\ votorTimeouts = [validator \in Validators |-> [slot \in 1..MaxSlot |-> {}]]
@@ -334,7 +348,7 @@ GenerateCertificates ==
               /\ votorGeneratedCerts' = [votorGeneratedCerts EXCEPT ![view] = votorGeneratedCerts[view] \cup {cert}]
            \/ /\ \E cert \in Types!Certificate : cert = GenerateSkipCert(slot, slotVotes)
               /\ votorGeneratedCerts' = [votorGeneratedCerts EXCEPT ![view] = votorGeneratedCerts[view] \cup {cert}]
-    /\ UNCHANGED <<votorView, votorVotes, votorTimeouts, votorFinalizedChain, votorState, votorObservedCerts, clock>>
+    /\ UNCHANGED <<votorView, votorVotes, votorTimeouts, votorFinalizedChain, votorState, votorObservedCerts, clock, currentSlot>>
 
 \* Observe certificates from other validators
 ObserveCertificate(validator, cert) ==
@@ -342,12 +356,21 @@ ObserveCertificate(validator, cert) ==
     /\ cert \in UNION {votorGeneratedCerts[view] : view \in 1..MaxView}
     /\ cert \notin votorObservedCerts[validator]
     /\ votorObservedCerts' = [votorObservedCerts EXCEPT ![validator] = votorObservedCerts[validator] \cup {cert}]
-    /\ UNCHANGED <<votorView, votorVotes, votorTimeouts, votorGeneratedCerts, votorFinalizedChain, votorState, clock>>
+    /\ UNCHANGED <<votorView, votorVotes, votorTimeouts, votorGeneratedCerts, votorFinalizedChain, votorState, clock, currentSlot>>
+
+\* Advance slot when current slot is finalized or timed out
+AdvanceSlot ==
+    /\ currentSlot < MaxSlot
+    /\ \/ \E cert \in UNION {votorGeneratedCerts[view] : view \in 1..MaxView} :
+           cert.slot = currentSlot /\ cert.type \in {"fast", "slow"}
+       \/ \A validator \in Validators : TimeoutExpired(validator, currentSlot)
+    /\ currentSlot' = currentSlot + 1
+    /\ UNCHANGED <<votorView, votorVotes, votorTimeouts, votorGeneratedCerts, votorFinalizedChain, votorState, votorObservedCerts, clock>>
 
 \* Advance clock
 AdvanceClock ==
     /\ clock' = clock + 1
-    /\ UNCHANGED <<votorView, votorVotes, votorTimeouts, votorGeneratedCerts, votorFinalizedChain, votorState, votorObservedCerts>>
+    /\ UNCHANGED <<votorView, votorVotes, votorTimeouts, votorGeneratedCerts, votorFinalizedChain, votorState, votorObservedCerts, currentSlot>>
 
 ----------------------------------------------------------------------------
 (* Next State Relation *)
@@ -371,6 +394,7 @@ Next ==
     \/ \E validator \in Validators, cert \in Types!Certificate :
         ObserveCertificate(validator, cert)
     \/ AdvanceClock
+    \/ AdvanceSlot
 
 ----------------------------------------------------------------------------
 (* Invariants as required by the plan *)
@@ -433,6 +457,28 @@ ByzantineResilienceProperty ==
     LET byzantineStake == Utils!TotalStake(ByzantineValidators, Types!Stake)
         totalStake == Utils!TotalStake(Validators, Types!Stake)
     IN byzantineStake * 5 < totalStake => SafetyInvariant
+
+\* Add missing operators referenced by Alpenglow.tla
+
+\* Cast vote (generic voting action)
+CastVote(validator, block, view) ==
+    CastNotarVote(validator, block.slot, block)
+
+\* Propose block (for leader actions)
+ProposeBlock(validator, view) ==
+    /\ validator \in Validators
+    /\ validator = Types!ComputeLeader(view, Validators, Types!Stake)
+    /\ LET block == [slot |-> currentSlot,
+                     view |-> view,
+                     hash |-> Types!GenerateId(currentSlot, view, validator),
+                     parent |-> 0,
+                     proposer |-> validator,
+                     transactions |-> {},
+                     timestamp |-> clock,
+                     signature |-> Types!SignMessage(validator, currentSlot),
+                     data |-> <<>>]
+       IN /\ votorState' = [votorState EXCEPT ![validator][currentSlot] = votorState[validator][currentSlot] \cup {"Proposed"}]
+          /\ UNCHANGED <<votorView, votorVotes, votorTimeouts, votorGeneratedCerts, votorFinalizedChain, votorObservedCerts, clock, currentSlot>>
 
 \* Helper function for sequence range
 Range(seq) == {seq[i] : i \in DOMAIN seq}

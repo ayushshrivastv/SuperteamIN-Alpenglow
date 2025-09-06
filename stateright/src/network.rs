@@ -677,6 +677,14 @@ impl PartialSynchronyModel {
 }
 
 impl Verifiable for NetworkState {
+    fn verify(&self) -> AlpenglowResult<()> {
+        // Delegate to the existing verification methods for safety, liveness, and Byzantine resilience
+        self.verify_safety()?;
+        self.verify_liveness()?;
+        self.verify_byzantine_resilience()?;
+        Ok(())
+    }
+
     fn verify_safety(&self) -> AlpenglowResult<()> {
         // NoForgery: No message forgery for honest validators
         for msg in &self.message_queue {
@@ -760,9 +768,17 @@ impl Verifiable for NetworkState {
 }
 
 impl TlaCompatible for NetworkState {
+    fn to_tla_string(&self) -> String {
+        // Serialize the network state to a JSON string representation
+        match serde_json::to_string(self) {
+            Ok(json_str) => json_str,
+            Err(_) => "{}".to_string(),
+        }
+    }
+
     /// Export complete network state for TLA+ cross-validation
     /// Matches all TLA+ Network variables exactly
-    fn export_tla_state(&self) -> serde_json::Value {
+    fn export_tla_state(&self) -> String {
         // Convert message queue to TLA+ format (set of messages)
         let message_queue: Vec<serde_json::Value> = self.message_queue.iter()
             .map(|msg| serde_json::json!({
@@ -836,7 +852,7 @@ impl TlaCompatible for NetworkState {
             .collect();
 
         // Export all TLA+ Network variables exactly as specified
-        serde_json::json!({
+        let json_value = serde_json::json!({
             // Core TLA+ Network variables - mirrors Network.tla exactly
             "messageQueue": message_queue,
             "messageBuffer": message_buffer,
@@ -877,12 +893,35 @@ impl TlaCompatible for NetworkState {
             "exportTimestamp": self.clock,
             "stateVersion": "1.0",
             "networkVars": ["messageQueue", "messageBuffer", "networkPartitions", "droppedMessages", "deliveryTime", "clock"]
-        })
+        });
+
+        // Convert JSON to string
+        serde_json::to_string(&json_value).unwrap_or_else(|_| "{}".to_string())
     }
 
     /// Import complete network state from TLA+ model checker
     /// Reconstructs NetworkState from TLA+ exported JSON with comprehensive error handling
-    fn import_tla_state(&mut self, state: serde_json::Value) -> AlpenglowResult<()> {
+    fn import_tla_state(&mut self, state: &NetworkState) -> AlpenglowResult<()> {
+        // Copy state from the provided NetworkState reference
+        self.clock = state.clock;
+        self.message_queue = state.message_queue.clone();
+        self.message_buffer = state.message_buffer.clone();
+        self.network_partitions = state.network_partitions.clone();
+        self.dropped_messages = state.dropped_messages;
+        self.delivery_time = state.delivery_time.clone();
+        self.byzantine_validators = state.byzantine_validators.clone();
+        self.config = state.config.clone();
+        self.next_message_id = state.next_message_id;
+
+        // Validate imported state consistency
+        self.validate_imported_state()?;
+
+        Ok(())
+    }
+
+    /// Import complete network state from TLA+ JSON format
+    /// This is a helper method for importing from JSON when needed
+    fn import_tla_state_from_json(&mut self, state: serde_json::Value) -> AlpenglowResult<()> {
         // Import clock with validation
         if let Some(clock_val) = state.get("clock") {
             match clock_val.as_u64() {

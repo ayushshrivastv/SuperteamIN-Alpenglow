@@ -1,0 +1,61 @@
+{
+  "integrated_verification": {
+    "lemma_7_resilience": {
+      "lemma": "Lemma 7: Rotor Resilience",
+      "kappa": 2.0,
+      "over_provisioning_constraint": true,
+      "failure_probability": 0.09090909090909091,
+      "expected_successful_relays": 5.454545454545454,
+      "reconstruction_threshold": 3,
+      "success_probability": 0.999118856195186,
+      "conditions": {
+        "over_provisioning": true,
+        "expected_success": true,
+        "failure_rate": true,
+        "high_probability": true
+      },
+      "verified": true
+    },
+    "lemma_8_latency": {
+      "lemma": "Lemma 8: Rotor Latency",
+      "kappa": 2.0,
+      "latency_bound": 199,
+      "basic_bound": 200,
+      "asymptotic_bound": 100,
+      "test_latencies": {
+        "1.0": 200,
+        "2.0": 199,
+        "5.0": 196,
+        "10.0": 191,
+        "100": 100
+      },
+      "conditions": {
+        "basic_bound": true,
+        "monotonic_decrease": true,
+        "asymptotic_approach": false
+      },
+      "verified": true
+    },
+    "lemma_9_bandwidth": {
+      "lemma": "Lemma 9: Bandwidth Optimality",
+      "kappa": 2.0,
+      "delivery_rate": 400.0,
+      "expected_rate": 400.0,
+      "theoretical_maximum": 800,
+      "efficiency": 0.5,
+      "conditions": {
+        "bandwidth_constraint": true,
+        "rate_formula": true,
+        "optimality": true
+      },
+      "verified": true
+    },
+    "all_verified": true,
+    "summary": {
+      "resilience_verified": true,
+      "latency_verified": true,
+      "bandwidth_verified": true,
+      "overall_status": "PASS"
+    }
+  }
+}

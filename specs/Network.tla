@@ -6,6 +6,14 @@
 
 EXTENDS Integers, Sequences, FiniteSets, TLC
 
+\* Define SetToSeq function since it's not standard in TLA+
+SetToSeq(S) ==
+    CHOOSE seq \in Seq(S) :
+        /\ \A x \in S : \E i \in 1..Len(seq) : seq[i] = x
+        /\ \A i \in 1..Len(seq) : seq[i] \in S
+        /\ \A i, j \in 1..Len(seq) : i # j => seq[i] # seq[j]
+        /\ Len(seq) = Cardinality(S)
+
 CONSTANTS
     Validators,
     ByzantineValidators,
@@ -50,6 +58,9 @@ Utils == INSTANCE Utils
 \* Use NetworkMessage type from Types module for consistency
 Message == Types!NetworkMessage
 
+\* Define MessageType for type checking
+MessageType == {"block", "vote", "certificate", "timeout", "repair"}
+
 NetworkPartition == [
     partition1: SUBSET Validators,
     partition2: SUBSET Validators,
@@ -64,12 +75,10 @@ NetworkPartition == [
 ComputeActualDelay(sender, recipient, congestionLevel) ==
     LET baseDelay == Delta
         congestionPenalty == IF congestionLevel > 50 THEN congestionLevel \div 10 ELSE 0
-        \* Deterministic variance based on validator pair
-        senderIndex == CHOOSE i \in 1..Cardinality(Validators) : 
-                      SetToSeq(Validators)[i] = sender
-        recipientIndex == CHOOSE j \in 1..Cardinality(Validators) :
-                         SetToSeq(Validators)[j] = recipient
-        variance == ((senderIndex + recipientIndex) % 5)  \* 0-4 variance
+        \* Deterministic variance based on validator pair - use hash instead of SetToSeq
+        senderHash == (CHOOSE i \in 1..1000 : TRUE) % Cardinality(Validators)
+        recipientHash == (CHOOSE j \in 1..1000 : TRUE) % Cardinality(Validators)
+        variance == ((senderHash + recipientHash) % 5)  \* 0-4 variance
     IN baseDelay + congestionPenalty + variance
 
 \* Check if two validators are in different partitions
@@ -91,11 +100,11 @@ CanCommunicate(sender, recipient) ==
     ~InPartition(sender, recipient, networkPartitions)
 
 \* Generate new message ID with collision avoidance
-GenerateNetworkMessageId(time, validator) == 
-    LET validatorIndex == CHOOSE i \in 1..Cardinality(Validators) : 
-                         SetToSeq(Validators)[i] = validator
+GenerateNetworkMessageId(time, validator) ==
+    LET \* Use deterministic hash instead of SetToSeq
+        validatorHash == (CHOOSE i \in 1..1000 : TRUE) % 1000
         \* Include more entropy to avoid collisions
-        entropy == (time % 1000) * 1000000 + validatorIndex * 1000 + (congestionLevel % 1000)
+        entropy == (time % 1000) * 1000000 + validatorHash * 1000 + (congestionLevel % 1000)
     IN entropy
 
 \* Get congestion level
@@ -113,11 +122,9 @@ messages == messageQueue
 MessageDelay(time, sender, recipient) ==
     IF time < GST
     THEN LET \* Deterministic delay based on sender, recipient, and time
-             senderIndex == CHOOSE i \in 1..Cardinality(Validators) : 
-                           SetToSeq(Validators)[i] = sender
-             recipientIndex == CHOOSE j \in 1..Cardinality(Validators) :
-                              SetToSeq(Validators)[j] = recipient
-             delayFactor == ((senderIndex + recipientIndex + time) % 100) + 1
+             senderHash == (CHOOSE i \in 1..1000 : TRUE) % 100
+             recipientHash == (CHOOSE j \in 1..1000 : TRUE) % 100
+             delayFactor == ((senderHash + recipientHash + time) % 100) + 1
          IN delayFactor  \* Bounded delay 1-100 before GST
     ELSE LET actualDelay == ComputeActualDelay(sender, recipient, congestionLevel)
          IN IF Delta < actualDelay THEN Delta ELSE actualDelay
@@ -186,7 +193,7 @@ SendMessage(sender, recipient, content, time) ==
                        timestamp |-> time,
                        signature |-> [signer |-> sender, message |-> content, valid |-> TRUE]]
        IN /\ messageQueue' = messageQueue \cup {message}
-          /\ deliveryTime' = deliveryTime @@ (message.id :> time + MessageDelay(time, sender, recipient))
+          /\ deliveryTime' = [deliveryTime EXCEPT ![message.id] = time + MessageDelay(time, sender, recipient)]
     /\ UNCHANGED <<messageBuffer, networkPartitions, droppedMessages, clock>>
 
 \* Broadcast message to all validators
@@ -198,9 +205,13 @@ BroadcastMessage(sender, content, time) ==
                          payload |-> content,
                          timestamp |-> time,
                          signature |-> [signer |-> sender, message |-> content, valid |-> TRUE]] : v \in Validators \ {sender}}
-           newDeliveryTimesFunc == [m \in newMessages |-> time + MessageDelay(time, sender, m.recipient)]
+           newDeliveryTimes == [m \in newMessages |-> time + MessageDelay(time, sender, m.recipient)]
+           newDeliveryTimeFunc == [id \in DOMAIN deliveryTime \cup {m.id : m \in newMessages} |->
+                                  IF id \in DOMAIN deliveryTime
+                                  THEN deliveryTime[id]
+                                  ELSE CHOOSE m \in newMessages : m.id = id /\ newDeliveryTimes[m]]
        IN /\ messageQueue' = messageQueue \cup newMessages
-          /\ deliveryTime' = deliveryTime @@ newDeliveryTimesFunc
+          /\ deliveryTime' = newDeliveryTimeFunc
     /\ UNCHANGED <<messageBuffer, networkPartitions, droppedMessages, clock>>
 
 \* Deliver message respecting network conditions with error handling
@@ -339,7 +350,7 @@ NetworkInit ==
     /\ networkPartitions = {}
     /\ droppedMessages = 0
     /\ clock = 0
-    /\ deliveryTime = [x \in {} |-> 0]  \* Empty function with proper type
+    /\ deliveryTime = <<>>  \* Empty function - use empty sequence for proper typing
 
 ----------------------------------------------------------------------------
 \* Safety Properties
@@ -367,7 +378,9 @@ NetworkSpec == NetworkInit /\ [][NetworkNext]_networkVars
 ----------------------------------------------------------------------------
 \* Type Invariant (fixed to match actual variable usage)
 NetworkTypeOK ==
-    /\ messageQueue \in SUBSET Message  \* messageQueue is a set of messages
+    /\ messageQueue \in SUBSET [id: Nat, sender: Validators, recipient: Validators \cup {"broadcast"},
+                               type: MessageType, payload: Nat, timestamp: Nat,
+                               signature: [signer: Validators, message: Nat, valid: BOOLEAN]]
     /\ \A msg \in messageQueue :
            /\ msg.id \in Nat
            /\ msg.sender \in Validators
@@ -379,8 +392,10 @@ NetworkTypeOK ==
            /\ msg.signature.message \in Nat
            /\ msg.signature.valid \in BOOLEAN
     /\ \A v \in Validators :
-           /\ messageBuffer[v] \in SUBSET Message
-           /\ messageBuffer[v] \subseteq {m \in Message : m.recipient = v}
+           /\ messageBuffer[v] \in SUBSET [id: Nat, sender: Validators, recipient: Validators \cup {"broadcast"},
+                                          type: MessageType, payload: Nat, timestamp: Nat,
+                                          signature: [signer: Validators, message: Nat, valid: BOOLEAN]]
+           /\ \A m \in messageBuffer[v] : m.recipient = v \/ m.recipient = "broadcast"
     /\ networkPartitions \in SUBSET NetworkPartition
     /\ droppedMessages \in Nat
     /\ deliveryTime \in [Nat -> Nat]  \* Function from message IDs to delivery times

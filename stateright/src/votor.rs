@@ -65,7 +65,7 @@ pub struct VRFProof {
 }
 
 /// Block structure for the blockchain
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Block {
     /// Slot number for this block
     pub slot: SlotNumber,
@@ -144,7 +144,7 @@ pub enum CertificateType {
 }
 
 /// Aggregated signature structure
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq)]
 pub struct AggregatedSignature {
     /// Set of validators who signed
     pub signers: HashSet<ValidatorId>,
@@ -157,7 +157,7 @@ pub struct AggregatedSignature {
 }
 
 /// Certificate for block finalization
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq)]
 pub struct Certificate {
     /// Slot number for the certificate
     pub slot: SlotNumber,
@@ -1379,41 +1379,6 @@ impl VotorState {
         })
     }
     
-    /// Finalize a block with certificate
-    pub fn finalize_block(&mut self, certificate: &Certificate) -> AlpenglowResult<()> {
-        // Validate certificate
-        if !self.validate_certificate(certificate) {
-            return Err(AlpenglowError::ProtocolViolation(
-                "Invalid certificate".to_string()
-            ));
-        }
-        
-        // Skip certificates don't finalize blocks
-        if certificate.cert_type == CertificateType::Skip {
-            return Ok(());
-        }
-        
-        // Check for duplicate slot finalization
-        if self.finalized_chain.iter().any(|b| b.slot == certificate.slot) {
-            return Err(AlpenglowError::ProtocolViolation(
-                "Slot already finalized".to_string()
-            ));
-        }
-        
-        // Find the block to finalize
-        let block = self.voting_rounds
-            .values()
-            .flat_map(|round| &round.proposed_blocks)
-            .find(|b| b.hash == certificate.block)
-            .ok_or_else(|| AlpenglowError::ProtocolViolation(
-                "Block not found for certificate".to_string()
-            ))?;
-        
-        // Add to finalized chain
-        self.finalized_chain.push(block.clone());
-        
-        Ok(())
-    }
     
     /// Validate a certificate - enhanced with TLA+ correspondence
     pub fn validate_certificate(&self, certificate: &Certificate) -> bool {
@@ -2160,6 +2125,13 @@ impl Actor for VotorActor {
 }
 
 impl Verifiable for VotorState {
+    fn verify(&self) -> AlpenglowResult<()> {
+        self.verify_safety()?;
+        self.verify_liveness()?;
+        self.verify_byzantine_resilience()?;
+        Ok(())
+    }
+    
     fn verify_safety(&self) -> AlpenglowResult<()> {
         // Safety: No two blocks finalized in the same slot - mirrors TLA+ SafetyInvariant
         let mut slots = HashSet::new();
@@ -2495,8 +2467,19 @@ impl ModelChecker {
 }
 
 impl TlaCompatible for VotorState {
+    /// Convert to TLA+ compatible string representation
+    fn to_tla_string(&self) -> String {
+        serde_json::to_string(self).unwrap_or_else(|_| "{}".to_string())
+    }
+    
     /// Export state for TLA+ cross-validation - mirrors TLA+ voterVars exactly
-    fn export_tla_state(&self) -> serde_json::Value {
+    fn export_tla_state(&self) -> String {
+        let json_value = self.export_tla_state_json();
+        serde_json::to_string(&json_value).unwrap_or_else(|_| "{}".to_string())
+    }
+    
+    /// Export state as JSON value for TLA+ cross-validation - mirrors TLA+ voterVars exactly
+    fn export_tla_state_json(&self) -> serde_json::Value {
         // Convert voted blocks to TLA+ format: [validator][view] -> SUBSET Block
         let voted_blocks_tla: serde_json::Value = serde_json::json!({
             self.validator_id.to_string(): {
@@ -2699,7 +2682,26 @@ impl TlaCompatible for VotorState {
     }
     
     /// Import state from TLA+ model checker and reconstruct VotorState
-    fn import_tla_state(&mut self, state: serde_json::Value) -> AlpenglowResult<()> {
+    fn import_tla_state(&mut self, state: &Self) -> AlpenglowResult<()> {
+        // Copy state from the provided VotorState
+        self.current_view = state.current_view;
+        self.current_time = state.current_time;
+        self.current_leader_window = state.current_leader_window;
+        self.timeout_expiry = state.timeout_expiry;
+        self.voted_blocks = state.voted_blocks.clone();
+        self.received_votes = state.received_votes.clone();
+        self.generated_certificates = state.generated_certificates.clone();
+        self.finalized_chain = state.finalized_chain.clone();
+        self.skip_votes = state.skip_votes.clone();
+        self.byzantine_validators = state.byzantine_validators.clone();
+        self.is_byzantine = state.is_byzantine;
+        self.voting_rounds = state.voting_rounds.clone();
+        
+        Ok(())
+    }
+    
+    /// Import state from TLA+ JSON format
+    fn import_tla_state_from_json(&mut self, state: serde_json::Value) -> AlpenglowResult<()> {
         // Validate that the state contains all required TLA+ voterVars
         let required_fields = ["view", "votedBlocks", "receivedVotes", "generatedCerts", 
                               "finalizedChain", "timeoutExpiry", "skipVotes", "currentTime", "currentLeaderWindow"];

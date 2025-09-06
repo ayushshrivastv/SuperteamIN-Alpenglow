@@ -143,11 +143,13 @@ Flatten(seqOfSeqs) == FlattenHelper(seqOfSeqs, Len(seqOfSeqs))
 
 \* Take first n elements from sequence
 Take(seq, n) ==
-    SubSeq(seq, 1, Min(n, Len(seq)))
+    IF n <= 0 THEN <<>>
+    ELSE SubSeq(seq, 1, Min(n, Len(seq)))
 
 \* Drop first n elements from sequence
 Drop(seq, n) ==
-    SubSeq(seq, n+1, Len(seq))
+    IF n >= Len(seq) THEN <<>>
+    ELSE SubSeq(seq, n+1, Len(seq))
 
 \* Zip two sequences into sequence of pairs
 Zip(seq1, seq2) ==
@@ -206,6 +208,7 @@ Abs(x) == IF x >= 0 THEN x ELSE -x
 Sign(x) == IF x > 0 THEN 1 ELSE IF x < 0 THEN -1 ELSE 0
 
 \* Greatest Common Divisor
+RECURSIVE GCD(_, _)
 GCD(a, b) ==
     IF b = 0 THEN a
     ELSE GCD(b, a % b)
@@ -237,7 +240,8 @@ FactHelper(i) ==
 
 \* Factorial (bounded for model checking)
 Factorial(n) ==
-    IF n <= 1 THEN 1
+    IF n < 0 THEN 0  \* Undefined for negative numbers
+    ELSE IF n <= 1 THEN 1
     ELSE FactHelper(n)
 
 \* Binomial coefficient (n choose k)
@@ -395,7 +399,7 @@ WithinNetworkBounds(sendTime, receiveTime, delta) ==
     receiveTime <= sendTime + delta
 
 \* Additional set operations for protocol use
-Cardinality(S) == Cardinality(S)  \* Already defined in TLA+, but explicit for clarity
+\* Note: Cardinality is built-in to TLA+, no need to redefine
 
 IsSubset(S1, S2) == S1 \subseteq S2  \* Already defined above, keeping for consistency
 
