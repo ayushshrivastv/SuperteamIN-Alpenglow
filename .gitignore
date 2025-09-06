@@ -1,9 +1,16 @@
 # Development files and directories
 states/
 specs/states/
+results/*/states_backup/
 *.log
 *.tmp
 *.bak
+
+# TLA+ generated files
+*.st
+*.fp
+*.bin
+*_TTrace_*.bin
 
 # IDE and editor files
 .idea/
@@ -14,6 +21,7 @@ specs/states/
 # Build and dependency directories
 target/
 node_modules/
+Cargo.lock
 
 # System files
 .DS_Store
@@ -22,3 +30,12 @@ Thumbs.db
 # Other temporary files
 *.out
 *.err
+
+# Local verification and test files
+localverify.sh
+test_simple.*
+
+# Rust build artifacts
+**/target/
+**/*.rlib
+**/*.pdb
