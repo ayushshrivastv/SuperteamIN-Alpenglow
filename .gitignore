@@ -32,7 +32,6 @@ Thumbs.db
 *.err
 
 # Local verification and test files
-localverify.sh
 test_simple.*
 
 # Rust build artifacts
