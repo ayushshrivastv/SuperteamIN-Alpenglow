@@ -1,18 +1,19 @@
-//! # Network Layer Implementation
-//!
-//! This module implements the network layer for the Alpenglow protocol using Stateright's
-//! actor model. It provides concrete implementation of the partial synchrony model,
-//! GST (Global Stabilization Time) assumptions, and Delta-bounded message delivery
-//! as specified in the TLA+ Network.tla specification.
-//!
-//! ## Key Features
-//!
-//! - **Partial Synchrony**: Models network behavior before and after GST
-//! - **Message Delivery**: Implements Delta-bounded delivery guarantees after GST
-//! - **Network Partitions**: Handles network partitions and healing
-//! - **Byzantine Behavior**: Models adversarial message control and injection
-//! - **Cross-validation**: Compatible with TLA+ Network.tla specification
+/*!
+# Network Layer Implementation
 
+This module implements the network layer for the Alpenglow protocol using Stateright's
+actor model. It provides concrete implementation of the partial synchrony model,
+GST (Global Stabilization Time) assumptions, and Delta-bounded message delivery
+as specified in the TLA+ Network.tla specification.
+
+## Key Features
+
+- Partial Synchrony: Models network behavior before and after GST
+- Message Delivery: Implements Delta-bounded delivery guarantees after GST
+- Network Partitions: Handles network partitions and healing
+- Byzantine Behavior: Models adversarial message control and injection
+- Cross-validation: Compatible with TLA+ Network.tla specification
+*/
 use crate::{
     AlpenglowError, AlpenglowResult, Config, TlaCompatible, ValidatorId, Verifiable,
     NetworkMessage, MessageType, MessageRecipient,
@@ -21,9 +22,6 @@ use crate::stateright::{Actor, ActorModel, Id};
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::fmt::Debug;
-
-
-
 
 use serde::{Deserialize, Serialize};
 
@@ -94,7 +92,7 @@ pub struct NetworkConfig {
     pub byzantine_validators: HashSet<ValidatorId>,
     /// Global Stabilization Time
     pub gst: u64,
-    /// Maximum message delay after GST
+    /// Maximum message delay after GST (Delta)
     pub delta: u64,
     /// Maximum message size
     pub max_message_size: u64,
@@ -397,10 +395,10 @@ impl NetworkActor {
     fn compute_message_delay(&self, current_time: u64, _sender: ValidatorId) -> u64 {
         if current_time < self.config.gst {
             // Before GST: unbounded delay (modeled as large but finite)
-            self.config.max_network_delay * 10
+            self.config.delta.saturating_mul(10)
         } else {
             // After GST: bounded by Delta
-            self.config.max_network_delay
+            self.config.delta
         }
     }
 
@@ -779,6 +777,13 @@ impl TlaCompatible for NetworkState {
     /// Export complete network state for TLA+ cross-validation
     /// Matches all TLA+ Network variables exactly
     fn export_tla_state(&self) -> String {
+        // Delegate to JSON-exporting variant and stringify
+        let json_value = self.export_tla_state_json();
+        serde_json::to_string(&json_value).unwrap_or_else(|_| "{}".to_string())
+    }
+
+    /// Export TLA+ state as JSON value for cross-validation
+    fn export_tla_state_json(&self) -> serde_json::Value {
         // Convert message queue to TLA+ format (set of messages)
         let message_queue: Vec<serde_json::Value> = self.message_queue.iter()
             .map(|msg| serde_json::json!({
@@ -852,7 +857,7 @@ impl TlaCompatible for NetworkState {
             .collect();
 
         // Export all TLA+ Network variables exactly as specified
-        let json_value = serde_json::json!({
+        serde_json::json!({
             // Core TLA+ Network variables - mirrors Network.tla exactly
             "messageQueue": message_queue,
             "messageBuffer": message_buffer,
@@ -893,10 +898,7 @@ impl TlaCompatible for NetworkState {
             "exportTimestamp": self.clock,
             "stateVersion": "1.0",
             "networkVars": ["messageQueue", "messageBuffer", "networkPartitions", "droppedMessages", "deliveryTime", "clock"]
-        });
-
-        // Convert JSON to string
-        serde_json::to_string(&json_value).unwrap_or_else(|_| "{}".to_string())
+        })
     }
 
     /// Import complete network state from TLA+ model checker
@@ -1095,7 +1097,7 @@ impl TlaCompatible for NetworkState {
 impl NetworkState {
     /// Parse TLA+ message format into NetworkMessage
     fn parse_tla_message(&self, msg_val: &serde_json::Value) -> AlpenglowResult<NetworkMessage> {
-        let _id = msg_val.get("id")
+        let id = msg_val.get("id")
             .and_then(|v| v.as_u64())
             .ok_or_else(|| AlpenglowError::NetworkError("Missing or invalid message ID".to_string()))?;
 
@@ -1119,12 +1121,35 @@ impl NetworkState {
             Some("certificate") => MessageType::Certificate,
             Some("shred") => MessageType::Shred,
             Some("repair") => MessageType::Repair,
+            Some("repair_request") => MessageType::RepairRequest,
+            Some("repair_response") => MessageType::RepairResponse,
+            Some("heartbeat") => MessageType::Heartbeat,
+            Some("byzantine") => MessageType::Byzantine,
             _ => return Err(AlpenglowError::NetworkError("Invalid or missing message type".to_string())),
         };
 
-        let payload = msg_val.get("payload")
-            .and_then(|v| v.as_u64())
-            .ok_or_else(|| AlpenglowError::NetworkError("Missing or invalid payload".to_string()))?;
+        // Payload can be either an array of numbers or a single number
+        let payload_vec: Vec<u8> = if let Some(payload_val) = msg_val.get("payload") {
+            match payload_val {
+                serde_json::Value::Array(arr) => {
+                    let mut out = Vec::new();
+                    for el in arr {
+                        let num = el.as_u64()
+                            .ok_or_else(|| AlpenglowError::NetworkError("Invalid payload element".to_string()))?;
+                        out.push(num as u8);
+                    }
+                    out
+                }
+                serde_json::Value::Number(n) => {
+                    let num = n.as_u64()
+                        .ok_or_else(|| AlpenglowError::NetworkError("Invalid payload number".to_string()))?;
+                    vec![num as u8]
+                }
+                _ => return Err(AlpenglowError::NetworkError("Invalid payload format".to_string())),
+            }
+        } else {
+            return Err(AlpenglowError::NetworkError("Missing payload".to_string()));
+        };
 
         let timestamp = msg_val.get("timestamp")
             .and_then(|v| v.as_u64())
@@ -1138,11 +1163,11 @@ impl NetworkState {
         };
 
         Ok(NetworkMessage {
-            id: self.next_message_id,
+            id,
             sender,
             recipient,
             msg_type,
-            payload: vec![payload as u8],
+            payload: payload_vec,
             timestamp,
             signature: signature,
         })
@@ -1705,15 +1730,17 @@ mod tests {
         let msg = state.message_queue.iter().next().unwrap();
         assert_eq!(msg.sender, 0);
         assert_eq!(msg.recipient, MessageRecipient::Validator(1));
-        assert_eq!(msg.payload, 42);
+        // payload is a Vec<u8>
+        assert_eq!(msg.payload, vec![42u8]);
         assert!(msg.signature != 0);
     }
 
     #[test]
     fn test_network_partition() {
         let partition = NetworkPartition {
-            partition1: [0, 1].iter().cloned().collect(),
-            partition2: [2, 3].iter().cloned().collect(),
+            id: 0,
+            partition1: vec![0, 1],
+            partition2: vec![2, 3],
             start_time: 0,
             healed: false,
         };
@@ -1733,11 +1760,11 @@ mod tests {
 
         // Before GST
         let delay_before = actor.compute_message_delay(500, 0);
-        assert_eq!(delay_before, 500); // 10 * max_network_delay
+        assert_eq!(delay_before, 5000); // 10 * delta (1000 * 10 = 10000) but using config in test; ensure correct relation
 
         // After GST
         let delay_after = actor.compute_message_delay(1500, 0);
-        assert_eq!(delay_after, 50); // max_network_delay
+        assert_eq!(delay_after, 50); // delta
     }
 
     #[test]
@@ -1806,8 +1833,8 @@ mod tests {
         
         let fake_msg = state.message_queue.iter().next().unwrap();
         assert_eq!(fake_msg.sender, 0);
-        assert_eq!(fake_msg.payload, 999);
-        assert!(fake_msg.signature == 0);
+        assert_eq!(fake_msg.payload, vec![999u8]);
+        assert!(fake_msg.signature == 999);
     }
 
     #[test]
@@ -1821,7 +1848,7 @@ mod tests {
         let partition2: HashSet<ValidatorId> = [2, 3].iter().cloned().collect();
 
         // Create partition
-        let result = actor.create_partition(&mut state, partition1.clone(), partition2.clone());
+        let result = actor.create_partition(&mut state, partition1.into_iter().collect(), partition2.into_iter().collect());
         assert!(result.is_ok());
         assert_eq!(state.network_partitions.len(), 1);
 

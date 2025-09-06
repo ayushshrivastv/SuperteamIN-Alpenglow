@@ -77,8 +77,8 @@ pub struct Block {
     pub parent: BlockHash,
     /// Validator that proposed this block
     pub proposer: ValidatorId,
-    /// Set of transactions in the block
-    pub transactions: HashSet<Transaction>,
+    /// List of transactions in the block (deterministic ordering)
+    pub transactions: Vec<Transaction>,
     /// Timestamp when block was created
     pub timestamp: u64,
     /// Block proposer's signature
@@ -564,7 +564,7 @@ impl VotorState {
             voter: self.validator_id,
             slot,
             view: self.current_view,
-            block: 0u64.into(), // No block for skip votes
+            block: 0u64 as BlockHash, // No block for skip votes
             vote_type: VoteType::Skip,
             signature: self.validator_id as Signature,
             timestamp: self.current_time,
@@ -769,7 +769,7 @@ impl VotorState {
         let signatures: HashSet<Signature> = skip_votes.iter().map(|vote| vote.signature).collect();
         let aggregated_sig = AggregatedSignature {
             signers: voters.clone(),
-            message: 0u64.into(), // No block for skip votes
+            message: 0u64 as BlockHash, // No block for skip votes
             signatures,
             valid: true,
         };
@@ -778,7 +778,7 @@ impl VotorState {
         let certificate = Certificate {
             slot,
             view: self.current_view,
-            block: 0u64.into(), // No block for skip
+            block: 0u64 as BlockHash, // No block for skip
             cert_type: CertificateType::Skip,
             signatures: aggregated_sig,
             validators: voters,
@@ -1065,7 +1065,7 @@ impl VotorState {
             voter: self.validator_id,
             slot: current_view,
             view: current_view,
-            block: 0u64.into(), // No block hash for skip votes, convert into BlockHash
+            block: 0u64 as BlockHash, // No block hash for skip votes, explicit type
             vote_type: VoteType::Skip,
             signature: self.validator_id as Signature,
             timestamp: self.current_time,
@@ -1101,7 +1101,7 @@ impl VotorState {
             voter: self.validator_id,
             slot: view,
             view,
-            block: 0u64.into(), // No block hash for skip votes
+            block: 0u64 as BlockHash, // No block hash for skip votes
             vote_type: VoteType::Skip,
             signature: self.validator_id as Signature,
             timestamp: self.current_time,
@@ -1273,7 +1273,7 @@ impl VotorState {
         // Check parent chain consistency
         if self.finalized_chain.is_empty() {
             // Genesis block case
-            if block.parent != 0u64 {
+            if block.parent != 0u64 as BlockHash {
                 return false;
             }
         } else {
@@ -1363,7 +1363,7 @@ impl VotorState {
         
         let aggregated_sig = AggregatedSignature {
             signers: validators.clone(),
-            message: 0u64.into(), // Skip vote has no block
+            message: 0u64 as BlockHash, // Skip vote has no block
             signatures,
             valid: true,
         };
@@ -1371,7 +1371,7 @@ impl VotorState {
         Some(Certificate {
             slot: view, // Use view as slot for skip certificates
             view,
-            block: 0u64.into(),
+            block: 0u64 as BlockHash,
             cert_type: CertificateType::Skip,
             signatures: aggregated_sig,
             validators,
@@ -1601,7 +1601,7 @@ impl VotorState {
         self.validate_certificate_thresholds()?;
         
         // Validate Byzantine resilience
-        let byzantine_stake = self.sum_stake(&self.byzantine_validators)?;
+        let byzantine_stake = self.sum_stake(&self.byzantine_validators);
         if byzantine_stake >= self.config.total_stake / 3 {
             return Err(AlpenglowError::ProtocolViolation(
                 format!("Byzantine stake {} exceeds 1/3 threshold during action {}", byzantine_stake, action)
@@ -1823,7 +1823,7 @@ impl VotorState {
     /// Helper function to create block proposal for a view
     fn create_block_proposal_for_view(&self, view: ViewNumber) -> Block {
         let parent_hash = if self.finalized_chain.is_empty() {
-            0u64.into()
+            0u64 as BlockHash
         } else {
             self.finalized_chain.last().unwrap().hash
         };
@@ -1834,7 +1834,7 @@ impl VotorState {
             hash: self.compute_block_hash_for_view(view, parent_hash),
             parent: parent_hash,
             proposer: self.validator_id,
-            transactions: HashSet::new(),
+            transactions: Vec::new(),
             timestamp: self.current_time,
             signature: self.validator_id as Signature,
             data: Vec::new(),
@@ -1897,7 +1897,7 @@ impl VotorActor {
     /// Create a block proposal
     fn create_block_proposal(&self, state: &VotorState, view: ViewNumber) -> Block {
         let parent_hash = if state.finalized_chain.is_empty() {
-            0u64.into() // Genesis
+            0u64 as BlockHash // Genesis
         } else {
             state.finalized_chain.last().unwrap().hash
         };
@@ -1908,9 +1908,9 @@ impl VotorActor {
             hash: self.compute_block_hash(view, parent_hash),
             parent: parent_hash,
             proposer: self.validator_id,
-            transactions: HashSet::new(), // Empty for now
+            transactions: Vec::new(), // Empty for now
             timestamp: state.current_time,
-            signature: 0u64.into(), // Placeholder signature
+            signature: 0u64 as Signature, // Placeholder signature
             data: Vec::new(),
         }
     }
@@ -1932,9 +1932,9 @@ impl VotorActor {
             voter: self.validator_id,
             slot: block.slot,
             view: block.view,
-            block: if vote_type == VoteType::Skip { 0u64.into() } else { block.hash },
+            block: if vote_type == VoteType::Skip { 0u64 as BlockHash } else { block.hash },
             vote_type,
-            signature: 0u64.into(), // Placeholder signature
+            signature: 0u64 as Signature, // Placeholder signature
             timestamp: state.current_time,
         }
     }
@@ -1945,9 +1945,9 @@ impl VotorActor {
             voter: self.validator_id,
             slot: view,
             view,
-            block: 0u64.into(),
+            block: 0u64 as BlockHash,
             vote_type: VoteType::Skip,
-            signature: 0u64.into(), // Placeholder signature
+            signature: 0u64 as Signature, // Placeholder signature
             timestamp: state.current_time,
         }
     }
@@ -2031,10 +2031,14 @@ impl Actor for VotorActor {
             }
             
             VotorMessage::FinalizeBlock { certificate } => {
-                // Attempt to finalize the block
-                if let Err(e) = state.finalize_block(&certificate) {
-                    // Log error but continue (in practice, would handle more gracefully)
-                    eprintln!("Failed to finalize block: {:?}", e);
+                // Extract block and slot from certificate for finalize_block call
+                if let Some(block) = state.find_block_for_certificate(&certificate) {
+                    if let Err(e) = state.finalize_block(certificate.slot, &block, &certificate) {
+                        // Log error but continue (in practice, would handle more gracefully)
+                        eprintln!("Failed to finalize block: {:?}", e);
+                    }
+                } else {
+                    eprintln!("Failed to finalize block: block for certificate not found");
                 }
             }
             
@@ -2908,12 +2912,12 @@ impl VotorState {
             .and_then(|v| v.as_u64())
             .ok_or_else(|| AlpenglowError::ProtocolViolation("Invalid block timestamp".to_string()))?;
         
-        // Parse transactions
-        let mut transactions = HashSet::new();
+        // Parse transactions into a Vec to preserve deterministic ordering
+        let mut transactions = Vec::new();
         if let Some(tx_array) = block_val.get("transactions").and_then(|v| v.as_array()) {
             for tx_val in tx_array {
                 let tx = self.parse_tla_transaction(tx_val)?;
-                transactions.insert(tx);
+                transactions.push(tx);
             }
         }
         
@@ -2935,7 +2939,7 @@ impl VotorState {
             proposer,
             transactions,
             timestamp,
-            signature: 0u64.into(), // Simplified signature parsing
+            signature: 0u64 as Signature, // Simplified signature parsing
             data,
         })
     }
@@ -2958,7 +2962,7 @@ impl VotorState {
         let block = if let Some(block_str) = block_val.and_then(|v| v.as_str()) {
             self.hash_to_blockhash(self.parse_hash_string(block_str)?)
         } else if let Some(block_num) = block_val.and_then(|v| v.as_u64()) {
-            block_num.into() // Use u64 into BlockHash if supported
+            block_num as BlockHash // Use u64 into BlockHash via explicit cast
         } else {
             return Err(AlpenglowError::ProtocolViolation("Missing block field".to_string()));
         };
@@ -2985,7 +2989,7 @@ impl VotorState {
             view,
             block,
             vote_type,
-            signature: 0u64.into(), // Simplified signature parsing
+            signature: 0u64 as Signature, // Simplified signature parsing
             timestamp,
         })
     }
@@ -3071,7 +3075,7 @@ impl VotorState {
             id,
             sender,
             data,
-            signature: 0u64.into(), // Simplified signature
+            signature: 0u64 as Signature, // Simplified signature
         })
     }
     
@@ -3671,9 +3675,9 @@ mod tests {
             hash: [1u8; 32].into(),
             parent: [0u8; 32].into(),
             proposer: 0,
-            transactions: HashSet::new(),
+            transactions: Vec::new(),
             timestamp: 0,
-            signature: 0u64.into(),
+            signature: 0u64 as Signature,
             data: Vec::new(),
         };
         
@@ -3703,7 +3707,7 @@ mod tests {
                 view: 1,
                 block: block_hash,
                 vote_type: VoteType::Commit,
-                signature: 0u64.into(),
+                signature: 0u64 as Signature,
                 timestamp: 0,
             };
             votes.insert(vote);
@@ -3768,7 +3772,7 @@ mod tests {
             view: 1,
             block: [1u8; 32].into(),
             vote_type: VoteType::Commit,
-            signature: 0u64.into(),
+            signature: 0u64 as Signature,
             timestamp: 0,
         };
         
@@ -3780,7 +3784,7 @@ mod tests {
             view: 1,
             block: [1u8; 32].into(),
             vote_type: VoteType::Commit,
-            signature: 0u64.into(),
+            signature: 0u64 as Signature,
             timestamp: 0,
         };
         
@@ -3804,7 +3808,7 @@ mod tests {
                 view: 1,
                 block: block_hash,
                 vote_type: VoteType::Commit,
-                signature: 0u64.into(),
+                signature: 0u64 as Signature,
                 timestamp: 0,
             };
             round.add_vote(vote);
@@ -3834,9 +3838,9 @@ mod tests {
             hash: [1u8; 32].into(),
             parent: [0u8; 32].into(),
             proposer: 0,
-            transactions: HashSet::new(),
+            transactions: Vec::new(),
             timestamp: 0,
-            signature: 0u64.into(),
+            signature: 0u64 as Signature,
             data: Vec::new(),
         };
         state_with_block.finalized_chain.push(block);

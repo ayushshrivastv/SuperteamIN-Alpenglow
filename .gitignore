@@ -2,15 +2,31 @@
 states/
 specs/states/
 results/*/states_backup/
-*.log
-*.tmp
-*.bak
+
+# Development Results and Artifacts
+results/
+verification_results/
+submission/verification_results/
 
 # TLA+ generated files
 *.st
 *.fp
 *.bin
 *_TTrace_*.bin
+specs/*_TTrace_*.tla
+
+# Development Scripts and Tools
+scripts/dev/
+analysis/
+benchmarks/
+tools/deployment_monitor.py
+
+# Temporary and Generated Files
+*.log
+*.tmp
+*.bak
+*.out
+*.err
 
 # IDE and editor files
 .idea/

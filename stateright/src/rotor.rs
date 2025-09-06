@@ -405,6 +405,7 @@ impl RotorState {
         let mut shreds = Vec::new();
         
         // Data shreds use indices 1..K (ensuring unique partitioning)
+        let data_chunks_count = data_chunks.len();
         for (i, chunk) in data_chunks.into_iter().enumerate() {
             let shred = Shred::new_data(block.hash, block.slot, (i + 1) as u32, chunk);
             shreds.push(shred);
@@ -412,7 +413,7 @@ impl RotorState {
         
         // Parity shreds use indices (K+1)..N (ensuring no overlap)
         for (i, chunk) in parity_chunks.into_iter().enumerate() {
-            let shred = Shred::new_parity(block.hash, block.slot, (k + i + 1) as u32, chunk);
+            let shred = Shred::new_parity(block.hash, block.slot, (i + data_chunks_count + 1) as u32, chunk);
             shreds.push(shred);
         }
         
@@ -1460,7 +1461,7 @@ impl RotorState {
         
         // Parity shreds (indices k+1..n)
         for (i, chunk) in all_chunks[k_usize..].iter().enumerate() {
-            let shred = Shred::new_parity(block.hash, block.slot, (k + i as u32 + 1), chunk.clone());
+            let shred = Shred::new_parity(block.hash, block.slot, k + i as u32 + 1, chunk.clone());
             shreds.push(shred);
         }
         

@@ -177,7 +177,7 @@ impl CrossValidationTestSuite {
     
     /// Run TLA+ verification using the enhanced check_model.sh script
     fn run_tla_verification(&self, test_config: &CrossValidationTestConfig) -> AlpenglowResult<Value> {
-        let script_path = self.project_root.join("scripts/check_model.sh");
+        let script_path = self.project_root.join("scripts/ci/check_model.sh");
         let config_name = if test_config.name.contains("byzantine") {
             "EdgeCase"
         } else {

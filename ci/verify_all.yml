@@ -135,14 +135,19 @@ jobs:
             fi
           done
           
-          # Check scripts
-          for script in run_all.sh check_model.sh verify_proofs.sh; do
-            if [ ! -f "scripts/$script" ]; then
-              echo "❌ Missing script: scripts/$script"
+          # Check scripts in new structure
+          for script in check_model.sh verify_proofs.sh; do
+            if [ ! -f "scripts/ci/$script" ]; then
+              echo "❌ Missing CI script: scripts/ci/$script"
               exit 1
             fi
-            chmod +x "scripts/$script"
+            chmod +x "scripts/ci/$script"
           done
+          
+          # Check for optional development scripts
+          if [ -f "scripts/dev/run_all.sh" ]; then
+            chmod +x "scripts/dev/run_all.sh"
+          fi
           
           echo "✅ Project structure validated"
 
@@ -283,7 +288,7 @@ jobs:
           esac
           
           # Run model checking with timeout
-          timeout $TIMEOUT ./scripts/check_model.sh "${{ matrix.config }}" \
+          timeout $TIMEOUT ./scripts/ci/check_model.sh "${{ matrix.config }}" \
             > "results/ci/model_${{ matrix.config }}.log" 2>&1
           
           EXIT_CODE=$?
@@ -432,10 +437,10 @@ jobs:
           echo "  Dependencies: $DEPENDENCIES"
           
           # Run TLAPS with comprehensive verification script
-          if [ -f "scripts/verify_whitepaper_theorems.sh" ]; then
-            chmod +x scripts/verify_whitepaper_theorems.sh
+          if [ -f "scripts/ci/verify_proofs.sh" ]; then
+            chmod +x scripts/ci/verify_proofs.sh
             
-            timeout 3600 ./scripts/verify_whitepaper_theorems.sh \
+            timeout 3600 ./scripts/ci/verify_proofs.sh \
               --module "${{ matrix.module }}" \
               --verbose \
               --ci \
@@ -556,10 +561,10 @@ jobs:
           esac
           
           # Run TLC with comprehensive verification script
-          if [ -f "scripts/verify_whitepaper_theorems.sh" ]; then
-            chmod +x scripts/verify_whitepaper_theorems.sh
+          if [ -f "scripts/ci/check_model.sh" ]; then
+            chmod +x scripts/ci/check_model.sh
             
-            timeout $TIMEOUT ./scripts/verify_whitepaper_theorems.sh \
+            timeout $TIMEOUT ./scripts/ci/check_model.sh \
               --tlc-only \
               --config "${{ matrix.config }}" \
               --verbose \
@@ -990,7 +995,7 @@ jobs:
 
       - name: Run scalability benchmarks
         run: |
-          if [ -f "benchmarks/scalability.py" ]; then
+          if [ -d "benchmarks" ] && [ -f "benchmarks/scalability.py" ]; then
             echo "📈 Running scalability benchmarks..."
             
             mkdir -p results/ci/benchmarks
@@ -1002,12 +1007,14 @@ jobs:
             
             echo "✅ Scalability benchmarks completed"
           else
-            echo "⚠️ Scalability benchmarks not available"
+            echo "⚠️ Scalability benchmarks not available (benchmarks directory removed)"
+            mkdir -p results/ci/benchmarks
+            echo '{"status": "skipped", "reason": "benchmarks directory not found"}' > results/ci/benchmarks/scalability.json
           fi
 
       - name: Run performance benchmarks
         run: |
-          if [ -f "benchmarks/performance.py" ]; then
+          if [ -d "benchmarks" ] && [ -f "benchmarks/performance.py" ]; then
             echo "⚡ Running performance benchmarks..."
             
             python benchmarks/performance.py \
@@ -1016,18 +1023,28 @@ jobs:
             
             echo "✅ Performance benchmarks completed"
           else
-            echo "⚠️ Performance benchmarks not available"
+            echo "⚠️ Performance benchmarks not available (benchmarks directory removed)"
+            echo '{"status": "skipped", "reason": "benchmarks directory not found"}' > results/ci/benchmarks/performance.json
           fi
 
       - name: Generate benchmark report
         run: |
-          if [ -f "scripts/benchmark_suite.sh" ]; then
+          if [ -f "scripts/ci/benchmark_suite.sh" ]; then
             echo "📊 Generating benchmark report..."
             
-            chmod +x scripts/benchmark_suite.sh
-            ./scripts/benchmark_suite.sh --ci-mode
+            chmod +x scripts/ci/benchmark_suite.sh
+            ./scripts/ci/benchmark_suite.sh --ci-mode
             
             echo "✅ Benchmark report generated"
+          elif [ -f "scripts/dev/benchmark_suite.sh" ]; then
+            echo "📊 Generating benchmark report (dev script)..."
+            
+            chmod +x scripts/dev/benchmark_suite.sh
+            ./scripts/dev/benchmark_suite.sh --ci-mode
+            
+            echo "✅ Benchmark report generated"
+          else
+            echo "⚠️ Benchmark suite script not available"
           fi
 
       - name: Upload benchmark results
@@ -1066,13 +1083,13 @@ jobs:
         run: |
           echo "🔗 Running comprehensive verification..."
           
-          if [ -f "scripts/verify_whitepaper_theorems.sh" ]; then
-            chmod +x scripts/verify_whitepaper_theorems.sh
+          if [ -f "scripts/ci/verify_proofs.sh" ]; then
+            chmod +x scripts/ci/verify_proofs.sh
             
             MODE="${{ needs.setup.outputs.verification-mode }}"
             
             # Run comprehensive verification with all components
-            ./scripts/verify_whitepaper_theorems.sh \
+            ./scripts/ci/verify_proofs.sh \
               --$MODE \
               --comprehensive \
               --ci \
@@ -1359,7 +1376,7 @@ jobs:
           echo "🔍 Checking for performance regressions..."
           
           # Compare with previous runs (if available)
-          if [ -f "benchmarks/baseline_performance.json" ]; then
+          if [ -d "benchmarks" ] && [ -f "benchmarks/baseline_performance.json" ]; then
             echo "Comparing with baseline performance..."
             
             CURRENT_TIME=$(jq -r '.avg_verification_time' results/ci/performance/performance_summary.json 2>/dev/null || echo "0")
@@ -1383,7 +1400,7 @@ jobs:
               fi
             fi
           else
-            echo "No baseline performance data available"
+            echo "No baseline performance data available (benchmarks directory removed or baseline missing)"
             echo "PERFORMANCE_REGRESSION=false" >> $GITHUB_ENV
           fi
 

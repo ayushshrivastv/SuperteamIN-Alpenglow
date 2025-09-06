@@ -16,7 +16,7 @@ categories = ["cryptography", "simulation", "development-tools"]
 
 [workspace.dependencies]
 # Core Stateright framework - external crate for cross-validation
-stateright = "0.29"
+stateright = "0.30"
 
 # Async runtime for network simulation and timing
 tokio = { version = "1.0", features = ["full"] }
@@ -69,7 +69,7 @@ num-rational = "0.4"
 num-traits = "0.2"
 
 # Time handling for consensus timing (clock, timeouts from TLA+)
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { version = "0.4.31", features = ["serde"] }
 
 # Configuration management
 config = "0.14"

@@ -66,6 +66,10 @@ pub enum AlpenglowError {
     PropertyViolation(String),
     /// State inconsistency
     StateInconsistency(String),
+    /// Byzantine threshold exceeded
+    ByzantineThresholdExceeded { threshold: f64, actual: f64 },
+    /// Invalid block hash
+    InvalidBlockHash { hash: String },
 }
 
 impl std::fmt::Display for AlpenglowError {
@@ -80,6 +84,8 @@ impl std::fmt::Display for AlpenglowError {
             AlpenglowError::VerificationTimeout(msg) => write!(f, "Verification timeout: {}", msg),
             AlpenglowError::PropertyViolation(msg) => write!(f, "Property violation: {}", msg),
             AlpenglowError::StateInconsistency(msg) => write!(f, "State inconsistency: {}", msg),
+            AlpenglowError::ByzantineThresholdExceeded { threshold, actual } => write!(f, "Byzantine threshold exceeded: {} > {}", actual, threshold),
+            AlpenglowError::InvalidBlockHash { hash } => write!(f, "Invalid block hash: {}", hash),
         }
     }
 }
@@ -169,8 +175,30 @@ pub trait TlaCompatible {
         self.to_tla_string()
     }
     
+    /// Export TLA+ state as JSON value for cross-validation
+    fn export_tla_state_json(&self) -> serde_json::Value {
+        // Default implementation delegates to export_tla_state and parses as JSON
+        match serde_json::from_str(&self.export_tla_state()) {
+            Ok(value) => value,
+            Err(_) => {
+                // Fallback: wrap the string in a JSON object
+                serde_json::json!({
+                    "tla_state": self.export_tla_state(),
+                    "format": "string"
+                })
+            }
+        }
+    }
+    
     /// Import TLA+ state
     fn import_tla_state(&mut self, _state: &Self) -> AlpenglowResult<()> {
+        Ok(())
+    }
+    
+    /// Import TLA+ state from JSON format
+    fn import_tla_state_from_json(&mut self, _state: serde_json::Value) -> AlpenglowResult<()> {
+        // Default implementation: no-op for backward compatibility
+        // Implementations should override this method to handle JSON import
         Ok(())
     }
 }
@@ -426,6 +454,9 @@ pub struct Config {
     
     /// Global Stabilization Time (GST) for network synchrony
     pub gst: u64,
+    
+    /// Network delay bound (Delta) for partial synchrony
+    pub delta: u64,
     
     /// Bandwidth limit per validator (bytes per round)
     pub bandwidth_limit: u64,
@@ -1666,6 +1697,7 @@ impl Config {
             byzantine_threshold: validator_count / 3, // f < n/3
             max_network_delay: 100,
             gst: 1000,
+            delta: 100, // Network delay bound
             bandwidth_limit: 1000000, // 1MB
             erasure_coding_rate: 0.5,
             max_block_size: 1024,
