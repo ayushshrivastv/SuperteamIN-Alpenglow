@@ -197,8 +197,8 @@ VotorRotorIntegration ==
 
 \* Delivered blocks consistency with reconstruction
 DeliveredBlocksConsistency ==
-    deliveredBlocks = UNION {Range(rotorReconstructedBlocks[v]) : v \in Validators}
-    WHERE Range(f) == {f[x] : x \in DOMAIN f}
+    LET Range(f) == {f[x] : x \in DOMAIN f}
+    IN deliveredBlocks = UNION {Range(rotorReconstructedBlocks[v]) : v \in Validators}
 
 ----------------------------------------------------------------------------
 (* Initial State *)

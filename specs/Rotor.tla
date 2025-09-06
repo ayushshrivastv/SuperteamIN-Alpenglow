@@ -344,7 +344,7 @@ ValidateShred(shred, merkle_root) ==
     /\ shred.index \in 1..N
 
 \* Size of shred for UDP datagram constraints (1200 bytes max)
-ShredSize() == 1200
+ShredSize == 1200
 
 ----------------------------------------------------------------------------
 (* Relay Selection *)
@@ -576,11 +576,11 @@ GetSlotLeader(slot, validators, stakes) ==
 Abs(x) == IF x >= 0 THEN x ELSE -x
 
 Init ==
-    /\ rotorBlocks = [s \in {} |-> []]  \* Empty function mapping slots to blocks
-    /\ rotorShreds = [s \in {} |-> [i \in {} |-> []]]  \* Empty function mapping slots to shred indices to shreds
-    /\ rotorReceivedShreds = [v \in Validators |-> [s \in {} |-> {}]]  \* Empty function mapping validators to slots to shred sets
-    /\ rotorReconstructedBlocks = [v \in Validators |-> [s \in {} |-> []]]  \* Empty function mapping validators to slots to blocks
-    /\ blockShreds = [b \in {} |-> [v \in Validators |-> {}]]  \* Empty function mapping blocks to validator shreds
+    /\ rotorBlocks = <<>>  \* Empty sequence for blocks
+    /\ rotorShreds = <<>>  \* Empty sequence for shreds
+    /\ rotorReceivedShreds = [v \in Validators |-> <<>>]  \* Empty sequences per validator
+    /\ rotorReconstructedBlocks = [v \in Validators |-> <<>>]  \* Empty sequences per validator
+    /\ blockShreds = <<>>  \* Empty sequence for block shreds
     /\ relayAssignments = [v \in Validators |-> <<>>]  \* Empty assignments
     /\ reconstructionState = [v \in Validators |-> <<>>]  \* Empty sequence
     /\ deliveredBlocks = [v \in Validators |-> {}]  \* Per-validator delivered block IDs
