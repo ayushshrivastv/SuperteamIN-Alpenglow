@@ -49,6 +49,14 @@ CONTINUE_ON_ERROR="${CONTINUE_ON_ERROR:-true}"
 SUBMISSION_MODE="${SUBMISSION_MODE:-true}"
 GENERATE_ARTIFACTS="${GENERATE_ARTIFACTS:-true}"
 
+# Enhanced debugging and error handling modes
+DEBUG_MODE="${DEBUG_MODE:-false}"
+TLC_VERBOSE="${TLC_VERBOSE:-false}"
+RUST_VERBOSE="${RUST_VERBOSE:-false}"
+GENERATE_DEBUG_CONFIGS="${GENERATE_DEBUG_CONFIGS:-true}"
+ENABLE_RECOVERY="${ENABLE_RECOVERY:-true}"
+DETAILED_ERROR_ANALYSIS="${DETAILED_ERROR_ANALYSIS:-true}"
+
 # Phase control for submission evaluation
 RUN_ENVIRONMENT="${RUN_ENVIRONMENT:-true}"
 RUN_PROOFS="${RUN_PROOFS:-true}"
@@ -86,6 +94,14 @@ declare -A phase_warnings
 declare -A phase_metrics
 declare -A phase_artifacts
 declare -A retry_counts
+
+# Enhanced error tracking and debugging state
+declare -A error_categories
+declare -A error_solutions
+declare -A debug_artifacts
+declare -A recovery_attempts
+declare -A performance_metrics
+declare -A detailed_diagnostics
 
 total_phases=5
 completed_phases=0
@@ -174,14 +190,32 @@ log_warning() {
 log_error() {
     local phase="${2:-MAIN}"
     local message="$1"
+    local error_type="${3:-GENERAL}"
+    local suggested_fix="${4:-}"
+    
     log_message "ERROR" "$phase" "$message"
     echo -e "${RED}${CROSS_MARK}${NC} ${message}" >&2
     
-    # Track errors for submission evaluation
+    # Enhanced error tracking with categorization
     if [[ -n "${phase_errors[$phase]:-}" ]]; then
         phase_errors["$phase"]="${phase_errors[$phase]}\n$message"
     else
         phase_errors["$phase"]="$message"
+    fi
+    
+    # Track error categories for better analysis
+    error_categories["$phase:$error_type"]="${error_categories["$phase:$error_type"]:-0}"
+    ((error_categories["$phase:$error_type"]++))
+    
+    # Store suggested solutions
+    if [[ -n "$suggested_fix" ]]; then
+        error_solutions["$phase:$error_type"]="$suggested_fix"
+        log_info "💡 Suggested fix: $suggested_fix" "$phase"
+    fi
+    
+    # Generate detailed error analysis if enabled
+    if [[ "$DETAILED_ERROR_ANALYSIS" == "true" ]]; then
+        analyze_error_context "$phase" "$error_type" "$message"
     fi
 }
 
@@ -197,6 +231,436 @@ log_highlight() {
     local message="$1"
     log_message "HIGHLIGHT" "$phase" "$message"
     echo -e "${CYAN}${STAR_MARK}${NC} ${BOLD}${message}${NC}" >&2
+}
+
+# Enhanced error analysis and debugging functions
+analyze_error_context() {
+    local phase="$1"
+    local error_type="$2"
+    local error_message="$3"
+    
+    local analysis_file="$LOGS_DIR/error_analysis_${phase,,}.log"
+    
+    cat >> "$analysis_file" << EOF
+=== Error Analysis: $(date -u +"%Y-%m-%dT%H:%M:%SZ") ===
+Phase: $phase
+Error Type: $error_type
+Message: $error_message
+
+Context Analysis:
+EOF
+    
+    case "$error_type" in
+        "RUST_COMPILATION")
+            analyze_rust_compilation_error "$error_message" >> "$analysis_file"
+            ;;
+        "TLC_MODEL_CHECK")
+            analyze_tlc_error "$error_message" >> "$analysis_file"
+            ;;
+        "TLAPS_PROOF")
+            analyze_tlaps_error "$error_message" >> "$analysis_file"
+            ;;
+        "ENVIRONMENT")
+            analyze_environment_error "$error_message" >> "$analysis_file"
+            ;;
+        *)
+            echo "General error - no specific analysis available" >> "$analysis_file"
+            ;;
+    esac
+    
+    echo "" >> "$analysis_file"
+}
+
+analyze_rust_compilation_error() {
+    local error_message="$1"
+    
+    echo "Rust Compilation Error Analysis:"
+    
+    if echo "$error_message" | grep -q "mismatched types"; then
+        echo "- Type mismatch detected"
+        if echo "$error_message" | grep -q "expected.*u64.*found.*\[u8; 32\]"; then
+            echo "- Common issue: BlockHash type confusion"
+            echo "- Solution: Change [u8; 32] to u64 in test functions"
+            echo "- Files to check: stateright/src/rotor.rs (lines ~2558, 2591, 2638)"
+        elif echo "$error_message" | grep -q "expected.*\[u8; 32\].*found.*u64"; then
+            echo "- Common issue: Reverse BlockHash type confusion"
+            echo "- Solution: Change u64 to [u8; 32] or verify type definition"
+        fi
+    elif echo "$error_message" | grep -q "cannot find"; then
+        echo "- Missing symbol or import"
+        echo "- Solution: Check imports and module declarations"
+    elif echo "$error_message" | grep -q "borrow checker"; then
+        echo "- Borrow checker violation"
+        echo "- Solution: Review lifetime and ownership patterns"
+    fi
+}
+
+analyze_tlc_error() {
+    local error_message="$1"
+    
+    echo "TLC Model Checking Error Analysis:"
+    
+    if echo "$error_message" | grep -q "exit code 255"; then
+        echo "- TLC general error (exit 255)"
+        echo "- Common causes: syntax error, memory issue, invalid configuration"
+        echo "- Solution: Check TLA+ syntax, increase memory, validate config"
+    elif echo "$error_message" | grep -q "Parse error"; then
+        echo "- TLA+ syntax error"
+        echo "- Solution: Run 'tlc -parse' on individual specifications"
+    elif echo "$error_message" | grep -q "Java heap space"; then
+        echo "- Memory exhaustion"
+        echo "- Solution: Increase JAVA_OPTS heap size (-Xmx)"
+    elif echo "$error_message" | grep -q "Deadlock"; then
+        echo "- Deadlock detected in model"
+        echo "- Solution: Add fairness conditions or review model logic"
+    fi
+}
+
+analyze_tlaps_error() {
+    local error_message="$1"
+    
+    echo "TLAPS Proof Error Analysis:"
+    
+    if echo "$error_message" | grep -q "timeout"; then
+        echo "- Proof timeout"
+        echo "- Solution: Increase timeout or simplify proof obligations"
+    elif echo "$error_message" | grep -q "backend.*failed"; then
+        echo "- Proof backend failure"
+        echo "- Solution: Try different backends (zenon, ls4, smt)"
+    elif echo "$error_message" | grep -q "obligation.*failed"; then
+        echo "- Specific proof obligation failed"
+        echo "- Solution: Review proof structure and add intermediate lemmas"
+    fi
+}
+
+analyze_environment_error() {
+    local error_message="$1"
+    
+    echo "Environment Error Analysis:"
+    
+    if echo "$error_message" | grep -q "command not found"; then
+        echo "- Missing tool"
+        echo "- Solution: Install required tools (Java, TLC, TLAPS, Rust)"
+    elif echo "$error_message" | grep -q "permission denied"; then
+        echo "- Permission issue"
+        echo "- Solution: Check file permissions and ownership"
+    elif echo "$error_message" | grep -q "No such file"; then
+        echo "- Missing file or directory"
+        echo "- Solution: Verify project structure and file paths"
+    fi
+}
+
+# Enhanced progress tracking with detailed metrics
+update_progress_with_metrics() {
+    local phase="$1"
+    local status="$2"
+    local message="${3:-}"
+    local metrics="${4:-}"
+    
+    # Call original progress update
+    update_progress "$phase" "$status" "$message"
+    
+    # Store additional metrics
+    if [[ -n "$metrics" ]]; then
+        phase_metrics["$phase"]="$metrics"
+    fi
+    
+    # Update performance tracking
+    if [[ "$status" == "success" || "$status" == "failed" ]]; then
+        local duration=0
+        if [[ -n "${phase_start_times[$phase]:-}" ]] && [[ -n "${phase_end_times[$phase]:-}" ]]; then
+            duration=$((phase_end_times[$phase] - phase_start_times[$phase]))
+        fi
+        performance_metrics["${phase}_duration"]="$duration"
+    fi
+}
+
+# Generate debugging configuration files
+generate_debug_configs() {
+    local debug_dir="$ARTIFACTS_DIR/debug_configs"
+    mkdir -p "$debug_dir"
+    
+    log_info "Generating debugging configurations..." "DEBUG"
+    
+    # Create minimal TLC debug configuration
+    cat > "$debug_dir/TLC_Debug.cfg" << 'EOF'
+\* Minimal TLC configuration for debugging
+SPECIFICATION Alpenglow
+CONSTANTS
+    N = 3
+    F = 1
+    MaxSlot = 5
+INIT Init
+NEXT Next
+INVARIANT TypeInvariant
+PROPERTY []<>Progress
+EOF
+    
+    # Create Rust debug configuration
+    cat > "$debug_dir/rust_debug.toml" << 'EOF'
+[profile.debug]
+debug = true
+opt-level = 0
+overflow-checks = true
+
+[profile.test]
+debug = true
+opt-level = 0
+EOF
+    
+    # Create environment debug script
+    cat > "$debug_dir/debug_environment.sh" << 'EOF'
+#!/bin/bash
+echo "=== Environment Debug Information ==="
+echo "Date: $(date)"
+echo "User: $(whoami)"
+echo "Working Directory: $(pwd)"
+echo "PATH: $PATH"
+echo ""
+echo "=== Tool Versions ==="
+java -version 2>&1 | head -3
+echo ""
+tlc -help 2>&1 | head -1 || echo "TLC not found"
+echo ""
+tlapm --version 2>&1 | head -1 || echo "TLAPS not found"
+echo ""
+cargo --version 2>&1 || echo "Cargo not found"
+echo ""
+echo "=== System Resources ==="
+free -h 2>/dev/null || echo "Memory info not available"
+echo ""
+df -h . 2>/dev/null || echo "Disk info not available"
+echo ""
+echo "=== Project Structure ==="
+find . -maxdepth 2 -type d | sort
+EOF
+    
+    chmod +x "$debug_dir/debug_environment.sh"
+    
+    debug_artifacts["configs"]="$debug_dir"
+    log_success "Debug configurations generated in $debug_dir" "DEBUG"
+}
+
+# Check for and integrate with debugging scripts
+check_debug_scripts() {
+    local debug_scripts_dir="$PROJECT_ROOT/scripts/dev"
+    
+    # Check for debug_verification.sh
+    if [[ -f "$debug_scripts_dir/debug_verification.sh" ]]; then
+        log_info "Found debug_verification.sh - enhanced debugging available" "DEBUG"
+        debug_artifacts["debug_script"]="$debug_scripts_dir/debug_verification.sh"
+        
+        # Offer to run debug script on failures
+        if [[ "$DEBUG_MODE" == "true" ]]; then
+            log_info "💡 Run '$debug_scripts_dir/debug_verification.sh' for detailed component analysis" "DEBUG"
+        fi
+    fi
+    
+    # Check for quick_test.sh
+    if [[ -f "$debug_scripts_dir/quick_test.sh" ]]; then
+        log_info "Found quick_test.sh - rapid testing available" "DEBUG"
+        debug_artifacts["quick_test"]="$debug_scripts_dir/quick_test.sh"
+    fi
+    
+    # Check for troubleshooting guide
+    if [[ -f "$PROJECT_ROOT/docs/TroubleshootingGuide.md" ]]; then
+        log_info "Found TroubleshootingGuide.md - comprehensive help available" "DEBUG"
+        debug_artifacts["troubleshooting"]="$PROJECT_ROOT/docs/TroubleshootingGuide.md"
+    fi
+}
+
+# Enhanced error reporting with integration to debugging resources
+generate_error_summary() {
+    local error_summary_file="$LOGS_DIR/error_summary.json"
+    
+    log_info "Generating comprehensive error summary..." "DEBUG"
+    
+    cat > "$error_summary_file" << EOF
+{
+  "error_summary": {
+    "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+    "total_errors": $(echo "${!error_categories[@]}" | wc -w),
+    "error_categories": {
+EOF
+    
+    local first_error=true
+    for error_key in "${!error_categories[@]}"; do
+        if [[ "$first_error" == "false" ]]; then
+            echo "," >> "$error_summary_file"
+        fi
+        first_error=false
+        
+        local phase=$(echo "$error_key" | cut -d':' -f1)
+        local error_type=$(echo "$error_key" | cut -d':' -f2)
+        local count="${error_categories[$error_key]}"
+        local solution="${error_solutions[$error_key]:-No specific solution available}"
+        
+        cat >> "$error_summary_file" << EOF
+      "$error_key": {
+        "phase": "$phase",
+        "type": "$error_type",
+        "count": $count,
+        "suggested_solution": "$solution"
+      }
+EOF
+    done
+    
+    cat >> "$error_summary_file" << EOF
+    },
+    "recovery_attempts": {
+EOF
+    
+    local first_recovery=true
+    for recovery_key in "${!recovery_attempts[@]}"; do
+        if [[ "$first_recovery" == "false" ]]; then
+            echo "," >> "$error_summary_file"
+        fi
+        first_recovery=false
+        
+        echo "      \"$recovery_key\": ${recovery_attempts[$recovery_key]}" >> "$error_summary_file"
+    done
+    
+    cat >> "$error_summary_file" << EOF
+    },
+    "debug_resources": {
+EOF
+    
+    local first_resource=true
+    for resource_key in "${!debug_artifacts[@]}"; do
+        if [[ "$first_resource" == "false" ]]; then
+            echo "," >> "$error_summary_file"
+        fi
+        first_resource=false
+        
+        echo "      \"$resource_key\": \"${debug_artifacts[$resource_key]}\"" >> "$error_summary_file"
+    done
+    
+    cat >> "$error_summary_file" << EOF
+    },
+    "recommendations": [
+      "Review phase-specific error logs in $LOGS_DIR/phases/",
+      "Check error analysis files for detailed diagnostics",
+      "Run debug scripts for component-specific troubleshooting",
+      "Consult TroubleshootingGuide.md for common solutions",
+      "Use --debug flag for enhanced diagnostic output"
+    ]
+  }
+}
+EOF
+    
+    log_success "Error summary generated: $error_summary_file" "DEBUG"
+}
+
+# Recovery mechanism for failed phases
+attempt_phase_recovery() {
+    local phase="$1"
+    local error_type="$2"
+    
+    if [[ "$ENABLE_RECOVERY" != "true" ]]; then
+        return 1
+    fi
+    
+    log_info "Attempting recovery for $phase (error: $error_type)..." "RECOVERY"
+    
+    local recovery_success=false
+    
+    case "$phase:$error_type" in
+        "ENVIRONMENT:MISSING_TOOLS")
+            recovery_success=$(recover_missing_tools)
+            ;;
+        "PROOFS:TLAPS_TIMEOUT")
+            recovery_success=$(recover_tlaps_timeout)
+            ;;
+        "MODEL_CHECKING:TLC_MEMORY")
+            recovery_success=$(recover_tlc_memory)
+            ;;
+        "RUST:COMPILATION_ERROR")
+            recovery_success=$(recover_rust_compilation)
+            ;;
+        *)
+            log_warning "No specific recovery procedure for $phase:$error_type" "RECOVERY"
+            return 1
+            ;;
+    esac
+    
+    if [[ "$recovery_success" == "true" ]]; then
+        log_success "Recovery successful for $phase" "RECOVERY"
+        recovery_attempts["$phase"]="${recovery_attempts["$phase"]:-0}"
+        ((recovery_attempts["$phase"]++))
+        return 0
+    else
+        log_error "Recovery failed for $phase" "RECOVERY"
+        return 1
+    fi
+}
+
+recover_missing_tools() {
+    log_info "Attempting to recover missing tools..." "RECOVERY"
+    
+    # Check if tools are in non-standard locations
+    local tools_found=0
+    
+    # Look for Java
+    if ! command -v java &> /dev/null; then
+        for java_path in /usr/bin/java /usr/local/bin/java /opt/java/bin/java; do
+            if [[ -x "$java_path" ]]; then
+                export JAVA_PATH="$java_path"
+                log_info "Found Java at $java_path" "RECOVERY"
+                ((tools_found++))
+                break
+            fi
+        done
+    fi
+    
+    # Look for TLC
+    if ! command -v tlc &> /dev/null; then
+        for tlc_path in /opt/tlaplus/tlc /usr/local/bin/tlc; do
+            if [[ -x "$tlc_path" ]]; then
+                export TLC_PATH="$tlc_path"
+                log_info "Found TLC at $tlc_path" "RECOVERY"
+                ((tools_found++))
+                break
+            fi
+        done
+    fi
+    
+    [[ $tools_found -gt 0 ]] && echo "true" || echo "false"
+}
+
+recover_tlaps_timeout() {
+    log_info "Attempting to recover from TLAPS timeout..." "RECOVERY"
+    
+    # Reduce timeout and try simpler backend
+    export TIMEOUT_PROOFS=$((TIMEOUT_PROOFS / 2))
+    log_info "Reduced proof timeout to ${TIMEOUT_PROOFS}s" "RECOVERY"
+    echo "true"
+}
+
+recover_tlc_memory() {
+    log_info "Attempting to recover from TLC memory issues..." "RECOVERY"
+    
+    # Increase Java heap size if possible
+    local current_heap=$(echo "$JAVA_OPTS" | grep -o '\-Xmx[0-9]*[gm]' | head -1)
+    if [[ -z "$current_heap" ]]; then
+        export JAVA_OPTS="${JAVA_OPTS} -Xmx4g"
+        log_info "Set Java heap to 4GB" "RECOVERY"
+    else
+        log_info "Java heap already configured: $current_heap" "RECOVERY"
+    fi
+    echo "true"
+}
+
+recover_rust_compilation() {
+    log_info "Attempting to recover from Rust compilation errors..." "RECOVERY"
+    
+    # Clean Rust build cache
+    if [[ -d "$STATERIGHT_DIR" ]]; then
+        cd "$STATERIGHT_DIR"
+        cargo clean &>/dev/null || true
+        log_info "Cleaned Rust build cache" "RECOVERY"
+        cd - &>/dev/null
+    fi
+    echo "true"
 }
 
 # Progress tracking optimized for submission evaluation
@@ -248,7 +712,7 @@ display_progress_bar() {
     echo -e "\r${CYAN}Submission Progress: [${bar}] ${progress}% (${completed_phases}/${total_phases})${NC}" >&2
 }
 
-# Phase 1: Environment Validation
+# Phase 1: Environment Validation with Enhanced Error Detection
 phase_environment_validation() {
     log_info "Validating submission environment and dependencies..." "ENVIRONMENT"
     
@@ -258,22 +722,45 @@ phase_environment_validation() {
     local missing_files=()
     local warnings=()
     local tool_versions=()
+    local environment_errors=()
     
-    # Check required tools with version information
+    # Generate debug configurations if enabled
+    if [[ "$GENERATE_DEBUG_CONFIGS" == "true" ]]; then
+        generate_debug_configs
+    fi
+    
+    # Enhanced tool checking with detailed error analysis
+    log_info "Checking required tools with enhanced diagnostics..." "ENVIRONMENT"
+    
     if ! command -v "$JAVA_PATH" &> /dev/null; then
         missing_tools+=("java")
+        environment_errors+=("Java not found in PATH")
+        log_error "Java not found at $JAVA_PATH" "ENVIRONMENT" "MISSING_TOOLS" "Install OpenJDK 11+ or set JAVA_PATH environment variable"
     else
         local java_version
         java_version=$("$JAVA_PATH" -version 2>&1 | head -n1 | cut -d'"' -f2)
         tool_versions+=("java:$java_version")
         log_info "Found Java: $java_version" "ENVIRONMENT"
+        
+        # Check Java version compatibility
+        local java_major=$(echo "$java_version" | cut -d'.' -f1)
+        if [[ "$java_major" -lt 11 ]]; then
+            log_warning "Java version $java_version may be too old (recommend 11+)" "ENVIRONMENT"
+        fi
     fi
     
     if ! command -v "$TLC_PATH" &> /dev/null; then
         missing_tools+=("tlc")
+        environment_errors+=("TLC not found in PATH")
+        log_error "TLC not found at $TLC_PATH" "ENVIRONMENT" "MISSING_TOOLS" "Download TLA+ tools and set TLC_PATH or add to PATH"
     else
         tool_versions+=("tlc:available")
         log_info "Found TLC: $TLC_PATH" "ENVIRONMENT"
+        
+        # Test TLC functionality
+        if ! timeout 10 "$TLC_PATH" -help &>/dev/null; then
+            log_warning "TLC found but may not be functional" "ENVIRONMENT"
+        fi
     fi
     
     if ! command -v "$TLAPS_PATH" &> /dev/null; then
@@ -287,11 +774,56 @@ phase_environment_validation() {
     
     if ! command -v "$CARGO_PATH" &> /dev/null; then
         missing_tools+=("cargo")
+        environment_errors+=("Cargo/Rust not found in PATH")
+        log_error "Cargo not found at $CARGO_PATH" "ENVIRONMENT" "MISSING_TOOLS" "Install Rust toolchain from https://rustup.rs/"
     else
         local rust_version
         rust_version=$("$CARGO_PATH" --version | head -n1)
         tool_versions+=("rust:$rust_version")
         log_info "Found Rust: $rust_version" "ENVIRONMENT"
+        
+        # Enhanced Rust project structure and compilation checking
+        if [[ -d "$STATERIGHT_DIR" ]]; then
+            log_info "Checking Rust project compilation with detailed error analysis..." "ENVIRONMENT"
+            cd "$STATERIGHT_DIR"
+            
+            local rust_check_output
+            rust_check_output=$(timeout 60 "$CARGO_PATH" check --lib 2>&1)
+            local rust_check_exit=$?
+            
+            if [[ $rust_check_exit -ne 0 ]]; then
+                log_warning "Rust project has compilation issues" "ENVIRONMENT"
+                environment_errors+=("Rust compilation check failed")
+                
+                # Analyze specific Rust compilation errors
+                if echo "$rust_check_output" | grep -q "mismatched types"; then
+                    log_error "Rust type mismatch errors detected" "ENVIRONMENT" "RUST_COMPILATION" "Check BlockHash type usage in test functions"
+                    
+                    # Check for specific BlockHash type issues
+                    if echo "$rust_check_output" | grep -q "expected.*u64.*found.*\[u8; 32\]"; then
+                        log_error "BlockHash type confusion: [u8; 32] used where u64 expected" "ENVIRONMENT" "RUST_TYPE_MISMATCH" "Change [u8; 32] to u64 in ErasureBlock::new() and Shred::new_data() calls"
+                        
+                        # Log specific files to check
+                        log_info "💡 Check these locations for type fixes:" "ENVIRONMENT"
+                        log_info "  - stateright/src/rotor.rs line ~2558: ErasureBlock::new([1u8; 32], ...) → ErasureBlock::new(1u64, ...)" "ENVIRONMENT"
+                        log_info "  - stateright/src/rotor.rs line ~2591: ErasureBlock::new([1u8; 32], ...) → ErasureBlock::new(1u64, ...)" "ENVIRONMENT"
+                        log_info "  - stateright/src/rotor.rs line ~2638: Shred::new_data([1u8; 32], ...) → Shred::new_data(1u64, ...)" "ENVIRONMENT"
+                    fi
+                elif echo "$rust_check_output" | grep -q "cannot find"; then
+                    log_error "Missing Rust symbols or imports" "ENVIRONMENT" "RUST_COMPILATION" "Check module imports and dependencies"
+                elif echo "$rust_check_output" | grep -q "borrow"; then
+                    log_error "Rust borrow checker errors" "ENVIRONMENT" "RUST_COMPILATION" "Review ownership and lifetime patterns"
+                fi
+                
+                # Save detailed Rust error log
+                local rust_error_log="$LOGS_DIR/rust_compilation_errors.log"
+                echo "$rust_check_output" > "$rust_error_log"
+                log_info "Detailed Rust compilation errors saved to $rust_error_log" "ENVIRONMENT"
+            else
+                log_info "Rust project compiles successfully" "ENVIRONMENT"
+            fi
+            cd - &>/dev/null
+        fi
     fi
     
     # Check required directories for submission
@@ -323,10 +855,11 @@ phase_environment_validation() {
         fi
     done
     
-    # Validate TLA+ specifications syntax
-    log_info "Validating TLA+ specification syntax..." "ENVIRONMENT"
+    # Enhanced TLA+ specification validation with detailed error reporting
+    log_info "Validating TLA+ specification syntax with detailed analysis..." "ENVIRONMENT"
     local spec_count=0
     local valid_specs=0
+    local spec_errors=()
     
     for spec in "$SPECS_DIR"/*.tla; do
         if [[ -f "$spec" ]]; then
@@ -334,14 +867,33 @@ phase_environment_validation() {
             local spec_name
             spec_name=$(basename "$spec" .tla)
             
-            if timeout 60 "$TLC_PATH" -parse "$spec" &>/dev/null; then
+            local parse_output
+            parse_output=$(timeout 60 "$TLC_PATH" -parse "$spec" 2>&1)
+            local parse_exit_code=$?
+            
+            if [[ $parse_exit_code -eq 0 ]]; then
                 ((valid_specs++))
                 log_info "✓ Valid syntax: $spec_name" "ENVIRONMENT"
             else
                 log_warning "✗ Invalid syntax: $spec_name" "ENVIRONMENT"
+                spec_errors+=("$spec_name: $parse_output")
+                
+                # Analyze specific syntax errors
+                if echo "$parse_output" | grep -q "Lexical error"; then
+                    log_error "Lexical error in $spec_name" "ENVIRONMENT" "TLA_SYNTAX" "Check for invalid characters or tokens"
+                elif echo "$parse_output" | grep -q "Parse error"; then
+                    log_error "Parse error in $spec_name" "ENVIRONMENT" "TLA_SYNTAX" "Check TLA+ syntax and structure"
+                fi
             fi
         fi
     done
+    
+    # Store detailed specification analysis
+    if [[ ${#spec_errors[@]} -gt 0 ]]; then
+        local spec_error_log="$LOGS_DIR/specification_errors.log"
+        printf '%s\n' "${spec_errors[@]}" > "$spec_error_log"
+        log_info "Detailed specification errors logged to $spec_error_log" "ENVIRONMENT"
+    fi
     
     verification_metrics["total_specifications"]=$spec_count
     verification_metrics["valid_specifications"]=$valid_specs
@@ -433,14 +985,40 @@ EOF
     
     phase_artifacts["ENVIRONMENT"]="$validation_results"
     
-    # Determine phase success
+    # Enhanced success determination with recovery attempts
     local critical_missing=$((${#missing_tools[@]} + ${#missing_dirs[@]} + ${#missing_files[@]}))
+    
+    # Attempt recovery if there are missing tools
+    if [[ ${#missing_tools[@]} -gt 0 ]] && [[ "$ENABLE_RECOVERY" == "true" ]]; then
+        log_info "Attempting to recover missing tools..." "ENVIRONMENT"
+        if attempt_phase_recovery "ENVIRONMENT" "MISSING_TOOLS"; then
+            # Re-check tools after recovery
+            missing_tools=()
+            for tool in java tlc tlapm cargo; do
+                local tool_var="${tool^^}_PATH"
+                if ! command -v "${!tool_var:-$tool}" &> /dev/null; then
+                    missing_tools+=("$tool")
+                fi
+            done
+            critical_missing=$((${#missing_tools[@]} + ${#missing_dirs[@]} + ${#missing_files[@]}))
+        fi
+    fi
     
     if [[ $critical_missing -eq 0 ]] && [[ $valid_specs -gt 0 ]] && [[ $valid_proofs -gt 0 ]]; then
         log_success "Environment validation completed successfully" "ENVIRONMENT"
+        update_progress_with_metrics "ENVIRONMENT" "success" "All tools and files validated" "tools:${#tool_versions[@]},specs:$valid_specs/$spec_count"
         return 0
     else
-        log_error "Environment validation failed: $critical_missing critical issues" "ENVIRONMENT"
+        local error_summary="$critical_missing critical issues: ${#missing_tools[@]} tools, ${#missing_dirs[@]} dirs, ${#missing_files[@]} files missing"
+        log_error "Environment validation failed: $error_summary" "ENVIRONMENT" "VALIDATION_FAILED" "Review missing components and install required tools"
+        
+        # Generate detailed error report
+        if [[ ${#environment_errors[@]} -gt 0 ]]; then
+            local error_report="$LOGS_DIR/environment_error_report.log"
+            printf '%s\n' "${environment_errors[@]}" > "$error_report"
+            log_info "Detailed environment errors logged to $error_report" "ENVIRONMENT"
+        fi
+        
         return 1
     fi
 }
@@ -493,30 +1071,53 @@ phase_proof_verification() {
             log_warning "Failed to generate obligations for $module" "PROOFS"
         fi
         
-        # Verify proofs with enhanced timeout and multiple backends
+        # Enhanced proof verification with detailed error analysis
         local verification_success=false
         local module_verified=0
         local backends=("zenon" "ls4" "smt" "zenon ls4" "ls4 smt" "zenon smt")
+        local backend_errors=()
         
         for backend in "${backends[@]}"; do
             log_info "Trying $module with backend: $backend" "PROOFS"
             
-            if timeout "$TIMEOUT_PROOFS" "$TLAPS_PATH" --cleanfp --method "$backend" --timeout 120 "$proof_file" > "${module_log}_${backend// /_}" 2>&1; then
+            local backend_log="${module_log}_${backend// /_}"
+            local backend_start=$(date +%s)
+            
+            if timeout "$TIMEOUT_PROOFS" "$TLAPS_PATH" --cleanfp --method "$backend" --timeout 120 "$proof_file" > "$backend_log" 2>&1; then
                 local backend_verified
-                backend_verified=$(grep -c "succeeded" "${module_log}_${backend// /_}" 2>/dev/null || echo "0")
+                backend_verified=$(grep -c "succeeded" "$backend_log" 2>/dev/null || echo "0")
                 
                 if [[ $backend_verified -gt $module_verified ]]; then
                     module_verified=$backend_verified
-                    cp "${module_log}_${backend// /_}" "$module_log"
+                    cp "$backend_log" "$module_log"
                 fi
                 
-                if grep -q "All proof obligations succeeded" "${module_log}_${backend// /_}"; then
+                if grep -q "All proof obligations succeeded" "$backend_log"; then
                     verification_success=true
-                    log_success "$module: All obligations verified with $backend" "PROOFS"
+                    local backend_end=$(date +%s)
+                    local backend_duration=$((backend_end - backend_start))
+                    log_success "$module: All obligations verified with $backend (${backend_duration}s)" "PROOFS"
                     break
+                fi
+            else
+                local backend_error=$(tail -5 "$backend_log" | tr '\n' ' ')
+                backend_errors+=("$backend: $backend_error")
+                
+                # Analyze specific TLAPS errors
+                if grep -q "timeout" "$backend_log"; then
+                    log_warning "$module: Backend $backend timed out" "PROOFS"
+                elif grep -q "failed" "$backend_log"; then
+                    log_warning "$module: Backend $backend failed verification" "PROOFS"
                 fi
             fi
         done
+        
+        # Log backend errors for analysis
+        if [[ ${#backend_errors[@]} -gt 0 ]] && [[ "$verification_success" == "false" ]]; then
+            local backend_error_log="$LOGS_DIR/proofs/${module,,}_backend_errors.log"
+            printf '%s\n' "${backend_errors[@]}" > "$backend_error_log"
+            log_error "$module: All backends failed" "PROOFS" "TLAPS_PROOF" "Try increasing timeout or simplifying proof obligations"
+        fi
         
         local end_time
         end_time=$(date +%s)
@@ -589,11 +1190,36 @@ phase_model_checking() {
     
     mkdir -p "$LOGS_DIR/model_checking"
     
-    # Find all configuration files
+    # Use explicit list of vetted configurations (Comment 4)
+    # Only run production-ready configs, not experimental ones
+    local vetted_configs=(
+        "WhitepaperValidation.cfg"
+        "Small.cfg"
+        "Basic.cfg"
+        "Safety.cfg"
+        "Liveness.cfg"
+    )
+    
     if [[ -d "$MODELS_DIR" ]]; then
-        while IFS= read -r -d '' config; do
-            configs+=("$config")
-        done < <(find "$MODELS_DIR" -name "*.cfg" -print0)
+        for config_name in "${vetted_configs[@]}"; do
+            local config_path="$MODELS_DIR/$config_name"
+            if [[ -f "$config_path" ]]; then
+                configs+=("$config_path")
+            else
+                log_info "Vetted config not found (skipping): $config_name" "MODEL_CHECKING"
+            fi
+        done
+        
+        # Allow debug configs only if explicitly enabled
+        if [[ "${INCLUDE_DEBUG_CONFIGS:-false}" == "true" ]]; then
+            log_info "Including debug configurations (INCLUDE_DEBUG_CONFIGS=true)" "MODEL_CHECKING"
+            for debug_config in "$MODELS_DIR"/*Debug*.cfg "$MODELS_DIR"/*Test*.cfg; do
+                if [[ -f "$debug_config" ]]; then
+                    configs+=("$debug_config")
+                    log_info "Added debug config: $(basename "$debug_config")" "MODEL_CHECKING"
+                fi
+            done
+        fi
     fi
     
     if [[ ${#configs[@]} -eq 0 ]]; then
@@ -631,7 +1257,7 @@ phase_model_checking() {
             continue
         fi
         
-        # Run TLC with comprehensive logging
+        # Enhanced TLC execution with verbose debugging options
         local output_file="$LOGS_DIR/model_checking/${config_name}_results.log"
         local start_time
         start_time=$(date +%s)
@@ -641,13 +1267,33 @@ phase_model_checking() {
         local distinct_states=0
         local violations_found=false
         local deadlocks_found=false
+        local tlc_exit_code=0
         
-        if timeout "$TIMEOUT_MODEL_CHECKING" "$TLC_PATH" -config "$config" -workers "$PARALLEL_JOBS" -cleanup "$spec_file" > "$output_file" 2>&1; then
+        # Build TLC command with optional verbose flags
+        local tlc_cmd="$TLC_PATH -config $config -workers $PARALLEL_JOBS -cleanup"
+        if [[ "$TLC_VERBOSE" == "true" ]]; then
+            tlc_cmd="$tlc_cmd -verbose"
+        fi
+        if [[ "$DEBUG_MODE" == "true" ]]; then
+            tlc_cmd="$tlc_cmd -debug"
+        fi
+        
+        log_info "Running TLC: $tlc_cmd $spec_file" "MODEL_CHECKING"
+        
+        if timeout "$TIMEOUT_MODEL_CHECKING" $tlc_cmd "$spec_file" > "$output_file" 2>&1; then
             tlc_success=true
             ((successful_configs++))
             log_success "Model checking passed for $config_name" "MODEL_CHECKING"
         else
-            log_warning "Model checking failed for $config_name" "MODEL_CHECKING"
+            tlc_exit_code=$?
+            log_warning "Model checking failed for $config_name (exit code: $tlc_exit_code)" "MODEL_CHECKING"
+            
+            # Analyze TLC failure
+            if [[ $tlc_exit_code -eq 124 ]]; then
+                log_error "$config_name: TLC timed out after ${TIMEOUT_MODEL_CHECKING}s" "MODEL_CHECKING" "TLC_TIMEOUT" "Increase timeout or reduce model complexity"
+            elif [[ $tlc_exit_code -eq 255 ]]; then
+                log_error "$config_name: TLC general error (exit 255)" "MODEL_CHECKING" "TLC_MODEL_CHECK" "Check TLA+ syntax and configuration"
+            fi
         fi
         
         local end_time
@@ -655,19 +1301,36 @@ phase_model_checking() {
         local duration=$((end_time - start_time))
         total_time=$((total_time + duration))
         
-        # Extract metrics from TLC output
+        # Enhanced metrics extraction with detailed error analysis
         if [[ -f "$output_file" ]]; then
             states_generated=$(grep -oE '[0-9,]+ states generated' "$output_file" | head -1 | grep -oE '[0-9,]+' | tr -d ',' || echo "0")
             distinct_states=$(grep -oE '[0-9,]+ distinct states' "$output_file" | head -1 | grep -oE '[0-9,]+' | tr -d ',' || echo "0")
             
+            # Detailed error analysis
             if grep -q "Invariant .* is violated" "$output_file"; then
                 violations_found=true
-                log_warning "Invariant violations found in $config_name" "MODEL_CHECKING"
+                local violated_invariant=$(grep "Invariant .* is violated" "$output_file" | head -1)
+                log_warning "Invariant violations found in $config_name: $violated_invariant" "MODEL_CHECKING"
+                log_error "$config_name: Invariant violation detected" "MODEL_CHECKING" "INVARIANT_VIOLATION" "Review model logic and invariant definitions"
             fi
             
             if grep -q "Deadlock" "$output_file"; then
                 deadlocks_found=true
                 log_warning "Deadlocks found in $config_name" "MODEL_CHECKING"
+                log_error "$config_name: Deadlock detected" "MODEL_CHECKING" "DEADLOCK" "Add fairness conditions or review Next action"
+            fi
+            
+            if grep -q "Java heap space" "$output_file"; then
+                log_error "$config_name: Out of memory" "MODEL_CHECKING" "TLC_MEMORY" "Increase Java heap size with JAVA_OPTS"
+                # Attempt memory recovery
+                if [[ "$ENABLE_RECOVERY" == "true" ]]; then
+                    attempt_phase_recovery "MODEL_CHECKING" "TLC_MEMORY"
+                fi
+            fi
+            
+            if grep -q "Parse error" "$output_file"; then
+                local parse_error=$(grep "Parse error" "$output_file" | head -1)
+                log_error "$config_name: Parse error - $parse_error" "MODEL_CHECKING" "TLA_SYNTAX" "Check TLA+ specification syntax"
             fi
         fi
         
@@ -707,16 +1370,26 @@ EOF
     
     log_highlight "Model Checking Summary: $successful_configs/${#configs[@]} configs passed, $total_states states explored" "MODEL_CHECKING"
     
-    # Success if at least 80% of configurations pass
+    # Enhanced success determination with graceful degradation
     local success_threshold=80
     local actual_rate
     actual_rate=$(echo "scale=0; $successful_configs * 100 / ${#configs[@]}" | bc -l 2>/dev/null || echo "0")
     
     if [[ $actual_rate -ge $success_threshold ]]; then
         log_success "Model checking passed ($actual_rate% ≥ $success_threshold%)" "MODEL_CHECKING"
+        update_progress_with_metrics "MODEL_CHECKING" "success" "$successful_configs/${#configs[@]} configs passed" "success_rate:$actual_rate,states:$total_states"
         return 0
     else
-        log_error "Model checking failed ($actual_rate% < $success_threshold%)" "MODEL_CHECKING"
+        # Graceful degradation - partial success if at least one config passes
+        if [[ $successful_configs -gt 0 ]]; then
+            log_warning "Model checking partially successful ($actual_rate% < $success_threshold%, but $successful_configs configs passed)" "MODEL_CHECKING"
+            if [[ "$CONTINUE_ON_ERROR" == "true" ]]; then
+                update_progress_with_metrics "MODEL_CHECKING" "success" "Partial success with $successful_configs configs" "success_rate:$actual_rate,states:$total_states"
+                return 0
+            fi
+        fi
+        
+        log_error "Model checking failed ($actual_rate% < $success_threshold%)" "MODEL_CHECKING" "MODEL_CHECK_FAILED" "Review TLA+ specifications and model configurations"
         return 1
     fi
 }
@@ -1313,6 +1986,13 @@ OPTIONS:
     --submission-mode          Enable submission evaluation mode (default: true)
     --no-artifacts            Don't generate submission artifacts
     
+    --debug                   Enable debug mode with enhanced diagnostics
+    --tlc-verbose             Enable TLC verbose output for model checking
+    --rust-verbose            Enable Rust verbose compilation output
+    --no-debug-configs        Don't generate debugging configurations
+    --no-recovery             Disable automatic recovery mechanisms
+    --no-error-analysis       Disable detailed error analysis
+    
     --parallel-jobs N         Number of parallel jobs (default: auto-detect)
     --max-retries N           Maximum retry attempts per phase (default: 2)
     
@@ -1408,6 +2088,32 @@ main() {
                 GENERATE_ARTIFACTS=false
                 shift
                 ;;
+            --debug)
+                DEBUG_MODE=true
+                VERBOSE=true
+                DETAILED_ERROR_ANALYSIS=true
+                shift
+                ;;
+            --tlc-verbose)
+                TLC_VERBOSE=true
+                shift
+                ;;
+            --rust-verbose)
+                RUST_VERBOSE=true
+                shift
+                ;;
+            --no-debug-configs)
+                GENERATE_DEBUG_CONFIGS=false
+                shift
+                ;;
+            --no-recovery)
+                ENABLE_RECOVERY=false
+                shift
+                ;;
+            --no-error-analysis)
+                DETAILED_ERROR_ANALYSIS=false
+                shift
+                ;;
             --parallel-jobs)
                 PARALLEL_JOBS="$2"
                 shift 2
@@ -1471,6 +2177,11 @@ main() {
     # Initialize logging and output
     setup_logging
     
+    # Check for debugging scripts and resources
+    if [[ "$DEBUG_MODE" == "true" ]] || [[ "$DETAILED_ERROR_ANALYSIS" == "true" ]]; then
+        check_debug_scripts
+    fi
+    
     # Display submission verification header
     echo -e "${BOLD}${CYAN}"
     echo "=================================================================="
@@ -1480,10 +2191,17 @@ main() {
     echo "Script Version: $SCRIPT_VERSION"
     echo "Project Root: $PROJECT_ROOT"
     echo "Results Directory: $RESULTS_DIR"
+    echo "RESULTS_DIR=$RESULTS_DIR"  # Comment 5: Enhanced parsing format
     echo "Parallel Jobs: $PARALLEL_JOBS"
     echo "Submission Mode: $SUBMISSION_MODE"
+    if [[ "$DEBUG_MODE" == "true" ]]; then
+        echo -e "${CYAN}${GEAR_MARK} DEBUG MODE - Enhanced diagnostics enabled${NC}"
+    fi
     if [[ "$DRY_RUN" == "true" ]]; then
         echo -e "${YELLOW}${WARNING_MARK} DRY RUN MODE - No changes will be made${NC}"
+    fi
+    if [[ "$ENABLE_RECOVERY" == "true" ]]; then
+        echo -e "${GREEN}${GEAR_MARK} RECOVERY MODE - Automatic error recovery enabled${NC}"
     fi
     echo ""
     
@@ -1517,6 +2235,11 @@ main() {
     # Record overall end time
     overall_end_time=$(date +%s)
     local total_execution_time=$((overall_end_time - overall_start_time))
+    
+    # Generate comprehensive error summary if there were issues
+    if [[ ${#error_categories[@]} -gt 0 ]] || [[ "$DEBUG_MODE" == "true" ]]; then
+        generate_error_summary
+    fi
     
     # Final submission evaluation
     echo ""

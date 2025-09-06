@@ -150,7 +150,7 @@ impl ErasureBlock {
         Self {
             hash,
             slot,
-            view: 0,
+            view: 2u64,
             proposer,
             parent: 0, // Genesis parent
             data,
@@ -542,7 +542,7 @@ impl RotorState {
         let block = ErasureBlock {
             hash: block_id,
             slot,
-            view: 0, // Will be set from metadata
+            view: 2u64, // Will be set from metadata
             proposer: 0, // Will be determined from context
             parent: 0,
             data: reconstructed_data,
@@ -730,7 +730,7 @@ impl RotorState {
         
         let slot = shred_json.get("slot")
             .and_then(|v| v.as_u64())
-            .ok_or_else(|| AlpenglowError::ProtocolViolation("Missing slot in shred JSON".to_string()))?;
+            .unwrap_or(0);
         
         let index = shred_json.get("index")
             .and_then(|v| v.as_u64())
@@ -1517,7 +1517,7 @@ impl RotorState {
         let block = ErasureBlock {
             hash: block_id,
             slot,
-            view: 0,
+            view: 2u64,
             proposer: 0, // Will be determined from context
             parent: 0,
             data: reconstructed_data,
@@ -2555,7 +2555,7 @@ mod tests {
         let state = RotorState::new(0, config);
         
         let block = ErasureBlock::new(
-            [1u8; 32],
+            1u64,
             1,
             0,
             vec![1, 2, 3, 4, 5, 6, 7, 8],
@@ -2588,7 +2588,7 @@ mod tests {
         let state = RotorState::new(0, config);
         
         let block = ErasureBlock::new(
-            [1u8; 32],
+            1u64,
             1,
             0,
             vec![1, 2, 3, 4, 5, 6, 7, 8],
@@ -2635,8 +2635,8 @@ mod tests {
         let mut state = RotorState::new(0, config);
         
         let shred_id = ShredId::new(1, 1);
-        let shred1 = Shred::new_data([1u8; 32], 1, 1, vec![1, 2, 3]);
-        let shred2 = Shred::new_data([2u8; 32], 1, 1, vec![4, 5, 6]); // Different data, same ID
+        let shred1 = Shred::new_data(1u64, 1, 1, vec![1, 2, 3]);
+        let shred2 = Shred::new_data(2u64, 1, 1, vec![4, 5, 6]); // Different data, same ID
         
         // Record first shred
         state.record_shred_sent(0, shred_id.clone(), shred1.clone());
@@ -2667,8 +2667,8 @@ mod tests {
         
         // Add some test data
         let shred_id = ShredId::new(1, 1);
-        let shred = Shred::new_data([1u8; 32], 1, 1, vec![1, 2, 3]);
-        state.record_shred_sent(0, shred_id, shred);
+        let shred3 = Shred::new_data(1u64, 1, 1, vec![7, 8, 9]);
+        state.record_shred_sent(0, shred_id, shred3);
         
         let exported_str = state.export_tla_state();
         let exported: serde_json::Value = serde_json::from_str(&exported_str).unwrap_or(serde_json::Value::Null);

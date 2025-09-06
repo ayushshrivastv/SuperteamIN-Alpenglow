@@ -2187,7 +2187,7 @@ mod tests {
         let config = Config::new().with_validators(4);
         let mut state = AlpenglowState::new(config);
         
-        let byzantine_validators = [0, 1].iter().cloned().collect();
+        let byzantine_validators: HashSet<ValidatorId> = [0, 1].iter().cloned().collect();
         state.set_byzantine_validators(byzantine_validators.clone());
         
         assert_eq!(state.byzantine_validators, byzantine_validators);

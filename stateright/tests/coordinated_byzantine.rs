@@ -3,7 +3,7 @@
 //! This module implements sophisticated Byzantine behavior patterns including
 //! coordinated attacks, eclipse attacks, and adaptive adversaries.
 
-use crate::*;
+use alpenglow_stateright::*;
 use std::collections::{HashMap, HashSet};
 
 /// Coordinated Byzantine attack coordinator

@@ -1823,6 +1823,13 @@ impl Config {
         self
     }
     
+    /// Set network timing parameters
+    pub fn with_network_timing(mut self, delay: u64, timeout: u64) -> Self {
+        self.network_delay = delay;
+        self.timeout_ms = timeout;
+        self
+    }
+    
     /// Set stake distribution
     pub fn with_stake_distribution(mut self, stakes: BTreeMap<ValidatorId, StakeAmount>) -> Self {
         self.total_stake = stakes.values().sum();

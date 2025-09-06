@@ -16,7 +16,7 @@ submission/verification_results/
 specs/*_TTrace_*.tla
 
 # Development Scripts and Tools
-scripts/dev/
+# scripts/dev/ - Allow development scripts for verification
 analysis/
 benchmarks/
 tools/deployment_monitor.py

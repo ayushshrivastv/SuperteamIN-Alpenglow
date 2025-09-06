@@ -3672,8 +3672,8 @@ mod tests {
         let block = Block {
             slot: 1,
             view: 1,
-            hash: [1u8; 32].into(),
-            parent: [0u8; 32].into(),
+            hash: u64::from_le_bytes([1u8; 8]),
+            parent: u64::from_le_bytes([0u8; 8]),
             proposer: 0,
             transactions: Vec::new(),
             timestamp: 0,
@@ -3698,7 +3698,7 @@ mod tests {
         let mut state = VotorState::new(0, config);
         
         // Add votes from all validators
-        let block_hash = [1u8; 32].into();
+        let block_hash = u64::from_le_bytes([1u8; 8]);
         let mut votes = HashSet::new();
         for i in 0..4 {
             let vote = Vote {
@@ -3770,7 +3770,7 @@ mod tests {
             voter: 0,
             slot: 1,
             view: 1,
-            block: [1u8; 32].into(),
+            block: u64::from_le_bytes([1u8; 8]),
             vote_type: VoteType::Commit,
             signature: 0u64 as Signature,
             timestamp: 0,
@@ -3782,7 +3782,7 @@ mod tests {
             voter: 999, // Invalid validator
             slot: 1,
             view: 1,
-            block: [1u8; 32].into(),
+            block: u64::from_le_bytes([1u8; 8]),
             vote_type: VoteType::Commit,
             signature: 0u64 as Signature,
             timestamp: 0,
@@ -3800,7 +3800,7 @@ mod tests {
         let round = state.get_or_create_round(1);
         
         // Add votes from all validators (should exceed fast path threshold)
-        let block_hash = [1u8; 32].into();
+        let block_hash = u64::from_le_bytes([1u8; 8]);
         for i in 0..4 {
             let vote = Vote {
                 voter: i,
@@ -3835,8 +3835,8 @@ mod tests {
         let block = Block {
             slot: 1,
             view: 1,
-            hash: [1u8; 32].into(),
-            parent: [0u8; 32].into(),
+            hash: u64::from_le_bytes([1u8; 8]),
+            parent: u64::from_le_bytes([0u8; 8]),
             proposer: 0,
             transactions: Vec::new(),
             timestamp: 0,

@@ -22,7 +22,7 @@ use anyhow::{Context, Result as AnyhowResult};
 use chrono::{DateTime, Utc};
 
 // Import core types from the main library
-use crate::{Config, ValidatorId, StakeAmount, TimeValue};
+use alpenglow_stateright::{Config, ValidatorId, StakeAmount, TimeValue};
 
 /// CLI arguments structure for all test scenario binaries
 #[derive(Parser, Debug, Clone)]

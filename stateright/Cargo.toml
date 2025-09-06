@@ -62,7 +62,7 @@ chrono = { version = "0.4.31", features = ["serde"], default-features = false }
 toml = "0.8"
 
 # Parallel processing for large-scale verification
-rayon = { version = "1.8", optional = true }
+rayon = "1.8"
 
 # State space exploration and model checking utilities
 petgraph = { version = "0.6", optional = true }
@@ -112,7 +112,7 @@ benchmarks = []
 byzantine = []
 
 # Enable large-scale network simulation (20+ validators)
-large-scale = ["rayon", "dashmap", "petgraph"]
+large-scale = ["dashmap", "petgraph"]
 
 # Enable performance profiling
 profiling = []
@@ -136,7 +136,7 @@ rotor-validation = ["stateright-integration"]
 tla-compliance = ["cross-validation", "votor-validation", "rotor-validation", "stateright-integration"]
 
 # Enable parallel model checking for large state spaces
-parallel-verification = ["rayon", "dashmap"]
+parallel-verification = ["dashmap"]
 
 # Note: Binaries will be implemented in future iterations
 # Currently focusing on library functionality

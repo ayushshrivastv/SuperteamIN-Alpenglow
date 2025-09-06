@@ -2483,11 +2483,11 @@ mod tests {
         let certificate = Certificate {
             slot: 1,
             view: 1,
-            block: [1u8; 32],
+            block: 1u64,
             cert_type: CertificateType::Fast,
             signatures: crate::votor::AggregatedSignature {
                 signers: [0, 1, 2, 3].iter().cloned().collect(),
-                message: [1u8; 32],
+                message: 1u64,
                 signatures: HashSet::new(),
                 valid: true,
             },
