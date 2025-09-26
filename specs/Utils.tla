@@ -381,7 +381,7 @@ SatisfiesSlowThreshold(votes, validators, stake) ==
 \* Time helper functions
 CurrentTime(clock) == clock
 
-TimeoutExpired(timeout, currentTime) == currentTime >= timeout
+TimeoutReached(timeout, currentTime) == currentTime >= timeout
 
 WithinBounds(time, lowerBound, upperBound) ==
     /\ time >= lowerBound
