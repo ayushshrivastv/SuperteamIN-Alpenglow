@@ -57,8 +57,8 @@ proptest = "1.4"
 # Performance monitoring
 criterion = { version = "0.5", optional = true }
 
-# Parallel processing for large-scale validation
-rayon = { version = "1.8", optional = true }
+# Parallel processing for large-scale validation - disabled for compatibility
+# rayon = { version = "=1.5.3", optional = true }
 
 [dev-dependencies]
 tokio-test = "0.4"
@@ -71,8 +71,8 @@ default = ["tracing", "tracing-subscriber"]
 # Enable benchmarking support for validation tools
 benchmarks = ["criterion"]
 
-# Enable large-scale validation (parallel processing)
-large-scale = ["rayon"]
+# Enable large-scale validation (parallel processing) - disabled for compatibility
+# large-scale = ["rayon"]
 
 # Enable runtime monitoring capabilities
 runtime-monitoring = []
@@ -90,8 +90,7 @@ profiling = ["criterion"]
 full-validation = [
     "runtime-monitoring",
     "offline-validation", 
-    "cross-validation",
-    "large-scale"
+    "cross-validation"
 ]
 
 [lib]
