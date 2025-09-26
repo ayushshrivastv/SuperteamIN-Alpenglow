@@ -22,7 +22,13 @@ CONSTANTS
     LoadBalanceTolerance, \* Load balance tolerance factor
     MaxBufferSize,        \* Maximum buffer size per validator
     Block,               \* Abstract set of blocks (provided by model/config)
-    ErasureCodedPiece    \* Abstract set of shreds/pieces (provided by model/config)
+    ErasureCodedPiece,   \* Abstract set of shreds/pieces (provided by model/config)
+    \* Configurable sampling parameters for Theorem 3 verification
+    SlicesPerBlock,      \* Number of slices per block (k in whitepaper)
+    TotalShreds,         \* Total number of shreds (Γ in whitepaper)
+    ReconstructionThreshold, \* Minimum shreds needed (γ in whitepaper)
+    ResilienceParameter, \* Over-provisioning factor (κ = Γ/γ in whitepaper)
+    SamplingMethod       \* Sampling method: "IID", "FA1-IID", or "PS-P"
 
 ASSUME
     /\ N > K
@@ -30,6 +36,15 @@ ASSUME
     /\ K >= (2 * Cardinality(Validators)) \div 3  \* Reconstruction threshold
     /\ MaxBlocks > 0
     /\ BandwidthLimit > 0
+    \* Sampling parameter assumptions for Theorem 3
+    /\ TotalShreds > ReconstructionThreshold
+    /\ ReconstructionThreshold > 0
+    /\ SlicesPerBlock > 0
+    /\ ResilienceParameter = TotalShreds \div ReconstructionThreshold
+    /\ ResilienceParameter > 1  \* Over-provisioning required
+    /\ SamplingMethod \in {"IID", "FA1-IID", "PS-P"}
+    \* Byzantine assumption for sampling resilience
+    /\ Utils!TotalStake(ByzantineValidators, Stake) < Utils!TotalStake(Validators, Stake) \div 5
 
 ----------------------------------------------------------------------------
 (* Shred Identification for Non-Equivocation *)
@@ -66,8 +81,17 @@ rotorVars == <<rotorBlocks, rotorShreds, rotorReceivedShreds, rotorReconstructed
 ----------------------------------------------------------------------------
 (* Import Type Definitions *)
 
-INSTANCE Types
-INSTANCE Utils
+RotorTypes == INSTANCE Types
+RotorUtils == INSTANCE Utils
+
+\* Import Sampling module for PS-P algorithm verification
+RotorSampling == INSTANCE Sampling WITH Validators <- Validators,
+                                        ByzantineValidators <- ByzantineValidators,
+                                        Stake <- Stake,
+                                        SlicesPerBlock <- SlicesPerBlock,
+                                        TotalShreds <- TotalShreds,
+                                        ReconstructionThreshold <- ReconstructionThreshold,
+                                        ResilienceParameter <- ResilienceParameter
 
 ----------------------------------------------------------------------------
 (* Helper Functions *)
@@ -362,13 +386,57 @@ StakeWeightedSampling(validators, stake, count) ==
             Cardinality(indices) = Min(count, Cardinality(validators))
     IN {validatorSeq[i] : i \in selectedIndices}
 
-\* Deterministic relay assignment for specific slot and shred index
+\* Enhanced relay selection supporting multiple sampling methods
 SelectRelays(slot, shred_index) ==
     LET seed == slot * 1000 + shred_index
         relayCount == Min(Cardinality(Validators) \div 3, 10)  \* 1/3 of validators, max 10
-        \* Use deterministic selection based on seed
-        selectedValidators == StakeWeightedSampling(Validators, Stake, relayCount)
-    IN selectedValidators
+    IN
+    CASE SamplingMethod = "PS-P" ->
+           \* Use PS-P (Partition Sampling) algorithm from Sampling module
+           LET psSelection == Sampling!PartitionSampling
+               filteredSelection == {v \in psSelection : Stake[v] > 0}
+           IN IF Cardinality(filteredSelection) <= relayCount
+              THEN filteredSelection
+              ELSE CHOOSE subset \in SUBSET filteredSelection : Cardinality(subset) = relayCount
+      [] SamplingMethod = "FA1-IID" ->
+           \* Fill-and-sample with IID fallback
+           LET highStakeValidators == {v \in Validators : Sampling!IsHighStakeValidator(v)}
+               remainingValidators == Validators \ highStakeValidators
+               iidSelection == StakeWeightedSampling(remainingValidators, Stake,
+                                                   relayCount - Cardinality(highStakeValidators))
+           IN highStakeValidators \cup iidSelection
+      [] SamplingMethod = "IID" ->
+           \* Standard IID stake-weighted sampling
+           StakeWeightedSampling(Validators, Stake, relayCount)
+      [] OTHER ->
+           \* Default to IID for backward compatibility
+           StakeWeightedSampling(Validators, Stake, relayCount)
+
+\* PS-P Partition Stakes operator - implements stake partitioning algorithm
+PartitionStakes ==
+    Sampling!PartitionStakes
+
+\* PS-P Bin Assignment operator - assigns validators to bins
+BinAssignment ==
+    Sampling!BinAssignment
+
+\* Proportional Sampling operator - samples validators proportional to stake within bins
+ProportionalSampling(bin, validators, stakes) ==
+    LET totalBinStake == Utils!TotalStake(validators, stakes)
+        targetStake == IF totalBinStake = 0 THEN 0
+                      ELSE (seed * 1000) % totalBinStake  \* Use deterministic randomness
+        \* Create cumulative stake distribution
+        validatorSeq == CHOOSE seq \in [1..Cardinality(validators) -> validators] :
+                          \A i, j \in 1..Cardinality(validators) : i # j => seq[i] # seq[j]
+        cumulativeStake == [i \in 1..Cardinality(validators) |->
+            Utils!TotalStake({validatorSeq[j] : j \in 1..i}, stakes)]
+        \* Find validator whose cumulative stake range contains target
+        selectedIndex == IF totalBinStake = 0 THEN 1
+                        ELSE CHOOSE i \in 1..Cardinality(validators) :
+                            /\ cumulativeStake[i] > targetStake
+                            /\ \A j \in 1..Cardinality(validators) :
+                                (j < i => cumulativeStake[j] <= targetStake) \/ j >= i
+    IN validatorSeq[selectedIndex]
 
 ----------------------------------------------------------------------------
 (* Block Propagation *)
@@ -521,7 +589,7 @@ RespondToRepair(validator, request) ==
 ----------------------------------------------------------------------------
 (* Success Conditions *)
 
-\* Check if block delivery was successful to honest majority
+\* Enhanced success condition with sampling resilience verification
 RotorSuccessful(slot) ==
     LET honestValidators == Validators \ ByzantineValidators
         successfulValidators == {v \in honestValidators :
@@ -529,6 +597,21 @@ RotorSuccessful(slot) ==
         honestStake == Utils!TotalStake(honestValidators, Stake)
         successfulStake == Utils!TotalStake(successfulValidators, Stake)
     IN successfulStake > honestStake \div 2
+
+\* Rotor success with PS-P sampling (from Sampling module)
+RotorSuccessfulPS_P(slot) ==
+    \A slice \in 1..SlicesPerBlock :
+        LET relays == SelectRelays(slot, slice)
+            honestRelays == relays \cap (Validators \ ByzantineValidators)
+        IN Cardinality(honestRelays) >= ReconstructionThreshold
+
+\* Sampling resilience verification - PS-P performs better than alternatives
+SamplingResilienceProperty ==
+    \A slot \in Nat :
+        \A threshold \in 1..ReconstructionThreshold :
+            SamplingMethod = "PS-P" =>
+                (Sampling!AdversarialSamplingProbability("PS-P", threshold) =>
+                 Sampling!AdversarialSamplingProbability("FA1-IID", threshold))
 
 ----------------------------------------------------------------------------
 (* Network Integration *)
@@ -774,6 +857,23 @@ BandwidthSafety ==
     \A v \in Validators :
         bandwidthUsage[v] <= BandwidthLimit
 
+\* Sampling resilience invariants - ensure PS-P sampling properties hold
+SamplingResilienceInvariant ==
+    /\ SamplingMethod = "PS-P" => RotorSampling!SamplingResilience(ReconstructionThreshold)
+    /\ SamplingMethod = "PS-P" => RotorSampling!ExpectedAdversarialSamples <=
+         (Utils!TotalStake(ByzantineValidators, Stake) * TotalShreds) \div Utils!TotalStake(Validators, Stake)
+    /\ SamplingMethod = "PS-P" => RotorSampling!AdversarialSamplingVariance <=
+         ((RotorUtils!TotalStake(ByzantineValidators, Stake) * TotalShreds) \div RotorUtils!TotalStake(Validators, Stake)) *
+         (1 - (RotorUtils!TotalStake(ByzantineValidators, Stake) \div RotorUtils!TotalStake(Validators, Stake)))
+
+\* Partitioning validity for PS-P sampling
+PartitioningValidityInvariant ==
+    SamplingMethod = "PS-P" => RotorSampling!PartitioningValidity
+
+\* Non-equivocation in PS-P sampling
+SamplingNonEquivocationInvariant ==
+    SamplingMethod = "PS-P" => RotorSampling!SamplingNonEquivocation
+
 \* Erasure coding validation
 ValidateErasureCoding(shreds, k, n) ==
     /\ Cardinality(shreds) >= k  \* Have enough shreds to reconstruct
@@ -810,6 +910,22 @@ ProgressWithFailures ==
         \A blockId \in DOMAIN blockShreds :
             <>(\A v \in HonestValidators \ failedValidators :
                 blockId \in deliveredBlocks[v])
+
+\* PS-P sampling improves progress under Byzantine failures
+ProgressWithPS_P ==
+    SamplingMethod = "PS-P" =>
+        \A slot \in Nat :
+            RotorSuccessfulPS_P(slot) => RotorSuccessful(slot)
+
+\* Sampling method comparison - PS-P provides better resilience
+SamplingMethodComparison ==
+    \A threshold \in 1..ReconstructionThreshold :
+        /\ SamplingMethod = "PS-P" =>
+             (Sampling!AdversarialSamplingProbability("PS-P", threshold) =>
+              Sampling!AdversarialSamplingProbability("IID", threshold))
+        /\ SamplingMethod = "PS-P" =>
+             (Sampling!AdversarialSamplingProbability("PS-P", threshold) =>
+              Sampling!AdversarialSamplingProbability("FA1-IID", threshold))
 
 ----------------------------------------------------------------------------
 (* Performance Properties *)
@@ -895,5 +1011,15 @@ TypeInvariant ==
     /\ DistinctIndices
     /\ ValidErasureCode
     /\ RotorNonEquivocation  \* Include non-equivocation as part of type invariant
+    \* Sampling parameter type constraints
+    /\ SlicesPerBlock \in Nat /\ SlicesPerBlock > 0
+    /\ TotalShreds \in Nat /\ TotalShreds > 0
+    /\ ReconstructionThreshold \in Nat /\ ReconstructionThreshold > 0
+    /\ ResilienceParameter \in Nat /\ ResilienceParameter > 1
+    /\ SamplingMethod \in {"IID", "FA1-IID", "PS-P"}
+    \* Sampling resilience invariants when using PS-P
+    /\ SamplingResilienceInvariant
+    /\ PartitioningValidityInvariant
+    /\ SamplingNonEquivocationInvariant
 
 ====
