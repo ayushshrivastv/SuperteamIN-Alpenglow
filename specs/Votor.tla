@@ -43,7 +43,8 @@ VARIABLES
     votorFinalizedChain, \* Finalized chain per validator [validator]
     votorState,          \* Internal state tracking per validator [validator][slot]
     votorObservedCerts,  \* Certificates observed by each validator [validator]
-    clock                \* Global clock for timing
+    clock,               \* Global clock for timing
+    currentSlot          \* Current protocol slot
 
 voterVars == <<votorView, votorVotes, votorTimeouts, votorGeneratedCerts,
                votorFinalizedChain, votorState, votorObservedCerts, clock, currentSlot>>
@@ -114,25 +115,12 @@ SlowPathThreshold ==
 \* Skip threshold (60% of total stake)
 SkipThreshold == SlowPathThreshold
 
-\* Timeout calculation with exponential backoff
-ViewTimeout(view, baseTimeout) ==
-    IF view = 1 THEN baseTimeout
-    ELSE baseTimeout * (2 ^ ((view - 1) % 10))
+\* Use ViewTimeout from Types module via NetworkTimingConstraints
 
 \* Current slot calculation
 CurrentSlot == clock \div Types!SlotDuration + 1
 
-\* Add currentSlot variable to state
-VARIABLES
-    votorView,           \* Current view number for each validator [validator]
-    votorVotes,          \* Votes cast by each validator [validator]
-    votorTimeouts,       \* Timeout settings per validator per slot [validator][slot]
-    votorGeneratedCerts, \* Certificates generated per view [view]
-    votorFinalizedChain, \* Finalized chain per validator [validator]
-    votorState,          \* Internal state tracking per validator [validator][slot]
-    votorObservedCerts,  \* Certificates observed by each validator [validator]
-    clock,               \* Global clock for timing
-    currentSlot          \* Current protocol slot
+\* Variables defined above in main VARIABLES declaration
 
 \* Check if timeout has expired
 TimeoutExpired(validator, slot) ==
