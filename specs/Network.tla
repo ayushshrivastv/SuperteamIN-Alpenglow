@@ -49,17 +49,17 @@ networkVars == <<messageQueue, messageBuffer, networkPartitions, droppedMessages
 ----------------------------------------------------------------------------
 \* Import Type Definitions
 
-INSTANCE Types
-Utils == INSTANCE Utils
+NetworkTypes == INSTANCE Types
+NetworkUtils == INSTANCE Utils
 
 ----------------------------------------------------------------------------
 \* Message Types
 
 \* Use NetworkMessage type from Types module for consistency
-Message == Types!NetworkMessage
+Message == NetworkTypes!NetworkMessage
 
 \* Define MessageType for type checking
-MessageType == {"block", "vote", "certificate", "timeout", "repair"}
+NetworkMessageType == {"block", "vote", "certificate", "timeout", "repair"}
 
 NetworkPartition == [
     partition1: SUBSET Validators,
@@ -173,12 +173,7 @@ PartialSynchrony ==
             /\ msg.timestamp >= GST
             => msg.id \in DOMAIN deliveryTime /\ deliveryTime[msg.id] <= msg.timestamp + Delta
 
-\* Protocol delay tolerance
-ProtocolDelayTolerance(protocolType) ==
-    CASE protocolType = "consensus" -> 2 * Delta
-      [] protocolType = "propagation" -> Delta
-      [] protocolType = "recovery" -> 3 * Delta
-      [] OTHER -> Delta
+\* Protocol delay tolerance (duplicate removed - defined earlier in file)
 
 ----------------------------------------------------------------------------
 \* Network Actions (properly exported)
@@ -379,13 +374,13 @@ NetworkSpec == NetworkInit /\ [][NetworkNext]_networkVars
 \* Type Invariant (fixed to match actual variable usage)
 NetworkTypeOK ==
     /\ messageQueue \in SUBSET [id: Nat, sender: Validators, recipient: Validators \cup {"broadcast"},
-                               type: MessageType, payload: Nat, timestamp: Nat,
+                               type: NetworkMessageType, payload: Nat, timestamp: Nat,
                                signature: [signer: Validators, message: Nat, valid: BOOLEAN]]
     /\ \A msg \in messageQueue :
            /\ msg.id \in Nat
            /\ msg.sender \in Validators
            /\ msg.recipient \in Validators \cup {"broadcast"}
-           /\ msg.type \in MessageType
+           /\ msg.type \in NetworkMessageType
            /\ msg.payload \in Nat
            /\ msg.timestamp \in Nat
            /\ msg.signature.signer \in Validators
@@ -393,7 +388,7 @@ NetworkTypeOK ==
            /\ msg.signature.valid \in BOOLEAN
     /\ \A v \in Validators :
            /\ messageBuffer[v] \in SUBSET [id: Nat, sender: Validators, recipient: Validators \cup {"broadcast"},
-                                          type: MessageType, payload: Nat, timestamp: Nat,
+                                          type: NetworkMessageType, payload: Nat, timestamp: Nat,
                                           signature: [signer: Validators, message: Nat, valid: BOOLEAN]]
            /\ \A m \in messageBuffer[v] : m.recipient = v \/ m.recipient = "broadcast"
     /\ networkPartitions \in SUBSET NetworkPartition
@@ -514,9 +509,9 @@ PartitionIsolationBounds ==
             LET honestInP1 == p.partition1 \ ByzantineValidators
                 honestInP2 == p.partition2 \ ByzantineValidators
                 totalHonest == Validators \ ByzantineValidators
-                p1HonestStake == Utils!TotalStake(honestInP1, Stake)
-                p2HonestStake == Utils!TotalStake(honestInP2, Stake)
-                totalHonestStake == Utils!TotalStake(totalHonest, Stake)
+                p1HonestStake == NetworkUtils!TotalStake(honestInP1, Stake)
+                p2HonestStake == NetworkUtils!TotalStake(honestInP2, Stake)
+                totalHonestStake == NetworkUtils!TotalStake(totalHonest, Stake)
             IN /\ p1HonestStake <= totalHonestStake \div 2
                /\ p2HonestStake <= totalHonestStake \div 2
 
@@ -569,9 +564,9 @@ NetworkUtilization ==
 
 \* Congestion control effectiveness with performance bounds
 CongestionControlBounds ==
-    LET congestionLevel == Cardinality(messageQueue)
+    LET currentCongestion == Cardinality(messageQueue)
         criticalThreshold == ((NetworkCapacity \div MaxMessageSize) * 3) \div 4  \* 75% capacity
-    IN congestionLevel > criticalThreshold =>
+    IN currentCongestion > criticalThreshold =>
         <>(Cardinality(messageQueue) < criticalThreshold \div 2)
 
 \* Message processing rate bounds

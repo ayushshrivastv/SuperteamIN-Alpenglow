@@ -30,20 +30,20 @@ ASSUME
     /\ N > K  \* Erasure coding constraint
     /\ K > 0
 
-\* Import foundational modules with proper parameter mappings
-INSTANCE Types WITH Validators <- Validators,
-                    ByzantineValidators <- ByzantineValidators,
-                    OfflineValidators <- OfflineValidators,
-                    MaxSlot <- MaxSlot,
-                    MaxView <- MaxView,
-                    GST <- GST,
-                    Delta <- Delta
+\* Import foundational modules with qualified names to avoid conflicts
+T == INSTANCE Types WITH Validators <- Validators,
+                        ByzantineValidators <- ByzantineValidators,
+                        OfflineValidators <- OfflineValidators,
+                        MaxSlot <- MaxSlot,
+                        MaxView <- MaxView,
+                        GST <- GST,
+                        Delta <- Delta
 
-INSTANCE Utils
+U == INSTANCE Utils
 
 \* Use stake mapping from Types module
-HonestValidators == Types!HonestValidators
-StakeMapping == Types!Stake
+HonestValidators == T!HonestValidators
+StakeMapping == T!Stake
 
 ----------------------------------------------------------------------------
 (* System State Variables *)
