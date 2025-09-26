@@ -1,0 +1,24 @@
+{
+  "tlaps_status_distribution": {
+    "unknown": 5
+  },
+  "tlc_status_distribution": {
+    "unknown": 5
+  },
+  "stateright_status_distribution": {
+    "unknown": 5
+  },
+  "mapping_type_distribution": {
+    "name_based": 5
+  },
+  "confidence_stats": {
+    "mean": 0.8,
+    "min": 0.8,
+    "max": 0.8
+  },
+  "proof_obligations": {
+    "total": 0,
+    "complete": 0,
+    "completion_rate": 0
+  }
+}
