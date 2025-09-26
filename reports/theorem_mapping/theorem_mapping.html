@@ -1,0 +1,757 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Alpenglow Theorem Mapping Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .status-complete { color: green; font-weight: bold; }
+        .status-incomplete { color: orange; font-weight: bold; }
+        .status-missing { color: red; font-weight: bold; }
+        .status-verified { color: green; }
+        .status-failed { color: red; }
+        .summary { background-color: #f9f9f9; padding: 20px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>Alpenglow Theorem Mapping Report</h1>
+    <p><strong>Generated:</strong> 2025-09-26T14:52:06.523200</p>
+    
+    <div class="summary">
+        <h2>Summary</h2>
+        <ul>
+            <li><strong>Total Whitepaper Theorems:</strong> 11</li>
+            <li><strong>Total TLA+ Theorems:</strong> 302</li>
+            <li><strong>Mapped Theorems:</strong> 5</li>
+            <li><strong>Mapping Coverage:</strong> 45.5%</li>
+        </ul>
+    </div>
+    
+    <h2>Verification Status Summary</h2>
+    <ul>
+    
+        <li><strong>Tlaps Complete:</strong> 0</li>
+    
+        <li><strong>Tlaps Incomplete:</strong> 0</li>
+    
+        <li><strong>Tlaps Missing:</strong> 0</li>
+    
+        <li><strong>Tlc Verified:</strong> 0</li>
+    
+        <li><strong>Tlc Failed:</strong> 0</li>
+    
+        <li><strong>Stateright Passed:</strong> 0</li>
+    
+        <li><strong>Stateright Failed:</strong> 0</li>
+    
+    </ul>
+    
+    <h2>Detailed Theorem Mappings</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Whitepaper ID</th>
+                <th>TLA+ ID</th>
+                <th>Confidence</th>
+                <th>Type</th>
+                <th>TLAPS Status</th>
+                <th>TLC Status</th>
+                <th>Stateright Status</th>
+                <th>File Location</th>
+                <th>Last Verified</th>
+            </tr>
+        </thead>
+        <tbody>
+        
+            <tr>
+                <td>theorem_1</td>
+                <td>WhitepaperTheorems_WhitepaperTheorem1</td>
+                <td>0.80</td>
+                <td>name_based</td>
+                <td class="status-unknown">unknown</td>
+                <td class="status-unknown">unknown</td>
+                <td class="status-unknown">unknown</td>
+                <td>WhitepaperTheorems.tla</td>
+                <td>Never</td>
+            </tr>
+        
+            <tr>
+                <td>lemma_8</td>
+                <td>RotorPerformanceProofs_Lemma8RotorLatency</td>
+                <td>0.80</td>
+                <td>name_based</td>
+                <td class="status-unknown">unknown</td>
+                <td class="status-unknown">unknown</td>
+                <td class="status-unknown">unknown</td>
+                <td>RotorPerformanceProofs.tla</td>
+                <td>Never</td>
+            </tr>
+        
+            <tr>
+                <td>definition_14</td>
+                <td>Resilience_Definition</td>
+                <td>0.80</td>
+                <td>name_based</td>
+                <td class="status-unknown">unknown</td>
+                <td class="status-unknown">unknown</td>
+                <td class="status-unknown">unknown</td>
+                <td>Resilience.tla</td>
+                <td>Never</td>
+            </tr>
+        
+            <tr>
+                <td>definition_6</td>
+                <td>Resilience_Definition</td>
+                <td>0.80</td>
+                <td>name_based</td>
+                <td class="status-unknown">unknown</td>
+                <td class="status-unknown">unknown</td>
+                <td class="status-unknown">unknown</td>
+                <td>Resilience.tla</td>
+                <td>Never</td>
+            </tr>
+        
+            <tr>
+                <td>definition_4</td>
+                <td>Resilience_Definition</td>
+                <td>0.80</td>
+                <td>name_based</td>
+                <td class="status-unknown">unknown</td>
+                <td class="status-unknown">unknown</td>
+                <td class="status-unknown">unknown</td>
+                <td>Resilience.tla</td>
+                <td>Never</td>
+            </tr>
+        
+        </tbody>
+    </table>
+    
+    
+    <h2>Unmapped Whitepaper Theorems</h2>
+    <ul>
+    
+        <li>lemma_20</li>
+    
+        <li>lemma_shows</li>
+    
+        <li>assumption_1</li>
+    
+        <li>definition_1</li>
+    
+        <li>definition_12</li>
+    
+        <li>corollary_34</li>
+    
+    </ul>
+    
+    
+    
+    <h2>Unmapped TLA+ Theorems</h2>
+    <ul>
+    
+        <li>Votor_TypeInvariant</li>
+    
+        <li>Votor_VotingProtocolInvariant</li>
+    
+        <li>Votor_SafetyInvariant</li>
+    
+        <li>Votor_ChainConsistencyInvariant</li>
+    
+        <li>Votor_LivenessProperty</li>
+    
+        <li>Votor_ByzantineResilienceProperty</li>
+    
+        <li>AdaptiveTimeouts_TimeoutBoundsInvariant</li>
+    
+        <li>AdaptiveTimeouts_TimeoutProgressionInvariant</li>
+    
+        <li>AdaptiveTimeouts_NetworkResponsivenessInvariant</li>
+    
+        <li>AdaptiveTimeouts_PartitionResilienceInvariant</li>
+    
+        <li>AdaptiveTimeouts_GSTOptimizationInvariant</li>
+    
+        <li>AdaptiveTimeouts_PerformanceImprovementInvariant</li>
+    
+        <li>AdaptiveTimeouts_TypeInvariant</li>
+    
+        <li>AdaptiveTimeouts_TimeoutConvergenceProperty</li>
+    
+        <li>AdaptiveTimeouts_AdaptiveEfficiencyProperty</li>
+    
+        <li>Resilience_Combined2020ResilienceProof</li>
+    
+        <li>Resilience_ExactThresholdSafetyProof</li>
+    
+        <li>Resilience_ExactThresholdLivenessProof</li>
+    
+        <li>Resilience_MainResilienceTheorem</li>
+    
+        <li>Resilience_StakeMonotonicity</li>
+    
+        <li>Resilience_StakeAdditivity</li>
+    
+        <li>Resilience_StakeArithmetic</li>
+    
+        <li>Resilience_SplitVotingAttackLemma</li>
+    
+        <li>Resilience_NoProgressWithoutQuorumLemma</li>
+    
+        <li>Resilience_InsufficientStakeProof</li>
+    
+        <li>Resilience_CertificateCompositionProof</li>
+    
+        <li>RotorPerformanceProofs_Lemma7RotorResilience</li>
+    
+        <li>RotorPerformanceProofs_Lemma9BandwidthOptimality</li>
+    
+        <li>RotorPerformanceProofs_RotorPerformanceGuarantees</li>
+    
+        <li>RotorPerformanceProofs_PerformanceCorrectness</li>
+    
+        <li>RotorPerformanceProofs_PerformanceInvariant</li>
+    
+        <li>EconomicModelComplete_TypeInvariant</li>
+    
+        <li>EconomicModelComplete_EconomicRationalityInvariant</li>
+    
+        <li>EconomicModelComplete_ValidatorSetSizeInvariant</li>
+    
+        <li>EconomicModelComplete_DecentralizationInvariant</li>
+    
+        <li>EconomicModelComplete_StakingRatioInvariant</li>
+    
+        <li>Types_NoSignatureForgeInvariant</li>
+    
+        <li>EconomicModel_TypeInvariant</li>
+    
+        <li>EconomicModel_MinStakeInvariant</li>
+    
+        <li>Network_EventualDeliveryProperty</li>
+    
+        <li>Network_BoundedDeliveryProperty</li>
+    
+        <li>Integration_IntegrationCorrectness</li>
+    
+        <li>Integration_RecoveryProperty</li>
+    
+        <li>VRFLeaderSelection_TypeInvariant</li>
+    
+        <li>VRFLeaderSelection_VRFUnpredictabilityProperty</li>
+    
+        <li>AlpenglowSimple_TypeInvariant</li>
+    
+        <li>NetworkIntegration_NetworkSafetyIntegration</li>
+    
+        <li>NetworkIntegration_NetworkLivenessIntegration</li>
+    
+        <li>NetworkIntegration_NetworkIntegrationMain</li>
+    
+        <li>Rotor_SamplingResilienceInvariant</li>
+    
+        <li>Rotor_PartitioningValidityInvariant</li>
+    
+        <li>Rotor_SamplingNonEquivocationInvariant</li>
+    
+        <li>Rotor_TypeInvariant</li>
+    
+        <li>Rotor_SamplingResilienceProperty</li>
+    
+        <li>Sampling_SamplingCorrectness</li>
+    
+        <li>Sampling_SamplingProgress</li>
+    
+        <li>Crypto_CryptoInvariant</li>
+    
+        <li>Crypto_UnforgeabilityProperty</li>
+    
+        <li>Crypto_VRFUniquenessProperty</li>
+    
+        <li>VRF_VRFTypeInvariant</li>
+    
+        <li>VRF_VRFUniquenessProperty</li>
+    
+        <li>VRF_VRFUnpredictabilityProperty</li>
+    
+        <li>VRF_VRFVerifiabilityProperty</li>
+    
+        <li>VRF_VRFPseudorandomnessProperty</li>
+    
+        <li>Resilience_Combined2020ResilienceTheorem</li>
+    
+        <li>Resilience_MaxByzantineTheorem</li>
+    
+        <li>Resilience_ByzantineThresholdViolation</li>
+    
+        <li>Resilience_MaxOfflineTheorem</li>
+    
+        <li>Resilience_OfflineThresholdViolation</li>
+    
+        <li>Resilience_PartitionRecoveryTheorem</li>
+    
+        <li>Resilience_EconomicResilienceTheorem</li>
+    
+        <li>Resilience_DoubleVotingResistance</li>
+    
+        <li>Resilience_SplitVotingResistance</li>
+    
+        <li>Resilience_WithholdingResistance</li>
+    
+        <li>Resilience_EquivocationResistance</li>
+    
+        <li>Resilience_ByzantineBoundaryTheorem</li>
+    
+        <li>Resilience_OfflineBoundaryTheorem</li>
+    
+        <li>Resilience_SlashingIncentivesTheorem</li>
+    
+        <li>Resilience_EconomicSecurityTheorem</li>
+    
+        <li>Resilience_RotorNonEquivocationTheorem</li>
+    
+        <li>Resilience_HonestBlockPropagationTheorem</li>
+    
+        <li>Resilience_VRFUniquenessTheorem</li>
+    
+        <li>Resilience_VRFUnpredictabilityTheorem</li>
+    
+        <li>Resilience_CombinedFaultModelTheorem</li>
+    
+        <li>Resilience_RealisticFaultScenariosTheorem</li>
+    
+        <li>Resilience_ExactThresholdSafety</li>
+    
+        <li>Resilience_ExactThresholdLiveness</li>
+    
+        <li>Resilience_ProgressUnderWorstCase</li>
+    
+        <li>Resilience_DegradationTheorem</li>
+    
+        <li>Resilience_SelfHealingTheorem</li>
+    
+        <li>Resilience_SafetyFromQuorum</li>
+    
+        <li>Resilience_SafetyViolationConstruction</li>
+    
+        <li>Resilience_HonestSingleVoteTheorem</li>
+    
+        <li>Resilience_ResponsiveStakeCalculation</li>
+    
+        <li>Resilience_ByzantineAttackConstruction</li>
+    
+        <li>Resilience_ByzantineValidatorCapability</li>
+    
+        <li>Resilience_InsufficientStakeLemma</li>
+    
+        <li>Resilience_CertificateCompositionLemma</li>
+    
+        <li>Resilience_SplitVotingAttack</li>
+    
+        <li>Resilience_HonestMajorityAssumption</li>
+    
+        <li>Resilience_SetTheoryAxioms</li>
+    
+        <li>Resilience_CertificateStakeRequirement</li>
+    
+        <li>Resilience_PeanoAxioms</li>
+    
+        <li>Resilience_MathematicalInduction</li>
+    
+        <li>Resilience_PartitionBound</li>
+    
+        <li>Resilience_ArithmeticInequality</li>
+    
+        <li>Resilience_LogicalAxioms</li>
+    
+        <li>Resilience_ValidatorPartitioning</li>
+    
+        <li>Resilience_ValidatorId</li>
+    
+        <li>Resilience_NaturalNumberDefinition</li>
+    
+        <li>Resilience_StakeNonNegativity</li>
+    
+        <li>Resilience_PartitioningPrinciple</li>
+    
+        <li>Resilience_StakeRecalculation</li>
+    
+        <li>Resilience_ProtocolResumption</li>
+    
+        <li>Resilience_TransientFaultModel</li>
+    
+        <li>Resilience_ValidatorRecovery</li>
+    
+        <li>Resilience_ProtocolDelayTolerance</li>
+    
+        <li>Resilience_BoundedDelayAfterGST</li>
+    
+        <li>Resilience_MessageDeliveryAfterGST</li>
+    
+        <li>Resilience_HonestParticipationLemma</li>
+    
+        <li>Resilience_CertificateGenerationLemma</li>
+    
+        <li>Resilience_ProgressFromCertificate</li>
+    
+        <li>Resilience_FastPathThreshold</li>
+    
+        <li>Resilience_NoProgressWithoutQuorum</li>
+    
+        <li>Resilience_CertificateUniquenessLemma</li>
+    
+        <li>Resilience_OfflineValidatorsPassive</li>
+    
+        <li>Resilience_NetworkHealingAssumption</li>
+    
+        <li>Resilience_FinalizationFromCertificate</li>
+    
+        <li>Resilience_VoteCollectionLemma</li>
+    
+        <li>Resilience_SlowPathTheorem</li>
+    
+        <li>Resilience_ProgressTheorem</li>
+    
+        <li>Resilience_SafetyTheorem</li>
+    
+        <li>Resilience_ByzantineResilienceTheorem</li>
+    
+        <li>Resilience_VoteMonitoring</li>
+    
+        <li>Resilience_EconomicAnalysis</li>
+    
+        <li>Resilience_AttackBenefitBounds</li>
+    
+        <li>Resilience_FunctionEquality</li>
+    
+        <li>Resilience_VRFUnpredictabilityProperty</li>
+    
+        <li>Resilience_VRFUnpredictabilityAssumption</li>
+    
+        <li>Resilience_TemporalLogic</li>
+    
+        <li>Resilience_FunctionDefinition</li>
+    
+        <li>Resilience_NaturalNumberExistence</li>
+    
+        <li>Resilience_OfflineResilienceTheorem</li>
+    
+        <li>Liveness_MainProgressTheorem</li>
+    
+        <li>Liveness_MainFastPathTheorem</li>
+    
+        <li>Liveness_MainSlowPathTheorem</li>
+    
+        <li>Liveness_MainBoundedFinalizationTheorem</li>
+    
+        <li>Liveness_MainTimeoutProgressTheorem</li>
+    
+        <li>Liveness_BoundedFinalizationTheorem</li>
+    
+        <li>Liveness_AdaptiveTimeoutLivenessTheorem</li>
+    
+        <li>Liveness_LeaderRotationLivenessTheorem</li>
+    
+        <li>Liveness_BoundedFinalizationWithAdaptiveTimeoutsTheorem</li>
+    
+        <li>Liveness_TimeoutProgressTheorem</li>
+    
+        <li>Liveness_LeaderRotationTheorem</li>
+    
+        <li>Liveness_NetworkSynchronyLemma</li>
+    
+        <li>Liveness_HonestParticipationProof</li>
+    
+        <li>Liveness_VoteAggregationProof</li>
+    
+        <li>Liveness_CertificatePropagationProof</li>
+    
+        <li>Liveness_LeaderWindowProgressProof</li>
+    
+        <li>Liveness_AdaptiveTimeoutGrowthProof</li>
+    
+        <li>Liveness_ExponentialGrowth</li>
+    
+        <li>Liveness_PigeonholePrinciple</li>
+    
+        <li>Liveness_MessageDeliveryLemma</li>
+    
+        <li>Liveness_PartitionRecoveryLemma</li>
+    
+        <li>Liveness_LeaderWindowProgressLemma</li>
+    
+        <li>Liveness_ExponentialGrowthLemma</li>
+    
+        <li>Liveness_TimeoutSufficientLemma</li>
+    
+        <li>Liveness_WindowProgressionLemma</li>
+    
+        <li>Liveness_EventualProgressLemma</li>
+    
+        <li>Liveness_ViewAdvancementLemma</li>
+    
+        <li>Liveness_TimeoutMechanismCorrectness</li>
+    
+        <li>Liveness_ClockProgression</li>
+    
+        <li>Liveness_ArithmeticProgression</li>
+    
+        <li>Liveness_PigeonholePrincipleBasic</li>
+    
+        <li>Liveness_ResponsivenessAssumption</li>
+    
+        <li>Liveness_HonestFinalizationBehavior</li>
+    
+        <li>Liveness_ArithmeticInequality</li>
+    
+        <li>Liveness_ArithmeticEquality</li>
+    
+        <li>Liveness_SimpleArithmetic</li>
+    
+        <li>EconomicSafety_EconomicRationalityTheorem</li>
+    
+        <li>EconomicSafety_SlashingEffectivenessTheorem</li>
+    
+        <li>EconomicSafety_ByzantineAttackDeterrenceTheorem</li>
+    
+        <li>EconomicSafety_RewardFairnessTheorem</li>
+    
+        <li>EconomicSafety_StakeProportionalityTheorem</li>
+    
+        <li>EconomicSafety_FeeSustainabilityTheorem</li>
+    
+        <li>EconomicSafety_FeeDistributionFairnessTheorem</li>
+    
+        <li>EconomicSafety_NothingAtStakeResistanceTheorem</li>
+    
+        <li>EconomicSafety_LongRangeAttackResistanceTheorem</li>
+    
+        <li>EconomicSafety_EconomicAttackCostTheorem</li>
+    
+        <li>EconomicSafety_EconomicSafetyTheorem</li>
+    
+        <li>EconomicSafety_EconomicLivenessTheorem</li>
+    
+        <li>EconomicSafety_EconomicArithmetic</li>
+    
+        <li>EconomicSafety_StakeConservation</li>
+    
+        <li>EconomicSafety_ByzantineStakeBound</li>
+    
+        <li>EconomicSafety_HonestMajority</li>
+    
+        <li>EconomicSafety_EconomicSafetyInvariant</li>
+    
+        <li>EconomicSafety_EconomicRationalityProperty</li>
+    
+        <li>EconomicSafety_SlashingEffectivenessProperty</li>
+    
+        <li>EconomicSafety_ByzantineAttackDeterrenceProperty</li>
+    
+        <li>EconomicSafety_RewardFairnessProperty</li>
+    
+        <li>EconomicSafety_StakeProportionalityProperty</li>
+    
+        <li>EconomicSafety_FeeSustainabilityProperty</li>
+    
+        <li>EconomicSafety_FeeDistributionFairnessProperty</li>
+    
+        <li>EconomicSafety_NothingAtStakeResistanceProperty</li>
+    
+        <li>EconomicSafety_LongRangeAttackResistanceProperty</li>
+    
+        <li>EconomicSafety_EconomicAttackCostProperty</li>
+    
+        <li>Safety_RotorNonEquivocationTheorem</li>
+    
+        <li>Safety_SafetyTheorem</li>
+    
+        <li>Safety_HonestSingleVoteTheorem</li>
+    
+        <li>Safety_ChainConsistencyTheorem</li>
+    
+        <li>Safety_ByzantineResilienceTheorem</li>
+    
+        <li>Safety_ExactThresholdSafety</li>
+    
+        <li>Safety_ThresholdViolation</li>
+    
+        <li>Safety_NoConflictingFinalizationTheorem</li>
+    
+        <li>Safety_ByzantineToleranceTheorem</li>
+    
+        <li>Safety_FastPathSafetyTheorem</li>
+    
+        <li>Safety_SlowPathSafetyTheorem</li>
+    
+        <li>Safety_VoteUniquenessTheorem</li>
+    
+        <li>Safety_CryptographicIntegrityTheorem</li>
+    
+        <li>Safety_CryptographicIntegrity</li>
+    
+        <li>Safety_CertificateUniquenessLemma</li>
+    
+        <li>Safety_PigeonholePrinciple</li>
+    
+        <li>Safety_HonestMajorityAssumption</li>
+    
+        <li>Safety_SimpleArithmetic</li>
+    
+        <li>Safety_VRFUniquenessLemma</li>
+    
+        <li>Safety_VRFLeaderSelectionDeterminism</li>
+    
+        <li>Safety_VRFLeaderWindowConsistency</li>
+    
+        <li>Safety_ByzantineCannotForceCertificate</li>
+    
+        <li>Safety_EconomicSlashingEnforcement</li>
+    
+        <li>Safety_ByzantineAttackConstruction</li>
+    
+        <li>Safety_StakeArithmetic</li>
+    
+        <li>Safety_StakeThresholdOverlap</li>
+    
+        <li>Safety_FastPathThresholdImplication</li>
+    
+        <li>Safety_ByzantineStakeBound</li>
+    
+        <li>Safety_HonestFinalizationLemma</li>
+    
+        <li>Safety_RequiredStakeForType</li>
+    
+        <li>Safety_VRFLeaderWindowSafety</li>
+    
+        <li>Safety_HonestMajorityInCertificates</li>
+    
+        <li>Safety_StrictInequalityFromCertificateThreshold</li>
+    
+        <li>Safety_SafetyInvariant</li>
+    
+        <li>WhitepaperTheorems_WhitepaperTheorem2</li>
+    
+        <li>WhitepaperTheorems_WhitepaperRotorResilienceTheorem</li>
+    
+        <li>WhitepaperTheorems_WhitepaperByzantineFaultToleranceTheorem</li>
+    
+        <li>WhitepaperTheorems_WhitepaperPartitionRecoveryTheorem</li>
+    
+        <li>WhitepaperTheorems_WhitepaperSamplingCorrectnessTheorem</li>
+    
+        <li>WhitepaperTheorems_VotingProtocolInvariant</li>
+    
+        <li>WhitepaperTheorems_StakeArithmetic</li>
+    
+        <li>WhitepaperTheorems_ChainConnectivityLemma</li>
+    
+        <li>WhitepaperTheorems_HonestValidatorBehavior</li>
+    
+        <li>WhitepaperTheorems_VoteCertificationLemma</li>
+    
+        <li>WhitepaperTheorems_FinalizationFromCertificate</li>
+    
+        <li>WhitepaperTheorems_BlockProductionLemma</li>
+    
+        <li>WhitepaperTheorems_SimpleArithmetic</li>
+    
+        <li>WhitepaperTheorems_TransitiveDescendantProperty</li>
+    
+        <li>WhitepaperTheorems_CertificatePropagation</li>
+    
+        <li>WhitepaperTheorems_ViewSynchronizationLemma</li>
+    
+        <li>WhitepaperTheorems_TimeoutSettingProtocol</li>
+    
+        <li>WhitepaperTheorems_ClockProgression</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma20Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma21Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma22Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma23Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma24Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma25Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma26Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma27Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma28Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma29Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma30Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma31Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma32Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma33Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma34Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma35Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma36Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma37Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma38Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma39Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma40Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma41Proof</li>
+    
+        <li>WhitepaperTheorems_WhitepaperLemma42Proof</li>
+    
+        <li>WhitepaperTheorems_TypeInvariant</li>
+    
+        <li>MathHelpers_SimpleArithmetic</li>
+    
+        <li>MathHelpers_DivisionProperties</li>
+    
+        <li>MathHelpers_PercentageThresholds</li>
+    
+        <li>MathHelpers_StakeArithmetic</li>
+    
+        <li>MathHelpers_PigeonholePrinciple</li>
+    
+        <li>MathHelpers_InequalityRelationships</li>
+    
+        <li>MathHelpers_AlpenglowThresholds</li>
+    
+        <li>MathHelpers_SetCardinalityArithmetic</li>
+    
+        <li>Sampling_WhitepaperTheorem3</li>
+    
+        <li>Sampling_SamplingResilienceTheorem</li>
+    
+        <li>Sampling_RotorResilienceImprovement</li>
+    
+        <li>Sampling_ExpectedPerformanceImprovement</li>
+    
+        <li>Sampling_VarianceReduction</li>
+    
+        <li>Sampling_PartitioningValidity</li>
+    
+        <li>Sampling_SamplingNonEquivocation</li>
+    
+        <li>Sampling_PS_P_vs_IID_Uniform</li>
+    
+        <li>Sampling_TypeInvariant</li>
+    
+    </ul>
+    
+</body>
+</html>
+        

@@ -1,0 +1,6 @@
+Whitepaper ID,TLA+ ID,Confidence,Mapping Type,TLAPS Status,TLC Status,Stateright Status,File Location,Line Range,Last Verified,Proof Obligations Total,Proof Obligations Complete
+theorem_1,WhitepaperTheorems_WhitepaperTheorem1,0.8,name_based,unknown,unknown,unknown,WhitepaperTheorems.tla,484-494,,0,0
+lemma_8,RotorPerformanceProofs_Lemma8RotorLatency,0.8,name_based,unknown,unknown,unknown,RotorPerformanceProofs.tla,124-134,,0,0
+definition_14,Resilience_Definition,0.8,name_based,unknown,unknown,unknown,Resilience.tla,1223-1233,,0,0
+definition_6,Resilience_Definition,0.8,name_based,unknown,unknown,unknown,Resilience.tla,1223-1233,,0,0
+definition_4,Resilience_Definition,0.8,name_based,unknown,unknown,unknown,Resilience.tla,1223-1233,,0,0

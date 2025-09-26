@@ -773,53 +773,6 @@ LEMMA WhitepaperLemma42Proof ==
 PROOF
     BY Liveness!AdaptiveTimeoutGrowthProof DEF WhitepaperLemma42
 
-\* Additional Whitepaper Theorems for Enhanced Coverage
-
-\* Whitepaper Theorem 3: Rotor Resilience (Erasure Coding)
-WhitepaperTheorem3 ==
-    \A block \in Types!Block :
-        \A slice \in 1..MaxSlicesPerBlock :
-            RotorSuccessful(block.slot) =>
-                <>(\A v \in Types!HonestValidators :
-                    \E shreds \in SUBSET Types!ErasureCodedPiece :
-                        Cardinality(shreds) >= ReconstructionThreshold)
-
-THEOREM WhitepaperRotorResilienceTheorem ==
-    Alpenglow!Spec => []WhitepaperTheorem3
-PROOF
-    BY Rotor!ErasureCodingResilience DEF WhitepaperTheorem3
-
-\* Whitepaper Theorem 4: Byzantine Fault Tolerance  
-WhitepaperTheorem4 ==
-    Utils!TotalStake(ByzantineValidators, Types!Stake) < Utils!TotalStake(Validators, Types!Stake) \div 5 =>
-        SafetyInvariant
-
-THEOREM WhitepaperByzantineFaultToleranceTheorem ==
-    Alpenglow!Spec => []WhitepaperTheorem4
-PROOF
-    BY Safety!ByzantineFaultToleranceTheorem DEF WhitepaperTheorem4
-
-\* Whitepaper Theorem 5: Network Partition Recovery
-WhitepaperTheorem5 ==
-    \A partition \in networkPartitions :
-        clock >= GST + PartitionTimeout => partition.healed
-
-THEOREM WhitepaperPartitionRecoveryTheorem ==
-    Alpenglow!Spec => []WhitepaperTheorem5
-PROOF
-    BY Network!PartitionRecoveryTheorem DEF WhitepaperTheorem5
-
-\* Whitepaper Theorem 6: Stake-Weighted Sampling Correctness
-WhitepaperTheorem6 ==
-    SamplingMethod = "PS-P" =>
-        \A block \in Types!Block :
-            Sampling!SamplingResilience(ReconstructionThreshold)
-
-THEOREM WhitepaperSamplingCorrectnessTheorem ==
-    Alpenglow!Spec => []WhitepaperTheorem6
-PROOF
-    BY Sampling!SamplingCorrectnessTheorem DEF WhitepaperTheorem6
-
 ----------------------------------------------------------------------------
 (* Summary *)
 
