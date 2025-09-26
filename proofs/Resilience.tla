@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ---------------------------- MODULE Resilience ----------------------------
 (**************************************************************************)
 (* Resilience properties specification and proofs, establishing safety    *)

@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # Executive Summary: Comprehensive Formal Verification of Solana Alpenglow Consensus Protocol
 
 ## Overview

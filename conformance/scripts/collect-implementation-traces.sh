@@ -1,4 +1,5 @@
 #!/bin/bash
+# Author: Ayush Srivastava
 
 #############################################################################
 # Implementation Trace Collection Script

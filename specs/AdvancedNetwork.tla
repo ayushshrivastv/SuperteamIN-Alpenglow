@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ------------------------------ MODULE AdvancedNetwork ------------------------------
 \**************************************************************************
 \* Advanced Network layer specification for the Alpenglow protocol,

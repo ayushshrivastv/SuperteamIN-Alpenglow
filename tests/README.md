@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # Alpenglow Test Suite
 
 This directory contains comprehensive tests for the Alpenglow formal verification framework.

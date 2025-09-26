@@ -1,4 +1,5 @@
 #!/bin/bash
+# Author: Ayush Srivastava
 # DEPRECATED: This script has been moved to scripts/dev/test_verification.sh
 # Please use the new location for future development work.
 

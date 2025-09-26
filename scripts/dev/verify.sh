@@ -1,4 +1,5 @@
 #!/bin/bash
+# Author: Ayush Srivastava
 
 #############################################################################
 # Alpenglow Mathematical Theorem Verification Script

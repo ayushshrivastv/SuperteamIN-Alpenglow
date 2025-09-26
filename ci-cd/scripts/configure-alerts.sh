@@ -1,4 +1,5 @@
 #!/bin/bash
+# Author: Ayush Srivastava
 
 #############################################################################
 # Alert Configuration Script

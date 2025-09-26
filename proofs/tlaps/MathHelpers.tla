@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ------------------------------ MODULE MathHelpers ------------------------------
 (***************************************************************************)
 (* Mathematical helper lemmas and arithmetic facts for Alpenglow proofs   *)

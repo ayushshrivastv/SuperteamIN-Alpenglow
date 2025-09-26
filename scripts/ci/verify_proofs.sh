@@ -1,4 +1,5 @@
 #!/bin/bash
+# Author: Ayush Srivastava
 
 # verify_proofs.sh - TLAPS Proof Verification Script
 # Part of the Alpenglow Protocol Formal Verification Suite

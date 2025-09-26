@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ---------------------------- MODULE RotorPerformanceProofs ----------------------------
 (***************************************************************************)
 (* Enhanced formal verification of Rotor performance lemmas from the       *)

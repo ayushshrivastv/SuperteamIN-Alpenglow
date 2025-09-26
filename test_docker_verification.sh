@@ -1,4 +1,5 @@
 #!/bin/bash
+# Author: Ayush Srivastava
 
 echo "🐳 Testing Alpenglow Docker Verification Environment"
 echo "=================================================="

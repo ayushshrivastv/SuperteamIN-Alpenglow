@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ------------------------------ MODULE EconomicModel ------------------------------
 (**************************************************************************)
 (* Economic Model for Alpenglow Protocol                                  *)

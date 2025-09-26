@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ------------------------------ MODULE AdaptiveTimeouts ------------------------------
 (**************************************************************************)
 (* Sophisticated adaptive timeout mechanisms for the Alpenglow protocol   *)

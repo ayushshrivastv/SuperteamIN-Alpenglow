@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ---------------------------- MODULE Alpenglow ----------------------------
 (***************************************************************************)
 (* Formal specification of the Alpenglow consensus protocol, composing    *)

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Author: Ayush Srivastava
 
 #############################################################################
 # Full Regression Testing Script

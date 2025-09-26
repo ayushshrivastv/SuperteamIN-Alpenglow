@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ---------------------------- MODULE Safety ----------------------------
 (***************************************************************************)
 (* Safety properties specification and machine-checked proofs for the     *)

@@ -1,3 +1,4 @@
+// Author: Ayush Srivastava
 //! Smoke test for the Alpenglow protocol implementation
 //! 
 //! This test verifies that the basic protocol components can be initialized

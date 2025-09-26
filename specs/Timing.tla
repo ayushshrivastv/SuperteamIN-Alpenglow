@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ------------------------------ MODULE Timing ------------------------------
 (**************************************************************************)
 (* Timing constants and functions for the Alpenglow protocol              *)

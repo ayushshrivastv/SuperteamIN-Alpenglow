@@ -1,3 +1,4 @@
+// Author: Ayush Srivastava
 use crate::{ValidatorId};
 use stateright::{Model, Property, Checker};
 use std::collections::{HashMap, HashSet};

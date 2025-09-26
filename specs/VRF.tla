@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ------------------------------ MODULE VRF ------------------------------
 (**************************************************************************)
 (* Verifiable Random Function (VRF) specification for Alpenglow protocol  *)

@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # Implementation Conformance Testing
 
 This directory contains scripts and tools for verifying that real Alpenglow protocol implementations conform to the formal TLA+ specification.

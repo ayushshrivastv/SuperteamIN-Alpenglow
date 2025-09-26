@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # Rotor Block Propagation Analysis
 
 ## Executive Summary

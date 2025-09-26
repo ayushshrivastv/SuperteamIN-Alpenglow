@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Author: Ayush Srivastava
 """
 Liveness Proof Completion and Validation Script for Alpenglow Consensus Protocol
 

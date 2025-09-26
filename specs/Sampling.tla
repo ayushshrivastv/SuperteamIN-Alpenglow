@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 --------------------------------- MODULE Sampling ---------------------------------
 \* Sampling module for PS-P (Proportional Stake - Proportional) sampling in Alpenglow
 \* Provides cryptographic abstractions for stake-weighted sampling and validation

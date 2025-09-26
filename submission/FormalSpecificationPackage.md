@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # Formal Specification Package for Solana Alpenglow Consensus Protocol
 
 ## Executive Summary

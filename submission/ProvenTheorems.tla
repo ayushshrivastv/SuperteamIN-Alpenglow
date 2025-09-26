@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ---------------------------- MODULE ProvenTheorems ----------------------------
 (***************************************************************************)
 (* Comprehensive collection of all machine-verified theorems and their    *)

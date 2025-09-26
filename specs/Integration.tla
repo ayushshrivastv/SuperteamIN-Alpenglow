@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ---------------------------- MODULE Integration ----------------------------
 (***************************************************************************)
 (* Integration specification combining all Alpenglow components for       *)

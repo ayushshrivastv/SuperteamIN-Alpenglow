@@ -1,4 +1,5 @@
 #!/bin/bash
+# Author: Ayush Srivastava
 
 # parallel_check.sh - Run multiple TLA+ model checking configurations in parallel
 # Part of the Alpenglow Protocol Verification Suite

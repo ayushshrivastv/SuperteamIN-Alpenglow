@@ -1,3 +1,4 @@
+// Author: Ayush Srivastava
 #![allow(dead_code)]
 //! # Votor Consensus Component
 //!

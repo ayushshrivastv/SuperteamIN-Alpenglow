@@ -1,3 +1,4 @@
+// Author: Ayush Srivastava
 //! Utility binary for exporting sample states from Stateright verification
 //! 
 //! This tool exports representative states from Stateright model checking

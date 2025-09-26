@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ------------------------------ MODULE Votor ------------------------------
 (**************************************************************************)
 (* Votor (voting) module implementing the dual-path consensus mechanism   *)

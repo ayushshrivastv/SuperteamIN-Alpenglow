@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # Whitepaper Correspondence: Formal Verification Mapping
 
 ## Executive Summary

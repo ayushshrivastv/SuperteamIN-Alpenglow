@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ---------------------------- MODULE Rotor ----------------------------
 (***************************************************************************)
 (* Rotor block propagation component implementing erasure-coded data      *)

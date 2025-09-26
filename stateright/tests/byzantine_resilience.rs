@@ -1,3 +1,4 @@
+// Author: Ayush Srivastava
 //! Byzantine Resilience Tests for Alpenglow Protocol
 //!
 //! This module contains comprehensive tests for Byzantine fault tolerance,

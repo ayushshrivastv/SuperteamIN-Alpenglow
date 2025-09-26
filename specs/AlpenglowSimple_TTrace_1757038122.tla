@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ---- MODULE AlpenglowSimple_TTrace_1757038122 ----
 EXTENDS Sequences, TLCExt, Toolbox, AlpenglowSimple, Naturals, TLC, AlpenglowSimple_TEConstants
 

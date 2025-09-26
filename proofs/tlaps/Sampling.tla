@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ------------------------------ MODULE Sampling ------------------------------
 (***************************************************************************)
 (* Formal verification of Theorem 3 from the Alpenglow whitepaper about   *)

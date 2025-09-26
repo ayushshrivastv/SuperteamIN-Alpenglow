@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ---------------------- MODULE test_votor_rotor ----------------------
 (***************************************************************************)
 (* Integration test for Votor-Rotor interaction                           *)

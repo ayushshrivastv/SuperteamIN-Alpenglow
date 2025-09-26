@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ------------------------------ MODULE Utils ------------------------------
 (* Common utility functions used across specifications *)
 EXTENDS Sequences, Integers, FiniteSets, TLC

@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # Properties Layer Specifications
 
 This directory contains the safety and liveness property specifications for Alpenglow.

@@ -1,3 +1,4 @@
+// Author: Ayush Srivastava
 //! Local implementation of stateright framework types and traits
 //!
 //! This module provides the core types and traits needed for the Alpenglow

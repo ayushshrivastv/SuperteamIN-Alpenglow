@@ -1,3 +1,4 @@
+// Author: Ayush Srivastava
 //! Economic Model Tests for Alpenglow Protocol
 //!
 //! This module contains tests for the economic aspects of the Alpenglow consensus protocol,

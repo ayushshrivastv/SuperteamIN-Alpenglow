@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 --------------------------- MODULE NetworkIntegration ---------------------------
 (***************************************************************************)
 (* Network Integration module for the Alpenglow consensus protocol.       *)

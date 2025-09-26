@@ -1,3 +1,4 @@
+// Author: Ayush Srivastava
 //! # PS-P Sampling Algorithm Implementation
 //!
 //! This module implements the PS-P (Partition Sampling with Proportional to size) algorithm

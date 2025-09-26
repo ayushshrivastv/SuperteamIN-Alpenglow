@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 -------------------------- MODULE test_votor_safety --------------------------
 (***************************************************************************)
 (* Unit test for Votor safety properties                                  *)

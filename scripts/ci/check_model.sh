@@ -1,4 +1,5 @@
 #!/bin/bash
+# Author: Ayush Srivastava
 
 # check_model.sh - TLA+ Model Checking Script for CI Pipeline
 # Part of the Alpenglow Protocol Verification Suite

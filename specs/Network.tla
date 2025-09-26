@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ------------------------------ MODULE Network ------------------------------
 \**************************************************************************
 \* Network layer specification for the Alpenglow protocol, modeling

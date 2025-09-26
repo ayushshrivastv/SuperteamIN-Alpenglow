@@ -1,3 +1,4 @@
+// Author: Ayush Srivastava
 //! Advanced Byzantine Attack Scenarios for Alpenglow Protocol
 //!
 //! This module implements sophisticated Byzantine attack scenarios that go beyond

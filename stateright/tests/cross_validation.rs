@@ -1,3 +1,4 @@
+// Author: Ayush Srivastava
 #![allow(dead_code)]
 //! Cross-validation tests between Stateright implementation and TLA+ specifications
 //!

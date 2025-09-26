@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # Foundation Layer Specifications
 
 This directory contains the foundational TLA+ modules for Alpenglow consensus protocol.

@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 -------------------------- MODULE test_invariants --------------------------
 (***************************************************************************)
 (* Property-based tests for system invariants                             *)

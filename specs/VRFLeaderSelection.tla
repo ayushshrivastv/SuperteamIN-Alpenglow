@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ------------------------------ MODULE VRFLeaderSelection ------------------------------
 (**************************************************************************)
 (* VRF-based Leader Selection specification for Alpenglow protocol        *)

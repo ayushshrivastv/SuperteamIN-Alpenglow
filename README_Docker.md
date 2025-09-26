@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # 🐳 Alpenglow Formal Verification - Docker Environment
 
 ## One-Command Verification

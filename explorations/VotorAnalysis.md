@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # Votor Consensus Mechanism Analysis
 
 ## Executive Summary

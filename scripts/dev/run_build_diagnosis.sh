@@ -1,3 +1,4 @@
+# Author: Ayush Srivastava
 
 #############################################################################
 # Master Build Diagnosis Script for Stateright Verification

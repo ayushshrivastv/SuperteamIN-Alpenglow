@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # Formal Methods Strategy for Alpenglow Verification
 
 ## Executive Summary

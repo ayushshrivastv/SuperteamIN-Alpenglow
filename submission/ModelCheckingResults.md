@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # Model Checking and Validation Results
 
 ## Executive Summary

@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # Alpenglow Consensus Protocol - Formal Verification
 
 A comprehensive formal verification project for the Solana Alpenglow consensus protocol, featuring TLA+ specifications, mathematical proofs, Rust implementations, and automated verification pipelines.

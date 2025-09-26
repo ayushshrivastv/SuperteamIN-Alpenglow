@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # Alpenglow Formal Verification - Reproducibility Package
 
 **Version:** 1.0.0  

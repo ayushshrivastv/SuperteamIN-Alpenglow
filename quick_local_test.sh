@@ -1,4 +1,5 @@
 #!/bin/bash
+# Author: Ayush Srivastava
 
 echo "🧪 Quick Local Test - Simulating Docker Environment"
 echo "=================================================="

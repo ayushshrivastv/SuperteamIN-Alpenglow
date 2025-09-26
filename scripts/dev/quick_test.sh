@@ -1,4 +1,5 @@
 #!/bin/bash
+# Author: Ayush Srivastava
 
 # quick_test.sh - Rapid Testing Script for Development
 # Part of the Alpenglow Protocol Verification Suite

@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ------------------------------- MODULE TestTypes -------------------------------
 EXTENDS Integers, Sequences, FiniteSets, TLC
 

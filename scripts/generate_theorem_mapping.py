@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Author: Ayush Srivastava
 """
 Fixed Theorem Mapping Generator for Alpenglow Consensus Protocol
 """

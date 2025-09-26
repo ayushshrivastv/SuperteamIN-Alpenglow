@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 --------------------------- MODULE Resilience ---------------------------
 (*
  * Resilience properties for the Alpenglow consensus protocol.

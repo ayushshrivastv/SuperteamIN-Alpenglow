@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ---------------------------- MODULE TestSimple ----------------------------
 EXTENDS Integers
 

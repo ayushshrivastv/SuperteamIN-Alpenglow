@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # Alpenglow Theorem Mapping Report
 
 Generated: 2025-09-26T14:52:06.523200

@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ------------------------------ MODULE Stake ------------------------------
 (**************************************************************************)
 (* Stake calculation and management for the Alpenglow protocol            *)

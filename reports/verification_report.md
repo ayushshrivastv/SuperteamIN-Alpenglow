@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # Alpenglow Complete Verification Report
 
 **Generated:** 2025-09-26T14:52:06+05:30  

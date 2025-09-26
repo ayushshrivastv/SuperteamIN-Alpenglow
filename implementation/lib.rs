@@ -1,3 +1,4 @@
+// Author: Ayush Srivastava
 //! Alpenglow Protocol Validation and Monitoring Library
 //!
 //! This crate provides comprehensive validation tools and runtime monitoring

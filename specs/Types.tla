@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ------------------------------- MODULE Types -------------------------------
 (**************************************************************************)
 (* Type definitions and common operators for the Alpenglow protocol       *)

@@ -1,3 +1,4 @@
+// Author: Ayush Srivastava
 //! Common test utilities module for Alpenglow Stateright verification
 //!
 //! This module provides shared functionality for all test scenarios including:

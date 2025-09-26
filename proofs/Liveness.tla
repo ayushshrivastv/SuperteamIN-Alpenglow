@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ---------------------------- MODULE Liveness ----------------------------
 (***************************************************************************)
 (* Liveness properties specification and machine-checked proofs for       *)

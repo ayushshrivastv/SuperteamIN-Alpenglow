@@ -1,4 +1,5 @@
 #!/bin/bash
+# Author: Ayush Srivastava
 # Script to download and run TLC model checker
 
 echo "Setting up TLC Model Checker..."

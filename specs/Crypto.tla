@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ------------------------------ MODULE Crypto ------------------------------
 (**************************************************************************)
 (* Cryptographic abstractions for the Alpenglow protocol                  *)

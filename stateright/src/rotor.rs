@@ -1,3 +1,4 @@
+// Author: Ayush Srivastava
  //! # Rotor Block Propagation Component
 //!
 //! This module implements the Rotor block propagation component using Stateright's actor model.

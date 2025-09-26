@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ---- MODULE StakeTest ----
 \* Simple stake definition for testing
 

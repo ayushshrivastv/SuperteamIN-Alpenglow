@@ -1,3 +1,4 @@
+# Author: Ayush Srivastava
 
 #!/bin/bash
 

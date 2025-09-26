@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # CI/CD Integration for Alpenglow Verification
 
 This directory contains scripts and configurations for continuous integration and deployment of the Alpenglow formal verification pipeline.

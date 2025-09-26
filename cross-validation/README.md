@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # Cross-Framework Validation
 
 This directory contains scripts and configurations for validating consistency between TLA+ and Stateright implementations.

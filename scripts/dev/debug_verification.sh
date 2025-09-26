@@ -1,4 +1,5 @@
 #!/bin/bash
+# Author: Ayush Srivastava
 
 # debug_verification.sh
 # Comprehensive debugging script for Alpenglow verification failures

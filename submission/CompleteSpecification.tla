@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ---------------------------- MODULE CompleteSpecification ----------------------------
 (***************************************************************************)
 (* Complete Formal Specification of the Alpenglow Consensus Protocol      *)

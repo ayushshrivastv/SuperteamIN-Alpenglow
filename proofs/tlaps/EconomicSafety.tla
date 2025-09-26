@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ------------------------------ MODULE EconomicSafety ------------------------------
 (***************************************************************************)
 (* Formal proofs for economic model safety properties, ensuring that      *)

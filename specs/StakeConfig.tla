@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ---- MODULE StakeConfig ----
 EXTENDS Integers
 

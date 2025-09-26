@@ -1,3 +1,4 @@
+// Author: Ayush Srivastava
 //! Coordinated Byzantine attack scenarios for Alpenglow protocol testing
 //! 
 //! This module implements sophisticated Byzantine behavior patterns including

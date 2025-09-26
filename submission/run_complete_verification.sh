@@ -1,4 +1,5 @@
 #!/bin/bash
+# Author: Ayush Srivastava
 
 # run_complete_verification.sh
 # Comprehensive verification script for Alpenglow consensus protocol submission evaluation

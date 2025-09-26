@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ---------------------------- MODULE WhitepaperTheorems ----------------------------
 (***************************************************************************)
 (* Comprehensive formal proofs of mathematical theorems from the          *)

@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ------------------------------- MODULE AlpenglowSimple -------------------------------
 (**************************************************************************)
 (* Simplified Alpenglow specification for testing TLC                      *)

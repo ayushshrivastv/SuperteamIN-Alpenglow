@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ---------------------------- MODULE EconomicIncentives ----------------------------
 (***************************************************************************)
 (* Economic incentive model for Alpenglow consensus protocol including    *)

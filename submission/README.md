@@ -1,3 +1,5 @@
+<!-- Author: Ayush Srivastava -->
+
 # Solana Alpenglow Consensus Protocol - Formal Verification Submission
 
 ## Executive Overview

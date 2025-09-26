@@ -1,3 +1,4 @@
+// Author: Ayush Srivastava
 //! # PS-P Sampling Verification Tests
 //!
 //! Comprehensive tests for the PS-P sampling implementation that validate Theorem 3 claims

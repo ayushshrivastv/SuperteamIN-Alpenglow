@@ -1,3 +1,4 @@
+\* Author: Ayush Srivastava
 ------------------------------- MODULE TypesCore -------------------------------
 (**************************************************************************)
 (* Core type definitions for the Alpenglow protocol                       *)
