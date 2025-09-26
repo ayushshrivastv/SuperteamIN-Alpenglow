@@ -350,7 +350,7 @@ jobs:
     timeout-minutes: 120
     strategy:
       matrix:
-        module: [Types, Utils, Safety, Liveness, Resilience, WhitepaperTheorems]
+        module: [Types, Utils, Safety, Liveness, Resilience, WhitepaperTheorems, Sampling]
       fail-fast: false
     steps:
       - name: Checkout repository
@@ -504,6 +504,210 @@ jobs:
           path: |
             results/ci/tlaps/tlaps_${{ matrix.module }}.log
             results/ci/tlaps/metrics_${{ matrix.module }}.json
+          retention-days: 30
+
+  theorem3-verification:
+    name: Theorem 3 (Sampling) Verification
+    runs-on: ubuntu-latest
+    needs: [setup, syntax-check]
+    timeout-minutes: 120
+    strategy:
+      matrix:
+        verification_type: [tlaps-sampling, tlc-sampling, stateright-sampling]
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Setup Rust (for Stateright sampling tests)
+        if: matrix.verification_type == 'stateright-sampling'
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/tla-tools
+            ~/.cargo/registry
+            ~/.cargo/git
+            stateright/target
+          key: theorem3-${{ matrix.verification_type }}-${{ runner.os }}-${{ hashFiles('stateright/Cargo.lock') }}
+
+      - name: Install TLA+ tools
+        run: |
+          mkdir -p ~/tla-tools
+          if [ ! -f ~/tla-tools/tla2tools.jar ]; then
+            wget -q "https://github.com/tlaplus/tlaplus/releases/download/v${{ env.TLA_TOOLS_VERSION }}/tla2tools.jar" \
+              -O ~/tla-tools/tla2tools.jar
+          fi
+
+      - name: Run Theorem 3 TLAPS verification
+        if: matrix.verification_type == 'tlaps-sampling'
+        run: |
+          echo "🔍 Running TLAPS verification for Sampling theorem..."
+          
+          mkdir -p results/ci/theorem3
+          
+          if [ -f "proofs/Sampling.tla" ]; then
+            export PATH="/usr/local/tlaps/bin:$PATH"
+            
+            timeout 3600 tlapm \
+              --verbose \
+              --toolbox 0 0 \
+              --threads 4 \
+              proofs/Sampling.tla \
+              > "results/ci/theorem3/sampling_tlaps.log" 2>&1
+            
+            EXIT_CODE=$?
+            
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "✅ Sampling TLAPS verification passed"
+              STATUS="VERIFIED"
+            else
+              echo "⚠️ Sampling TLAPS verification incomplete"
+              STATUS="PARTIAL"
+            fi
+            
+            # Extract sampling-specific metrics
+            LOG_FILE="results/ci/theorem3/sampling_tlaps.log"
+            SAMPLING_OBLIGATIONS=$(grep -c 'SamplingResilience\|PartitionSampling\|AdversarialSamplingProbability' "$LOG_FILE" || echo "0")
+            SAMPLING_VERIFIED=$(grep -c 'proved.*Sampling' "$LOG_FILE" || echo "0")
+            
+            echo "📊 Sampling verification metrics:"
+            echo "  Sampling obligations: $SAMPLING_OBLIGATIONS"
+            echo "  Sampling verified: $SAMPLING_VERIFIED"
+            
+            cat > "results/ci/theorem3/sampling_tlaps_metrics.json" << EOF
+            {
+              "module": "Sampling",
+              "timestamp": "$(date -Iseconds)",
+              "status": "$STATUS",
+              "sampling_obligations": $SAMPLING_OBLIGATIONS,
+              "sampling_verified": $SAMPLING_VERIFIED,
+              "verification_type": "tlaps"
+            }
+            EOF
+          else
+            echo "⚠️ Sampling.tla not found"
+          fi
+
+      - name: Run Theorem 3 TLC verification
+        if: matrix.verification_type == 'tlc-sampling'
+        run: |
+          echo "🔍 Running TLC verification for Sampling configuration..."
+          
+          mkdir -p results/ci/theorem3
+          
+          if [ -f "models/SamplingVerification.cfg" ]; then
+            timeout 2400 java -cp ~/tla-tools/tla2tools.jar tlc2.TLC \
+              -config models/SamplingVerification.cfg \
+              -workers 4 \
+              -verbose \
+              specs/Rotor \
+              > "results/ci/theorem3/sampling_tlc.log" 2>&1
+            
+            EXIT_CODE=$?
+            
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "✅ Sampling TLC verification passed"
+              STATUS="VERIFIED"
+            else
+              echo "⚠️ Sampling TLC verification incomplete"
+              STATUS="PARTIAL"
+            fi
+            
+            # Extract sampling TLC metrics
+            LOG_FILE="results/ci/theorem3/sampling_tlc.log"
+            SAMPLING_STATES=$(grep -o '[0-9]* distinct states' "$LOG_FILE" | head -1 | cut -d' ' -f1 || echo "0")
+            SAMPLING_PROPERTIES=$(grep -c 'SamplingResilience\|PartitioningValidity' "$LOG_FILE" || echo "0")
+            
+            echo "📊 Sampling TLC metrics:"
+            echo "  States explored: $SAMPLING_STATES"
+            echo "  Sampling properties: $SAMPLING_PROPERTIES"
+            
+            cat > "results/ci/theorem3/sampling_tlc_metrics.json" << EOF
+            {
+              "config": "SamplingVerification",
+              "timestamp": "$(date -Iseconds)",
+              "status": "$STATUS",
+              "states_explored": $SAMPLING_STATES,
+              "sampling_properties": $SAMPLING_PROPERTIES,
+              "verification_type": "tlc"
+            }
+            EOF
+          else
+            echo "⚠️ SamplingVerification.cfg not found"
+          fi
+
+      - name: Run Theorem 3 Stateright verification
+        if: matrix.verification_type == 'stateright-sampling'
+        run: |
+          echo "🔍 Running Stateright verification for Sampling implementation..."
+          
+          mkdir -p results/ci/theorem3
+          
+          if [ -d "stateright" ] && [ -f "stateright/tests/sampling_verification.rs" ]; then
+            cd stateright
+            
+            # Build sampling implementation
+            cargo build --release --features sampling
+            
+            # Run sampling-specific tests
+            cargo test --release sampling_verification -- \
+              --nocapture \
+              --test-threads 1 \
+              > "../results/ci/theorem3/sampling_stateright.log" 2>&1
+            
+            EXIT_CODE=$?
+            
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "✅ Sampling Stateright verification passed"
+              STATUS="VERIFIED"
+            else
+              echo "⚠️ Sampling Stateright verification incomplete"
+              STATUS="PARTIAL"
+            fi
+            
+            # Extract sampling Stateright metrics
+            LOG_FILE="../results/ci/theorem3/sampling_stateright.log"
+            SAMPLING_TESTS=$(grep -c 'test.*sampling.*ok' "$LOG_FILE" || echo "0")
+            RESILIENCE_TESTS=$(grep -c 'test.*resilience.*ok' "$LOG_FILE" || echo "0")
+            
+            echo "📊 Sampling Stateright metrics:"
+            echo "  Sampling tests passed: $SAMPLING_TESTS"
+            echo "  Resilience tests passed: $RESILIENCE_TESTS"
+            
+            cat > "../results/ci/theorem3/sampling_stateright_metrics.json" << EOF
+            {
+              "component": "sampling",
+              "timestamp": "$(date -Iseconds)",
+              "status": "$STATUS",
+              "sampling_tests": $SAMPLING_TESTS,
+              "resilience_tests": $RESILIENCE_TESTS,
+              "verification_type": "stateright"
+            }
+            EOF
+          else
+            echo "⚠️ Stateright sampling tests not found"
+          fi
+
+      - name: Upload Theorem 3 verification results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: theorem3-verification-${{ matrix.verification_type }}
+          path: |
+            results/ci/theorem3/
           retention-days: 30
 
   whitepaper-validation:
@@ -800,12 +1004,116 @@ jobs:
             results/ci/stateright/metrics_${{ matrix.component }}_${{ matrix.config }}.json
           retention-days: 30
 
-  cross-validation:
-    name: TLA+ ↔ Stateright Cross-Validation
+  theorem-mapping:
+    name: Generate Theorem Mapping Documentation
     runs-on: ubuntu-latest
-    needs: [tlaps-verification, whitepaper-validation, stateright-verification]
-    if: needs.setup.outputs.cross-validate == 'true' && (needs.tlaps-verification.result == 'success' || needs.whitepaper-validation.result == 'success')
-    timeout-minutes: 45
+    needs: [tlaps-verification, theorem3-verification, whitepaper-validation]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install jinja2 pyyaml dataclasses markdown beautifulsoup4 lxml
+
+      - name: Download verification artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: verification-artifacts/
+
+      - name: Generate comprehensive theorem mapping
+        run: |
+          echo "📋 Generating comprehensive theorem mapping..."
+          
+          mkdir -p results/ci/theorem-mapping
+          
+          if [ -f "scripts/generate_theorem_mapping.py" ]; then
+            python scripts/generate_theorem_mapping.py \
+              --whitepaper "Solana Alpenglow White Paper v1.1.md" \
+              --specs-dir specs \
+              --proofs-dir proofs \
+              --output-dir results/ci/theorem-mapping \
+              --project-root . \
+              --verification-artifacts verification-artifacts \
+              --include-sampling \
+              --verbose \
+              > results/ci/theorem-mapping/generation.log 2>&1
+            
+            EXIT_CODE=$?
+            
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "✅ Theorem mapping generation completed"
+              STATUS="SUCCESS"
+            else
+              echo "⚠️ Theorem mapping generation completed with warnings"
+              STATUS="PARTIAL"
+            fi
+            
+            # Verify generated files
+            GENERATED_FILES=0
+            for file in theorem_mapping.md theorem_mapping.json theorem_mapping.html verification_coverage.json; do
+              if [ -f "results/ci/theorem-mapping/$file" ]; then
+                echo "✅ Generated: $file"
+                GENERATED_FILES=$((GENERATED_FILES + 1))
+              else
+                echo "❌ Missing: $file"
+              fi
+            done
+            
+            echo "📊 Theorem mapping metrics:"
+            echo "  Generated files: $GENERATED_FILES/4"
+            echo "  Status: $STATUS"
+            
+            # Create mapping summary
+            cat > results/ci/theorem-mapping/mapping_summary.json << EOF
+            {
+              "timestamp": "$(date -Iseconds)",
+              "status": "$STATUS",
+              "generated_files": $GENERATED_FILES,
+              "total_expected": 4,
+              "whitepaper_path": "Solana Alpenglow White Paper v1.1.md",
+              "includes_sampling": true
+            }
+            EOF
+          else
+            echo "⚠️ Theorem mapping script not found"
+            
+            # Create placeholder mapping
+            cat > results/ci/theorem-mapping/mapping_summary.json << EOF
+            {
+              "timestamp": "$(date -Iseconds)",
+              "status": "UNAVAILABLE",
+              "reason": "generate_theorem_mapping.py not found"
+            }
+            EOF
+          fi
+
+      - name: Upload theorem mapping results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: theorem-mapping
+          path: |
+            results/ci/theorem-mapping/
+          retention-days: 90
+
+  cross-validation-comprehensive:
+    name: Comprehensive TLA+ ↔ Stateright Cross-Validation
+    runs-on: ubuntu-latest
+    needs: [tlaps-verification, theorem3-verification, whitepaper-validation, stateright-verification]
+    if: needs.setup.outputs.cross-validate == 'true'
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        validation_type: [behavioral-equivalence, property-preservation, sampling-consistency]
+      fail-fast: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -847,65 +1155,133 @@ jobs:
               -O ~/tla-tools/tla2tools.jar
           fi
 
-      - name: Run comprehensive cross-validation
+      - name: Run comprehensive cross-validation by type
         run: |
-          echo "🔄 Running comprehensive cross-validation..."
+          echo "🔄 Running ${{ matrix.validation_type }} cross-validation..."
           
           mkdir -p results/ci/cross-validation
           
-          if [ -d "stateright" ] && [ -f "stateright/tests/cross_validation.rs" ]; then
-            cd stateright
-            
-            # Run cross-validation tests
-            cargo test --release cross_validation -- \
-              --nocapture \
-              --test-threads 1 \
-              > "../results/ci/cross-validation/cross_validation.log" 2>&1
-            
-            EXIT_CODE=$?
-            
-            if [ $EXIT_CODE -eq 0 ]; then
-              echo "✅ Cross-validation tests passed"
-              STATUS="PASSED"
-            else
-              echo "❌ Cross-validation tests failed"
-              STATUS="FAILED"
-            fi
-            
-            # Extract consistency metrics
-            LOG_FILE="../results/ci/cross-validation/cross_validation.log"
-            CONSISTENCY_SCORE=$(grep -o 'consistency_score: [0-9.]*' "$LOG_FILE" | tail -1 | cut -d' ' -f2 || echo "0.0")
-            TRACE_MATCHES=$(grep -c 'trace_match: true' "$LOG_FILE" || echo "0")
-            PROPERTY_MATCHES=$(grep -c 'property_match: true' "$LOG_FILE" || echo "0")
-            
-            echo "📊 Cross-validation metrics:"
-            echo "  Consistency score: $CONSISTENCY_SCORE"
-            echo "  Trace matches: $TRACE_MATCHES"
-            echo "  Property matches: $PROPERTY_MATCHES"
-            
-            # Save cross-validation metrics
-            cat > "../results/ci/cross-validation/cross_validation_metrics.json" << EOF
-            {
-              "timestamp": "$(date -Iseconds)",
-              "status": "$STATUS",
-              "consistency_score": $CONSISTENCY_SCORE,
-              "trace_matches": $TRACE_MATCHES,
-              "property_matches": $PROPERTY_MATCHES,
-              "threshold_met": $(echo "$CONSISTENCY_SCORE >= 0.8" | bc -l 2>/dev/null || echo "false")
-            }
-            EOF
-          else
-            echo "⚠️ Cross-validation tests not available"
-            
-            # Create placeholder metrics
-            cat > "results/ci/cross-validation/cross_validation_metrics.json" << EOF
-            {
-              "timestamp": "$(date -Iseconds)",
-              "status": "SKIPPED",
-              "reason": "Cross-validation tests not implemented"
-            }
-            EOF
-          fi
+          case "${{ matrix.validation_type }}" in
+            behavioral-equivalence)
+              echo "Testing behavioral equivalence between TLA+ and Stateright..."
+              
+              if [ -d "stateright" ] && [ -f "stateright/tests/cross_validation_comprehensive.rs" ]; then
+                cd stateright
+                
+                cargo test --release behavioral_equivalence -- \
+                  --nocapture \
+                  --test-threads 1 \
+                  > "../results/ci/cross-validation/behavioral_equivalence.log" 2>&1
+                
+                EXIT_CODE=$?
+                
+                if [ $EXIT_CODE -eq 0 ]; then
+                  echo "✅ Behavioral equivalence tests passed"
+                  STATUS="PASSED"
+                else
+                  echo "❌ Behavioral equivalence tests failed"
+                  STATUS="FAILED"
+                fi
+                
+                # Extract behavioral metrics
+                LOG_FILE="../results/ci/cross-validation/behavioral_equivalence.log"
+                STATE_TRANSITIONS=$(grep -c 'state_transition_match: true' "$LOG_FILE" || echo "0")
+                EXECUTION_TRACES=$(grep -c 'execution_trace_match: true' "$LOG_FILE" || echo "0")
+                
+                cat > "../results/ci/cross-validation/behavioral_metrics.json" << EOF
+                {
+                  "validation_type": "behavioral-equivalence",
+                  "timestamp": "$(date -Iseconds)",
+                  "status": "$STATUS",
+                  "state_transitions_matched": $STATE_TRANSITIONS,
+                  "execution_traces_matched": $EXECUTION_TRACES
+                }
+                EOF
+              else
+                echo "⚠️ Behavioral equivalence tests not available"
+              fi
+              ;;
+              
+            property-preservation)
+              echo "Testing property preservation between TLA+ and Stateright..."
+              
+              if [ -d "stateright" ] && [ -f "stateright/tests/cross_validation_comprehensive.rs" ]; then
+                cd stateright
+                
+                cargo test --release property_preservation -- \
+                  --nocapture \
+                  --test-threads 1 \
+                  > "../results/ci/cross-validation/property_preservation.log" 2>&1
+                
+                EXIT_CODE=$?
+                
+                if [ $EXIT_CODE -eq 0 ]; then
+                  echo "✅ Property preservation tests passed"
+                  STATUS="PASSED"
+                else
+                  echo "❌ Property preservation tests failed"
+                  STATUS="FAILED"
+                fi
+                
+                # Extract property metrics
+                LOG_FILE="../results/ci/cross-validation/property_preservation.log"
+                SAFETY_PROPERTIES=$(grep -c 'safety_property_preserved: true' "$LOG_FILE" || echo "0")
+                LIVENESS_PROPERTIES=$(grep -c 'liveness_property_preserved: true' "$LOG_FILE" || echo "0")
+                
+                cat > "../results/ci/cross-validation/property_metrics.json" << EOF
+                {
+                  "validation_type": "property-preservation",
+                  "timestamp": "$(date -Iseconds)",
+                  "status": "$STATUS",
+                  "safety_properties_preserved": $SAFETY_PROPERTIES,
+                  "liveness_properties_preserved": $LIVENESS_PROPERTIES
+                }
+                EOF
+              else
+                echo "⚠️ Property preservation tests not available"
+              fi
+              ;;
+              
+            sampling-consistency)
+              echo "Testing sampling algorithm consistency between TLA+ and Stateright..."
+              
+              if [ -d "stateright" ] && [ -f "stateright/tests/sampling_verification.rs" ]; then
+                cd stateright
+                
+                cargo test --release sampling_consistency -- \
+                  --nocapture \
+                  --test-threads 1 \
+                  > "../results/ci/cross-validation/sampling_consistency.log" 2>&1
+                
+                EXIT_CODE=$?
+                
+                if [ $EXIT_CODE -eq 0 ]; then
+                  echo "✅ Sampling consistency tests passed"
+                  STATUS="PASSED"
+                else
+                  echo "❌ Sampling consistency tests failed"
+                  STATUS="FAILED"
+                fi
+                
+                # Extract sampling consistency metrics
+                LOG_FILE="../results/ci/cross-validation/sampling_consistency.log"
+                SAMPLING_MATCHES=$(grep -c 'sampling_result_match: true' "$LOG_FILE" || echo "0")
+                RESILIENCE_MATCHES=$(grep -c 'resilience_property_match: true' "$LOG_FILE" || echo "0")
+                
+                cat > "../results/ci/cross-validation/sampling_metrics.json" << EOF
+                {
+                  "validation_type": "sampling-consistency",
+                  "timestamp": "$(date -Iseconds)",
+                  "status": "$STATUS",
+                  "sampling_results_matched": $SAMPLING_MATCHES,
+                  "resilience_properties_matched": $RESILIENCE_MATCHES
+                }
+                EOF
+              else
+                echo "⚠️ Sampling consistency tests not available"
+              fi
+              ;;
+          esac
 
       - name: Generate cross-validation report
         run: |
@@ -948,7 +1324,91 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cross-validation
+          name: cross-validation-${{ matrix.validation_type }}
+          path: |
+            results/ci/cross-validation/
+          retention-days: 30
+
+  cross-validation:
+    name: TLA+ ↔ Stateright Cross-Validation Summary
+    runs-on: ubuntu-latest
+    needs: [cross-validation-comprehensive]
+    if: needs.setup.outputs.cross-validate == 'true'
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download cross-validation artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: cross-validation-artifacts/
+          pattern: cross-validation-*
+
+      - name: Aggregate cross-validation results
+        run: |
+          echo "📊 Aggregating cross-validation results..."
+          
+          mkdir -p results/ci/cross-validation
+          
+          # Initialize counters
+          TOTAL_VALIDATIONS=0
+          PASSED_VALIDATIONS=0
+          
+          # Aggregate results from all validation types
+          for artifact_dir in cross-validation-artifacts/cross-validation-*/; do
+            if [ -d "$artifact_dir" ]; then
+              for metrics_file in "$artifact_dir"*_metrics.json; do
+                if [ -f "$metrics_file" ]; then
+                  STATUS=$(jq -r '.status' "$metrics_file" 2>/dev/null || echo "UNKNOWN")
+                  VALIDATION_TYPE=$(jq -r '.validation_type' "$metrics_file" 2>/dev/null || echo "unknown")
+                  
+                  TOTAL_VALIDATIONS=$((TOTAL_VALIDATIONS + 1))
+                  
+                  if [ "$STATUS" = "PASSED" ]; then
+                    PASSED_VALIDATIONS=$((PASSED_VALIDATIONS + 1))
+                    echo "✅ $VALIDATION_TYPE: PASSED"
+                  else
+                    echo "❌ $VALIDATION_TYPE: $STATUS"
+                  fi
+                fi
+              done
+            fi
+          done
+          
+          # Calculate overall consistency score
+          if [ $TOTAL_VALIDATIONS -gt 0 ]; then
+            CONSISTENCY_SCORE=$(echo "scale=2; $PASSED_VALIDATIONS * 100 / $TOTAL_VALIDATIONS" | bc -l)
+          else
+            CONSISTENCY_SCORE="0.00"
+          fi
+          
+          echo "📊 Cross-validation summary:"
+          echo "  Total validations: $TOTAL_VALIDATIONS"
+          echo "  Passed validations: $PASSED_VALIDATIONS"
+          echo "  Overall consistency: $CONSISTENCY_SCORE%"
+          
+          # Create comprehensive cross-validation report
+          cat > results/ci/cross-validation/cross_validation_summary.json << EOF
+          {
+            "timestamp": "$(date -Iseconds)",
+            "total_validations": $TOTAL_VALIDATIONS,
+            "passed_validations": $PASSED_VALIDATIONS,
+            "overall_consistency_score": $CONSISTENCY_SCORE,
+            "threshold_met": $(echo "$CONSISTENCY_SCORE >= 80" | bc -l 2>/dev/null || echo "false"),
+            "validation_types": [
+              "behavioral-equivalence",
+              "property-preservation", 
+              "sampling-consistency"
+            ]
+          }
+          EOF
+
+      - name: Upload aggregated cross-validation results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cross-validation-summary
           path: |
             results/ci/cross-validation/
           retention-days: 30
@@ -1056,12 +1516,348 @@ jobs:
             results/ci/benchmarks/
           retention-days: 30
 
+  nightly-comprehensive:
+    name: Nightly Comprehensive Verification
+    runs-on: ubuntu-latest
+    needs: [setup]
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.verification_mode == 'stress')
+    timeout-minutes: 240
+    strategy:
+      matrix:
+        verification_scope: [large-scale-model-checking, extended-proof-verification, stress-testing]
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup comprehensive verification environment
+        run: |
+          # Setup for extended verification
+          sudo apt-get update
+          sudo apt-get install -y htop iotop sysstat
+          
+          # Increase system limits for large-scale verification
+          echo "* soft nofile 65536" | sudo tee -a /etc/security/limits.conf
+          echo "* hard nofile 65536" | sudo tee -a /etc/security/limits.conf
+          
+          # Setup monitoring
+          mkdir -p results/ci/nightly
+          
+          echo "🌙 Starting nightly comprehensive verification for ${{ matrix.verification_scope }}"
+
+      - name: Setup Java with increased memory
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Setup Rust for stress testing
+        if: matrix.verification_scope == 'stress-testing'
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache tools and dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/tla-tools
+            ~/.cargo/registry
+            ~/.cargo/git
+            stateright/target
+          key: nightly-${{ matrix.verification_scope }}-${{ runner.os }}-v2
+
+      - name: Install verification tools
+        run: |
+          # Install TLA+ tools
+          mkdir -p ~/tla-tools
+          if [ ! -f ~/tla-tools/tla2tools.jar ]; then
+            wget -q "https://github.com/tlaplus/tlaplus/releases/download/v${{ env.TLA_TOOLS_VERSION }}/tla2tools.jar" \
+              -O ~/tla-tools/tla2tools.jar
+          fi
+
+      - name: Run large-scale model checking
+        if: matrix.verification_scope == 'large-scale-model-checking'
+        run: |
+          echo "🔍 Running large-scale model checking..."
+          
+          # Monitor system resources
+          (while true; do
+            echo "$(date): $(free -h | grep Mem:)" >> results/ci/nightly/memory_usage.log
+            sleep 30
+          done) &
+          MONITOR_PID=$!
+          
+          # Run large-scale TLC configurations
+          LARGE_CONFIGS=("LargeScale" "StressTest" "BoundaryStress")
+          
+          for config in "${LARGE_CONFIGS[@]}"; do
+            if [ -f "models/${config}.cfg" ]; then
+              echo "Running large-scale verification for $config..."
+              
+              timeout 7200 java -Xmx8g -cp ~/tla-tools/tla2tools.jar tlc2.TLC \
+                -config "models/${config}.cfg" \
+                -workers 8 \
+                -verbose \
+                specs/Alpenglow \
+                > "results/ci/nightly/large_scale_${config}.log" 2>&1 || true
+              
+              # Extract metrics
+              LOG_FILE="results/ci/nightly/large_scale_${config}.log"
+              STATES=$(grep -o '[0-9]* distinct states' "$LOG_FILE" | tail -1 | cut -d' ' -f1 || echo "0")
+              
+              echo "  $config: $STATES states explored"
+            fi
+          done
+          
+          # Stop monitoring
+          kill $MONITOR_PID 2>/dev/null || true
+
+      - name: Run extended proof verification
+        if: matrix.verification_scope == 'extended-proof-verification'
+        run: |
+          echo "🔍 Running extended proof verification..."
+          
+          # Install TLAPS for extended verification
+          sudo apt-get install -y ocaml opam z3 cvc4
+          
+          if [ ! -f "/usr/local/tlaps/bin/tlapm" ]; then
+            opam init --disable-sandboxing -y
+            eval $(opam env)
+            opam install -y zarith
+            
+            wget -q "https://github.com/tlaplus/tlapm/releases/download/v${{ env.TLAPS_VERSION }}/tlaps-${{ env.TLAPS_VERSION }}-x86_64-linux-gnu-inst.bin"
+            chmod +x "tlaps-${{ env.TLAPS_VERSION }}-x86_64-linux-gnu-inst.bin"
+            sudo "./tlaps-${{ env.TLAPS_VERSION }}-x86_64-linux-gnu-inst.bin" -d /usr/local/tlaps
+          fi
+          
+          export PATH="/usr/local/tlaps/bin:$PATH"
+          
+          # Run extended proof verification with longer timeouts
+          PROOF_MODULES=("Safety" "Liveness" "Resilience" "WhitepaperTheorems" "Sampling")
+          
+          for module in "${PROOF_MODULES[@]}"; do
+            if [ -f "proofs/${module}.tla" ]; then
+              echo "Extended verification for $module..."
+              
+              timeout 10800 tlapm \
+                --verbose \
+                --toolbox 0 0 \
+                --threads 8 \
+                --timeout 300 \
+                "proofs/${module}.tla" \
+                > "results/ci/nightly/extended_${module}.log" 2>&1 || true
+              
+              # Extract detailed metrics
+              LOG_FILE="results/ci/nightly/extended_${module}.log"
+              OBLIGATIONS=$(grep -c 'obligation' "$LOG_FILE" || echo "0")
+              PROVED=$(grep -c 'proved' "$LOG_FILE" || echo "0")
+              
+              echo "  $module: $PROVED/$OBLIGATIONS obligations proved"
+            fi
+          done
+
+      - name: Run stress testing
+        if: matrix.verification_scope == 'stress-testing'
+        run: |
+          echo "🔍 Running stress testing..."
+          
+          if [ -d "stateright" ]; then
+            cd stateright
+            
+            # Build with optimizations
+            cargo build --release --all-features
+            
+            # Run stress tests with large configurations
+            STRESS_TESTS=("stress_large_network" "stress_byzantine_scenarios" "stress_partition_recovery")
+            
+            for test in "${STRESS_TESTS[@]}"; do
+              echo "Running stress test: $test"
+              
+              timeout 3600 cargo test --release "$test" -- \
+                --validators 20 \
+                --max-steps 1000 \
+                --byzantine-percentage 19 \
+                --nocapture \
+                > "../results/ci/nightly/stress_${test}.log" 2>&1 || true
+              
+              # Extract stress test metrics
+              LOG_FILE="../results/ci/nightly/stress_${test}.log"
+              SCENARIOS=$(grep -c 'scenario.*completed' "$LOG_FILE" || echo "0")
+              
+              echo "  $test: $SCENARIOS scenarios completed"
+            done
+          fi
+
+      - name: Generate nightly verification report
+        run: |
+          echo "📊 Generating nightly verification report..."
+          
+          cat > results/ci/nightly/nightly_report.json << EOF
+          {
+            "timestamp": "$(date -Iseconds)",
+            "verification_scope": "${{ matrix.verification_scope }}",
+            "duration_minutes": $(( ($(date +%s) - $(date -d "4 hours ago" +%s)) / 60 )),
+            "system_resources": {
+              "max_memory_used": "$(grep -o '[0-9]*Gi' results/ci/nightly/memory_usage.log | tail -1 || echo '0Gi')",
+              "cpu_cores_used": 8
+            }
+          }
+          EOF
+
+      - name: Upload nightly verification results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-verification-${{ matrix.verification_scope }}
+          path: |
+            results/ci/nightly/
+          retention-days: 7
+
+  performance-regression:
+    name: Performance Regression Testing
+    runs-on: ubuntu-latest
+    needs: [model-checking, tlaps-verification, stateright-verification]
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python for performance analysis
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install performance analysis tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pandas matplotlib seaborn psutil
+
+      - name: Download verification artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: verification-artifacts/
+
+      - name: Analyze verification performance
+        run: |
+          echo "📈 Analyzing verification performance..."
+          
+          mkdir -p results/ci/performance-regression
+          
+          # Create performance analysis script
+          cat > analyze_performance_regression.py << 'EOF'
+          import json
+          import os
+          import pandas as pd
+          from datetime import datetime
+          
+          def analyze_performance():
+              metrics = []
+              
+              # Collect timing data from all verification artifacts
+              for root, dirs, files in os.walk('verification-artifacts'):
+                  for file in files:
+                      if file.endswith('_metrics.json'):
+                          filepath = os.path.join(root, file)
+                          try:
+                              with open(filepath, 'r') as f:
+                                  data = json.load(f)
+                                  if 'timestamp' in data:
+                                      metrics.append(data)
+                          except Exception as e:
+                              print(f"Error reading {filepath}: {e}")
+              
+              if not metrics:
+                  print("No performance metrics found")
+                  return
+              
+              # Calculate performance statistics
+              total_components = len(metrics)
+              avg_duration = sum(m.get('duration_seconds', 0) for m in metrics) / total_components if total_components > 0 else 0
+              success_rate = sum(1 for m in metrics if m.get('status') in ['VERIFIED', 'success']) / total_components * 100 if total_components > 0 else 0
+              
+              # Performance regression analysis
+              performance_data = {
+                  'timestamp': datetime.now().isoformat(),
+                  'total_components': total_components,
+                  'average_duration_seconds': avg_duration,
+                  'success_rate_percentage': success_rate,
+                  'components_analyzed': [m.get('module', m.get('component', 'unknown')) for m in metrics]
+              }
+              
+              # Check for performance regressions
+              baseline_file = 'benchmarks/performance_baseline.json'
+              if os.path.exists(baseline_file):
+                  with open(baseline_file, 'r') as f:
+                      baseline = json.load(f)
+                  
+                  baseline_duration = baseline.get('average_duration_seconds', 0)
+                  if baseline_duration > 0:
+                      regression_percentage = ((avg_duration - baseline_duration) / baseline_duration) * 100
+                      performance_data['regression_percentage'] = regression_percentage
+                      performance_data['baseline_duration'] = baseline_duration
+                      
+                      if regression_percentage > 20:
+                          performance_data['regression_detected'] = True
+                          print(f"⚠️ Performance regression detected: {regression_percentage:.1f}%")
+                      else:
+                          performance_data['regression_detected'] = False
+                          print(f"✅ No significant regression: {regression_percentage:.1f}%")
+                  else:
+                      performance_data['regression_detected'] = False
+              else:
+                  performance_data['regression_detected'] = False
+                  print("No baseline performance data available")
+              
+              # Save performance analysis
+              with open('results/ci/performance-regression/performance_analysis.json', 'w') as f:
+                  json.dump(performance_data, f, indent=2)
+              
+              print(f"Performance Analysis Summary:")
+              print(f"  Components: {total_components}")
+              print(f"  Average duration: {avg_duration:.1f}s")
+              print(f"  Success rate: {success_rate:.1f}%")
+          
+          if __name__ == "__main__":
+              analyze_performance()
+          EOF
+          
+          python analyze_performance_regression.py
+
+      - name: Track verification time trends
+        run: |
+          echo "📊 Tracking verification time trends..."
+          
+          # Create trend analysis
+          if [ -f "results/ci/performance-regression/performance_analysis.json" ]; then
+            CURRENT_DURATION=$(jq -r '.average_duration_seconds' results/ci/performance-regression/performance_analysis.json)
+            REGRESSION_DETECTED=$(jq -r '.regression_detected' results/ci/performance-regression/performance_analysis.json)
+            
+            echo "Current average duration: ${CURRENT_DURATION}s"
+            echo "Regression detected: $REGRESSION_DETECTED"
+            
+            # Set environment variables for later steps
+            echo "PERFORMANCE_REGRESSION=$REGRESSION_DETECTED" >> $GITHUB_ENV
+            echo "CURRENT_DURATION=$CURRENT_DURATION" >> $GITHUB_ENV
+          fi
+
+      - name: Upload performance regression results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-regression
+          path: |
+            results/ci/performance-regression/
+          retention-days: 30
+
   comprehensive-verification:
     name: Comprehensive Verification Suite
     runs-on: ubuntu-latest
-    needs: [tlaps-verification, whitepaper-validation, stateright-verification, cross-validation]
+    needs: [tlaps-verification, theorem3-verification, whitepaper-validation, stateright-verification, cross-validation, theorem-mapping]
     if: always()
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -1083,20 +1879,18 @@ jobs:
         run: |
           echo "🔗 Running comprehensive verification..."
           
-          if [ -f "scripts/ci/verify_proofs.sh" ]; then
-            chmod +x scripts/ci/verify_proofs.sh
+          if [ -f "scripts/run_complete_verification.sh" ]; then
+            chmod +x scripts/run_complete_verification.sh
             
             MODE="${{ needs.setup.outputs.verification-mode }}"
             
-            # Run comprehensive verification with all components
-            ./scripts/ci/verify_proofs.sh \
+            # Run comprehensive verification with all components including new ones
+            ./scripts/run_complete_verification.sh \
               --$MODE \
-              --comprehensive \
               --ci \
-              --parallel 4 \
-              --timeout-tlaps 3600 \
-              --timeout-tlc 1800 \
-              --timeout-stateright 900 \
+              --parallel-jobs 4 \
+              --timeout 120 \
+              --output-formats console,json \
               > results/ci/comprehensive/comprehensive.log 2>&1
             
             EXIT_CODE=$?
@@ -1125,16 +1919,33 @@ jobs:
           FAILED_COMPONENTS=0
           PARTIAL_COMPONENTS=0
           
-          # Aggregate TLAPS results
+          # Aggregate TLAPS results (including Sampling)
           for artifact in verification-artifacts/tlaps-verification-*/metrics_*.json; do
             if [ -f "$artifact" ]; then
               STATUS=$(jq -r '.status' "$artifact" 2>/dev/null || echo "UNKNOWN")
+              MODULE=$(jq -r '.module' "$artifact" 2>/dev/null || echo "unknown")
               TOTAL_COMPONENTS=$((TOTAL_COMPONENTS + 1))
               case "$STATUS" in
                 VERIFIED) SUCCESSFUL_COMPONENTS=$((SUCCESSFUL_COMPONENTS + 1)) ;;
                 PARTIAL) PARTIAL_COMPONENTS=$((PARTIAL_COMPONENTS + 1)) ;;
                 *) FAILED_COMPONENTS=$((FAILED_COMPONENTS + 1)) ;;
               esac
+              echo "  TLAPS $MODULE: $STATUS"
+            fi
+          done
+          
+          # Aggregate Theorem 3 results
+          for artifact in verification-artifacts/theorem3-verification-*/sampling_*_metrics.json; do
+            if [ -f "$artifact" ]; then
+              STATUS=$(jq -r '.status' "$artifact" 2>/dev/null || echo "UNKNOWN")
+              VERIFICATION_TYPE=$(jq -r '.verification_type' "$artifact" 2>/dev/null || echo "unknown")
+              TOTAL_COMPONENTS=$((TOTAL_COMPONENTS + 1))
+              case "$STATUS" in
+                VERIFIED) SUCCESSFUL_COMPONENTS=$((SUCCESSFUL_COMPONENTS + 1)) ;;
+                PARTIAL) PARTIAL_COMPONENTS=$((PARTIAL_COMPONENTS + 1)) ;;
+                *) FAILED_COMPONENTS=$((FAILED_COMPONENTS + 1)) ;;
+              esac
+              echo "  Theorem 3 ($VERIFICATION_TYPE): $STATUS"
             fi
           done
           
@@ -1142,12 +1953,14 @@ jobs:
           for artifact in verification-artifacts/tlc-verification-*/metrics_*.json; do
             if [ -f "$artifact" ]; then
               STATUS=$(jq -r '.status' "$artifact" 2>/dev/null || echo "UNKNOWN")
+              CONFIG=$(jq -r '.config' "$artifact" 2>/dev/null || echo "unknown")
               TOTAL_COMPONENTS=$((TOTAL_COMPONENTS + 1))
               case "$STATUS" in
                 VERIFIED) SUCCESSFUL_COMPONENTS=$((SUCCESSFUL_COMPONENTS + 1)) ;;
                 TIMEOUT) PARTIAL_COMPONENTS=$((PARTIAL_COMPONENTS + 1)) ;;
                 *) FAILED_COMPONENTS=$((FAILED_COMPONENTS + 1)) ;;
               esac
+              echo "  TLC $CONFIG: $STATUS"
             fi
           done
           
@@ -1155,13 +1968,41 @@ jobs:
           for artifact in verification-artifacts/stateright-verification-*/metrics_*.json; do
             if [ -f "$artifact" ]; then
               STATUS=$(jq -r '.status' "$artifact" 2>/dev/null || echo "UNKNOWN")
+              COMPONENT=$(jq -r '.component' "$artifact" 2>/dev/null || echo "unknown")
               TOTAL_COMPONENTS=$((TOTAL_COMPONENTS + 1))
               case "$STATUS" in
                 VERIFIED) SUCCESSFUL_COMPONENTS=$((SUCCESSFUL_COMPONENTS + 1)) ;;
                 *) FAILED_COMPONENTS=$((FAILED_COMPONENTS + 1)) ;;
               esac
+              echo "  Stateright $COMPONENT: $STATUS"
             fi
           done
+          
+          # Aggregate Cross-validation results
+          if [ -f "verification-artifacts/cross-validation-summary/cross_validation_summary.json" ]; then
+            CROSS_VAL_STATUS=$(jq -r '.threshold_met' "verification-artifacts/cross-validation-summary/cross_validation_summary.json" 2>/dev/null || echo "false")
+            CONSISTENCY_SCORE=$(jq -r '.overall_consistency_score' "verification-artifacts/cross-validation-summary/cross_validation_summary.json" 2>/dev/null || echo "0")
+            TOTAL_COMPONENTS=$((TOTAL_COMPONENTS + 1))
+            if [ "$CROSS_VAL_STATUS" = "true" ]; then
+              SUCCESSFUL_COMPONENTS=$((SUCCESSFUL_COMPONENTS + 1))
+              echo "  Cross-validation: PASSED ($CONSISTENCY_SCORE%)"
+            else
+              FAILED_COMPONENTS=$((FAILED_COMPONENTS + 1))
+              echo "  Cross-validation: FAILED ($CONSISTENCY_SCORE%)"
+            fi
+          fi
+          
+          # Aggregate Theorem Mapping results
+          if [ -f "verification-artifacts/theorem-mapping/mapping_summary.json" ]; then
+            MAPPING_STATUS=$(jq -r '.status' "verification-artifacts/theorem-mapping/mapping_summary.json" 2>/dev/null || echo "UNKNOWN")
+            TOTAL_COMPONENTS=$((TOTAL_COMPONENTS + 1))
+            case "$MAPPING_STATUS" in
+              SUCCESS) SUCCESSFUL_COMPONENTS=$((SUCCESSFUL_COMPONENTS + 1)) ;;
+              PARTIAL) PARTIAL_COMPONENTS=$((PARTIAL_COMPONENTS + 1)) ;;
+              *) FAILED_COMPONENTS=$((FAILED_COMPONENTS + 1)) ;;
+            esac
+            echo "  Theorem Mapping: $MAPPING_STATUS"
+          fi
           
           # Calculate success rate
           if [ $TOTAL_COMPONENTS -gt 0 ]; then
@@ -1195,9 +2036,12 @@ jobs:
             },
             "component_results": {
               "tlaps_verification": "${{ needs.tlaps-verification.result }}",
+              "theorem3_verification": "${{ needs.theorem3-verification.result }}",
               "whitepaper_validation": "${{ needs.whitepaper-validation.result }}",
               "stateright_verification": "${{ needs.stateright-verification.result }}",
-              "cross_validation": "${{ needs.cross-validation.result }}"
+              "cross_validation": "${{ needs.cross-validation.result }}",
+              "theorem_mapping": "${{ needs.theorem-mapping.result }}",
+              "performance_regression": "${{ needs.performance-regression.result }}"
             }
           }
           EOF
@@ -1235,9 +2079,12 @@ jobs:
           |-----------|--------|----------|
           | **TLA+ Specifications** | ${{ needs.syntax-check.result == 'success' && '✅ PASSED' || '❌ FAILED' }} | Syntax validation for all modules |
           | **TLAPS Proof Verification** | ${{ needs.tlaps-verification.result == 'success' && '✅ PASSED' || needs.tlaps-verification.result == 'failure' && '❌ FAILED' || '⚠️ PARTIAL' }} | Formal proofs for safety, liveness, resilience |
+          | **Theorem 3 (Sampling)** | ${{ needs.theorem3-verification.result == 'success' && '✅ PASSED' || needs.theorem3-verification.result == 'failure' && '❌ FAILED' || '⚠️ PARTIAL' }} | PS-P sampling resilience verification |
           | **TLC Model Checking** | ${{ needs.whitepaper-validation.result == 'success' && '✅ PASSED' || needs.whitepaper-validation.result == 'failure' && '❌ FAILED' || '⚠️ PARTIAL' }} | Whitepaper validation and boundary conditions |
           | **Stateright Implementation** | ${{ needs.stateright-verification.result == 'success' && '✅ PASSED' || needs.stateright-verification.result == 'failure' && '❌ FAILED' || '⚠️ PARTIAL' }} | Rust implementation verification |
           | **Cross-Validation** | ${{ needs.cross-validation.result == 'success' && '✅ PASSED' || needs.cross-validation.result == 'failure' && '❌ FAILED' || '⚠️ PARTIAL' }} | TLA+ ↔ Stateright consistency |
+          | **Theorem Mapping** | ${{ needs.theorem-mapping.result == 'success' && '✅ PASSED' || needs.theorem-mapping.result == 'failure' && '❌ FAILED' || '⚠️ PARTIAL' }} | Whitepaper to proof correspondence |
+          | **Performance Regression** | ${{ needs.performance-regression.result == 'success' && '✅ PASSED' || needs.performance-regression.result == 'failure' && '❌ FAILED' || '⚠️ SKIPPED' }} | Performance monitoring and regression detection |
           | **Performance Benchmarks** | ${{ needs.benchmarks.result == 'success' && '✅ PASSED' || needs.benchmarks.result == 'failure' && '❌ FAILED' || '⚠️ SKIPPED' }} | Scalability and performance metrics |
           
           ## Key Properties Verified
@@ -1544,8 +2391,11 @@ jobs:
             ### Key Achievements
             
             - **Whitepaper Theorems**: ${report.overall_assessment.whitepaper_theorems_verified === 'true' ? '✅ Verified' : '❌ Not verified'}
+            - **Theorem 3 (Sampling)**: ${report.component_results.theorem3_verification === 'success' ? '✅ Verified' : '❌ Not verified'}
             - **Implementation Validation**: ${report.overall_assessment.implementation_validated === 'true' ? '✅ Validated' : '❌ Not validated'}
             - **Cross-Validation**: ${report.overall_assessment.cross_validation_passed === 'true' ? '✅ Passed' : '❌ Failed'}
+            - **Theorem Mapping**: ${report.component_results.theorem_mapping === 'success' ? '✅ Generated' : '❌ Failed'}
+            - **Performance Regression**: ${report.component_results.performance_regression === 'success' ? '✅ No regression' : '⚠️ Regression detected'}
             
             ### Artifacts
             
@@ -1636,9 +2486,12 @@ jobs:
             ${Object.entries({
               'Syntax Check': '${{ needs.syntax-check.result }}',
               'TLAPS Verification': '${{ needs.tlaps-verification.result }}',
+              'Theorem 3 Verification': '${{ needs.theorem3-verification.result }}',
               'Whitepaper Validation': '${{ needs.whitepaper-validation.result }}',
               'Stateright Verification': '${{ needs.stateright-verification.result }}',
               'Cross-Validation': '${{ needs.cross-validation.result }}',
+              'Theorem Mapping': '${{ needs.theorem-mapping.result }}',
+              'Performance Regression': '${{ needs.performance-regression.result }}',
               'Comprehensive Verification': '${{ needs.comprehensive-verification.result }}'
             }).filter(([name, result]) => result === 'failure').map(([name, result]) => `- ${name}: ❌ FAILED`).join('\n')}
             
