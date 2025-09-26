@@ -58,7 +58,6 @@ VoteType == {"proposal", "echo", "commit", "notarization", "finalization", "skip
 
 Hash == Nat                     \* Abstract hash values
 MessageHash == Hash
-BlockHash == Hash
 
 ----------------------------------------------------------------------------
 (* Cryptographic Abstractions *)
@@ -86,24 +85,10 @@ AggregatedSignature == [
 ----------------------------------------------------------------------------
 (* Helper Functions *)
 
-\* Min function for basic operations
-Min(a, b) == IF a <= b THEN a ELSE b
+\* Basic range check function
+InRange(n, min, max) == min <= n /\ n <= max
 
-\* Max function for basic operations
-Max(a, b) == IF a >= b THEN a ELSE b
-
-\* Sum function for sets (local definition to avoid circular dependency)
-RECURSIVE SumSet(_)
-SumSet(S) ==
-    IF S = {} THEN 0
-    ELSE LET x == CHOOSE x \in S : TRUE
-         IN x + SumSet(S \ {x})
-
-\* Sum function for functions/records
-Sum(f) ==
-    LET D == DOMAIN f
-    IN IF D = {} THEN 0
-       ELSE SumSet({f[x] : x \in D})
+\* Note: Sum functions will be imported from Utils module
 
 ----------------------------------------------------------------------------
 (* Stake Distribution *)
