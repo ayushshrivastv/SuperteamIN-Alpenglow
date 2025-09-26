@@ -1,25 +1,2444 @@
 {
-  "generation_timestamp": "2025-09-26T14:24:17.117250",
-  "total_whitepaper_theorems": 11,
-  "total_tla_theorems": 298,
-  "mapped_theorems": 5,
+  "generation_timestamp": "2025-09-26T17:37:42.851892",
+  "total_whitepaper_theorems": 2,
+  "total_tla_theorems": 245,
+  "mapped_theorems": 183,
   "verification_summary": {
-    "tlaps_complete": 0,
-    "tlaps_incomplete": 0,
-    "tlaps_missing": 0,
-    "tlc_verified": 0,
-    "tlc_failed": 0,
-    "stateright_passed": 0,
-    "stateright_failed": 0
+    "total_mappings": 183
   },
   "mappings": [
     {
       "whitepaper_id": "theorem_1",
-      "tla_id": "WhitepaperTheorems_WhitepaperTheorem1",
-      "confidence": 0.8,
-      "mapping_type": "name_based",
+      "tla_id": "Resilience_MainResilienceTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
       "verification_status": {
-        "tlaps_status": "unknown",
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        396,
+        401
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.616293",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_StakeMonotonicity",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1070,
+        1075
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.616391",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_StakeAdditivity",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1065,
+        1070
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.616480",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_SplitVotingAttackLemma",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        138,
+        143
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.616662",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "NetworkIntegration_NetworkLivenessIntegration",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "NetworkIntegration.tla",
+      "line_range": [
+        404,
+        409
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.617638",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "NetworkIntegration_NetworkIntegrationMain",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "NetworkIntegration.tla",
+      "line_range": [
+        435,
+        440
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.617731",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_Combined2020ResilienceTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        85,
+        90
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.617985",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_MaxByzantineTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        165,
+        170
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.618071",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_ByzantineThresholdViolation",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        179,
+        184
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.618158",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_MaxOfflineTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        238,
+        243
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.618251",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_OfflineThresholdViolation",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        272,
+        277
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.618338",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_PartitionRecoveryTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        313,
+        318
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.618423",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_EconomicResilienceTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        343,
+        348
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.618509",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_SplitVotingResistance",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        420,
+        425
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.618678",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_ByzantineBoundaryTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        508,
+        513
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.618928",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_OfflineBoundaryTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        525,
+        530
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.619013",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_SlashingIncentivesTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        548,
+        553
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.619100",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_EconomicSecurityTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        570,
+        575
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.619185",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_RotorNonEquivocationTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        596,
+        601
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.619269",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_HonestBlockPropagationTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        627,
+        632
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.619354",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_VRFUniquenessTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        656,
+        661
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.619441",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_VRFUnpredictabilityTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        687,
+        692
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.619539",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_CombinedFaultModelTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        721,
+        726
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.619633",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_RealisticFaultScenariosTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        803,
+        808
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.619720",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_ProgressUnderWorstCase",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        861,
+        866
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.619977",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_DegradationTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        894,
+        899
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.620061",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_SelfHealingTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        917,
+        922
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.620147",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_SafetyFromQuorum",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        127,
+        132
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.620232",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_SafetyViolationConstruction",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        196,
+        201
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.620320",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_HonestSingleVoteTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        222,
+        227
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.620410",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_ResponsiveStakeCalculation",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        939,
+        944
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.620496",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_ByzantineAttackConstruction",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        960,
+        965
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.620589",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_ByzantineValidatorCapability",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        987,
+        992
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.620677",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_InsufficientStakeLemma",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1003,
+        1008
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.620766",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_CertificateCompositionLemma",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1015,
+        1020
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.620854",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_SplitVotingAttack",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1034,
+        1039
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.620942",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_HonestMajorityAssumption",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1056,
+        1061
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.621029",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_CertificateStakeRequirement",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1086,
+        1091
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.621204",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_PartitionBound",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1118,
+        1123
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.621461",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_StakeNonNegativity",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1188,
+        1193
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.621966",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_PartitioningPrinciple",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1212,
+        1217
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.622093",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_StakeRecalculation",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1228,
+        1233
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.622543",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_ProtocolResumption",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1248,
+        1253
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.622655",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_CertificateGenerationLemma",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1327,
+        1332
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.623317",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_FastPathThreshold",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1346,
+        1351
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.623509",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_NoProgressWithoutQuorum",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1356,
+        1361
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.623604",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_CertificateUniquenessLemma",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1368,
+        1373
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.623702",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_VoteCollectionLemma",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1408,
+        1413
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.624079",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_SlowPathTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1418,
+        1423
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.624176",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_ProgressTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1430,
+        1435
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.624263",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_SafetyTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1442,
+        1447
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.624361",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_ByzantineResilienceTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1448,
+        1453
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.624542",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_EconomicAnalysis",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1466,
+        1471
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.624750",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_VRFUnpredictabilityProperty",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1557,
+        1562
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.625042",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Resilience_OfflineResilienceTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1587,
+        1592
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.625469",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Liveness_MainProgressTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        143,
+        148
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.625556",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Liveness_MainFastPathTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        195,
+        200
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.625643",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Liveness_MainSlowPathTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        246,
+        251
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.625733",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Liveness_MainBoundedFinalizationTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        307,
+        312
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.625820",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Liveness_MainTimeoutProgressTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        343,
+        348
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.625905",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Liveness_BoundedFinalizationTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        520,
+        525
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.625989",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Liveness_AdaptiveTimeoutLivenessTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        551,
+        556
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.626077",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Liveness_LeaderRotationLivenessTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        593,
+        598
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.626164",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Liveness_BoundedFinalizationWithAdaptiveTimeoutsTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        639,
+        644
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.626249",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Liveness_TimeoutProgressTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        695,
+        700
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.626340",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Liveness_LeaderRotationTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        733,
+        738
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.626426",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Liveness_LeaderWindowProgressProof",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        439,
+        444
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.626853",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Liveness_PigeonholePrinciple",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        958,
+        963
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.627117",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Liveness_LeaderWindowProgressLemma",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        832,
+        837
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.627376",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Liveness_TimeoutMechanismCorrectness",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        939,
+        944
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.627916",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "EconomicSafety_EconomicRationalityTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "EconomicSafety.tla",
+      "line_range": [
+        114,
+        119
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.628685",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "EconomicSafety_SlashingEffectivenessTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "EconomicSafety.tla",
+      "line_range": [
+        197,
+        202
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.628771",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "EconomicSafety_ByzantineAttackDeterrenceTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "EconomicSafety.tla",
+      "line_range": [
+        240,
+        245
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.628856",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "EconomicSafety_RewardFairnessTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "EconomicSafety.tla",
+      "line_range": [
+        293,
+        298
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.628941",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "EconomicSafety_StakeProportionalityTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "EconomicSafety.tla",
+      "line_range": [
+        359,
+        364
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.629026",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "EconomicSafety_FeeSustainabilityTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "EconomicSafety.tla",
+      "line_range": [
+        400,
+        405
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.629111",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "EconomicSafety_FeeDistributionFairnessTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "EconomicSafety.tla",
+      "line_range": [
+        446,
+        451
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.629195",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "EconomicSafety_NothingAtStakeResistanceTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "EconomicSafety.tla",
+      "line_range": [
+        480,
+        485
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.629281",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "EconomicSafety_LongRangeAttackResistanceTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "EconomicSafety.tla",
+      "line_range": [
+        523,
+        528
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.629366",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "EconomicSafety_EconomicAttackCostTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "EconomicSafety.tla",
+      "line_range": [
+        567,
+        572
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.629452",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "EconomicSafety_EconomicSafetyTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "EconomicSafety.tla",
+      "line_range": [
+        622,
+        627
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.629545",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "EconomicSafety_EconomicLivenessTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "EconomicSafety.tla",
+      "line_range": [
+        681,
+        686
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.629632",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Safety_RotorNonEquivocationTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        207,
+        212
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.630078",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Safety_SafetyTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        307,
+        312
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.630174",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Safety_HonestSingleVoteTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        445,
+        450
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.630276",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Safety_ChainConsistencyTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        517,
+        522
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.630361",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Safety_ByzantineResilienceTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        552,
+        557
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.630450",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Safety_NoConflictingFinalizationTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        707,
+        712
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.630705",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Safety_ByzantineToleranceTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        740,
+        745
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.630791",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Safety_FastPathSafetyTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        764,
+        769
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.630876",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Safety_SlowPathSafetyTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        812,
+        817
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.630962",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Safety_VoteUniquenessTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        859,
+        864
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.631047",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Safety_CryptographicIntegrityTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        991,
+        996
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.631132",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Safety_ByzantineCannotForceCertificate",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        471,
+        476
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.631911",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Safety_ByzantineAttackConstruction",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        666,
+        671
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.632090",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Safety_HonestMajorityInCertificates",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        1125,
+        1130
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.632811",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Safety_StrictInequalityFromCertificateThreshold",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        1170,
+        1175
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.632912",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "WhitepaperTheorems_WhitepaperTheorem1",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
         "tlc_status": "unknown",
         "stateright_status": "unknown",
         "last_verified": null,
@@ -31,20 +2450,495 @@
       "file_location": "WhitepaperTheorems.tla",
       "line_range": [
         484,
-        494
+        489
       ],
       "cross_references": [],
       "notes": "",
-      "last_updated": "2025-09-26T14:24:17.117206",
-      "checksum": "ca3d526b414695f7146c6fc7aed7fa14"
+      "last_updated": "2025-09-26T17:37:42.633003",
+      "checksum": ""
     },
     {
-      "whitepaper_id": "lemma_8",
-      "tla_id": "RotorPerformanceProofs_Lemma8RotorLatency",
-      "confidence": 0.8,
-      "mapping_type": "name_based",
+      "whitepaper_id": "theorem_1",
+      "tla_id": "WhitepaperTheorems_WhitepaperTheorem2",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
       "verification_status": {
-        "tlaps_status": "unknown",
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "WhitepaperTheorems.tla",
+      "line_range": [
+        529,
+        534
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.633094",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "WhitepaperTheorems_WhitepaperRotorResilienceTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "WhitepaperTheorems.tla",
+      "line_range": [
+        787,
+        792
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.633185",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "WhitepaperTheorems_WhitepaperByzantineFaultToleranceTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "WhitepaperTheorems.tla",
+      "line_range": [
+        797,
+        802
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.633279",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "WhitepaperTheorems_WhitepaperPartitionRecoveryTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "WhitepaperTheorems.tla",
+      "line_range": [
+        807,
+        812
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.633370",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "WhitepaperTheorems_WhitepaperSamplingCorrectnessTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "WhitepaperTheorems.tla",
+      "line_range": [
+        818,
+        823
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.633464",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "WhitepaperTheorems_VotingProtocolInvariant",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "WhitepaperTheorems.tla",
+      "line_range": [
+        183,
+        188
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.633560",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "WhitepaperTheorems_StakeArithmetic",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "WhitepaperTheorems.tla",
+      "line_range": [
+        216,
+        221
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.633670",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "WhitepaperTheorems_VoteCertificationLemma",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "WhitepaperTheorems.tla",
+      "line_range": [
+        309,
+        314
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.633975",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "WhitepaperTheorems_FinalizationFromCertificate",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "WhitepaperTheorems.tla",
+      "line_range": [
+        334,
+        339
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.634071",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "WhitepaperTheorems_BlockProductionLemma",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "WhitepaperTheorems.tla",
+      "line_range": [
+        352,
+        357
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.634166",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "MathHelpers_StakeArithmetic",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "MathHelpers.tla",
+      "line_range": [
+        285,
+        290
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.637070",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "MathHelpers_PigeonholePrinciple",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "MathHelpers.tla",
+      "line_range": [
+        381,
+        386
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.637166",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Sampling_WhitepaperTheorem3",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Sampling.tla",
+      "line_range": [
+        262,
+        267
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.637530",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Sampling_SamplingResilienceTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Sampling.tla",
+      "line_range": [
+        312,
+        317
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.637615",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Sampling_ExpectedPerformanceImprovement",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Sampling.tla",
+      "line_range": [
+        359,
+        364
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.637785",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "theorem_1",
+      "tla_id": "Sampling_VarianceReduction",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Sampling.tla",
+      "line_range": [
+        380,
+        385
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.637873",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_StakeMonotonicity",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1070,
+        1075
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.643026",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_StakeAdditivity",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1065,
+        1070
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.643877",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_SplitVotingAttackLemma",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        138,
+        143
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.645521",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "RotorPerformanceProofs_Lemma8RotorLatency",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
         "tlc_status": "unknown",
         "stateright_status": "unknown",
         "last_verified": null,
@@ -56,29 +2950,70 @@
       "file_location": "RotorPerformanceProofs.tla",
       "line_range": [
         124,
-        134
+        129
       ],
-      "cross_references": [
-        "definition_10",
-        "definition_14",
-        "lemma_8",
-        "definition_6",
-        "definition_11",
-        "definition_16",
-        "lemma_7",
-        "lemma_9"
-      ],
+      "cross_references": [],
       "notes": "",
-      "last_updated": "2025-09-26T14:24:17.117216",
-      "checksum": "90b4205f0081b41ad483ef1cbc1c0e00"
+      "last_updated": "2025-09-26T17:37:42.649656",
+      "checksum": ""
     },
     {
-      "whitepaper_id": "definition_14",
-      "tla_id": "Resilience_Definition",
-      "confidence": 0.8,
-      "mapping_type": "name_based",
+      "whitepaper_id": "assumption_1",
+      "tla_id": "NetworkIntegration_NetworkLivenessIntegration",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
       "verification_status": {
-        "tlaps_status": "unknown",
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "NetworkIntegration.tla",
+      "line_range": [
+        404,
+        409
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.654663",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "NetworkIntegration_NetworkIntegrationMain",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "NetworkIntegration.tla",
+      "line_range": [
+        435,
+        440
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.655785",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_Combined2020ResilienceTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
         "tlc_status": "unknown",
         "stateright_status": "unknown",
         "last_verified": null,
@@ -89,23 +3024,21 @@
       },
       "file_location": "Resilience.tla",
       "line_range": [
-        1223,
-        1233
+        85,
+        90
       ],
-      "cross_references": [
-        "theorem_1"
-      ],
+      "cross_references": [],
       "notes": "",
-      "last_updated": "2025-09-26T14:24:17.117220",
-      "checksum": "3f5efc42bafc5d4819db23ffe994a40d"
+      "last_updated": "2025-09-26T17:37:42.658515",
+      "checksum": ""
     },
     {
-      "whitepaper_id": "definition_6",
-      "tla_id": "Resilience_Definition",
-      "confidence": 0.8,
-      "mapping_type": "name_based",
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_MaxByzantineTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
       "verification_status": {
-        "tlaps_status": "unknown",
+        "tlaps_status": "complete",
         "tlc_status": "unknown",
         "stateright_status": "unknown",
         "last_verified": null,
@@ -116,30 +3049,21 @@
       },
       "file_location": "Resilience.tla",
       "line_range": [
-        1223,
-        1233
+        165,
+        170
       ],
-      "cross_references": [
-        "definition_10",
-        "definition_14",
-        "lemma_8",
-        "definition_6",
-        "definition_11",
-        "definition_16",
-        "lemma_7",
-        "lemma_9"
-      ],
+      "cross_references": [],
       "notes": "",
-      "last_updated": "2025-09-26T14:24:17.117223",
-      "checksum": "36f710004acd4f15fdc98eb3257d5453"
+      "last_updated": "2025-09-26T17:37:42.659349",
+      "checksum": ""
     },
     {
-      "whitepaper_id": "definition_4",
-      "tla_id": "Resilience_Definition",
-      "confidence": 0.8,
-      "mapping_type": "name_based",
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_ByzantineThresholdViolation",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
       "verification_status": {
-        "tlaps_status": "unknown",
+        "tlaps_status": "complete",
         "tlc_status": "unknown",
         "stateright_status": "unknown",
         "last_verified": null,
@@ -150,397 +3074,1517 @@
       },
       "file_location": "Resilience.tla",
       "line_range": [
-        1223,
+        179,
+        184
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.660193",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_MaxOfflineTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        238,
+        243
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.661014",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_OfflineThresholdViolation",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        272,
+        277
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.661850",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_EconomicResilienceTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        343,
+        348
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.663514",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_SplitVotingResistance",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        420,
+        425
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.665168",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_CombinedFaultModelTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        721,
+        726
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.674834",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_ExactThresholdSafety",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        828,
+        833
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.676604",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_ProgressUnderWorstCase",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        861,
+        866
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.678512",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_SafetyFromQuorum",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        127,
+        132
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.681315",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_SafetyViolationConstruction",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        196,
+        201
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.682413",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_HonestSingleVoteTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        222,
+        227
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.683616",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_ResponsiveStakeCalculation",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        939,
+        944
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.684532",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_ByzantineAttackConstruction",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        960,
+        965
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.685454",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_ByzantineValidatorCapability",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        987,
+        992
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.686340",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_InsufficientStakeLemma",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1003,
+        1008
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.687181",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_CertificateCompositionLemma",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1015,
+        1020
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.688017",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_SplitVotingAttack",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1034,
+        1039
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.688893",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_HonestMajorityAssumption",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1056,
+        1061
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.689969",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_CertificateStakeRequirement",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1086,
+        1091
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.691754",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_PartitionBound",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1118,
+        1123
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.694269",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_StakeNonNegativity",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1188,
+        1193
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.699298",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_PartitioningPrinciple",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1212,
+        1217
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.700188",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_StakeRecalculation",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1228,
         1233
       ],
-      "cross_references": [
-        "theorem_2",
-        "lemma_37",
-        "lemma_25",
-        "lemma_26",
-        "lemma_36",
-        "lemma_20",
-        "lemma_28",
-        "definition_4",
-        "definition_46",
-        "assumption_2",
-        "lemma_31",
-        "lemma_33",
-        "lemma_38",
-        "definition_11",
-        "definition_19",
-        "definition_1",
-        "theorem_1",
-        "lemma_40",
-        "lemma_30",
-        "definition_45",
-        "definition_14",
-        "lemma_41",
-        "lemma_29",
-        "lemma_47",
-        "lemma_27",
-        "lemma_35",
-        "lemma_23",
-        "lemma_39",
-        "definition_15",
-        "lemma_24",
-        "lemma_42",
-        "lemma_21",
-        "theorem_3",
-        "lemma_22",
-        "definition_16",
-        "lemma_32",
-        "assumption_3",
-        "assumption_1"
-      ],
+      "cross_references": [],
       "notes": "",
-      "last_updated": "2025-09-26T14:24:17.117228",
-      "checksum": "16bab6ff0ea9627ae80388a4915e1146"
+      "last_updated": "2025-09-26T17:37:42.701958",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_ProtocolResumption",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1248,
+        1253
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.702803",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_CertificateGenerationLemma",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1327,
+        1332
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.709036",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_FastPathThreshold",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1346,
+        1351
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.710814",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_NoProgressWithoutQuorum",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1356,
+        1361
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.711698",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_CertificateUniquenessLemma",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1368,
+        1373
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.712579",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_VoteCollectionLemma",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1408,
+        1413
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.716180",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_SlowPathTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1418,
+        1423
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.717022",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_ProgressTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1430,
+        1435
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.717861",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_SafetyTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1442,
+        1447
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.718714",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_EconomicAnalysis",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1466,
+        1471
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.721234",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_VRFUnpredictabilityProperty",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1557,
+        1562
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.724130",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Resilience_OfflineResilienceTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Resilience.tla",
+      "line_range": [
+        1587,
+        1592
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.728407",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Liveness_MainProgressTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        143,
+        148
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.729279",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Liveness_MainFastPathTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        195,
+        200
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.730122",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Liveness_MainSlowPathTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        246,
+        251
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.730971",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Liveness_MainBoundedFinalizationTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        307,
+        312
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.731814",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Liveness_AdaptiveTimeoutLivenessTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        551,
+        556
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.734455",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Liveness_TimeoutProgressTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        695,
+        700
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.737169",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Liveness_LeaderWindowProgressProof",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        439,
+        444
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.742707",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Liveness_PigeonholePrinciple",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        958,
+        963
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.745183",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Liveness_LeaderWindowProgressLemma",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        832,
+        837
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.747664",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Liveness_TimeoutMechanismCorrectness",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Liveness.tla",
+      "line_range": [
+        939,
+        944
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.752681",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Safety_RotorNonEquivocationTheorem",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        207,
+        212
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.774546",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Safety_CryptographicIntegrity",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        1095,
+        1100
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.785325",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Safety_ByzantineCannotForceCertificate",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        471,
+        476
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.792374",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Safety_ByzantineAttackConstruction",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        666,
+        671
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.794044",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Safety_HonestMajorityInCertificates",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        1125,
+        1130
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.800820",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Safety_StrictInequalityFromCertificateThreshold",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Safety.tla",
+      "line_range": [
+        1170,
+        1175
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.801712",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "WhitepaperTheorems_VotingProtocolInvariant",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "WhitepaperTheorems.tla",
+      "line_range": [
+        183,
+        188
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.807972",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "WhitepaperTheorems_StakeArithmetic",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "WhitepaperTheorems.tla",
+      "line_range": [
+        216,
+        221
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.808797",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "WhitepaperTheorems_VoteCertificationLemma",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "WhitepaperTheorems.tla",
+      "line_range": [
+        309,
+        314
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.811260",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "WhitepaperTheorems_FinalizationFromCertificate",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "WhitepaperTheorems.tla",
+      "line_range": [
+        334,
+        339
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.812102",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "WhitepaperTheorems_BlockProductionLemma",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "WhitepaperTheorems.tla",
+      "line_range": [
+        352,
+        357
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.812918",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "MathHelpers_StakeArithmetic",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "MathHelpers.tla",
+      "line_range": [
+        285,
+        290
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.841514",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "MathHelpers_PigeonholePrinciple",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "MathHelpers.tla",
+      "line_range": [
+        381,
+        386
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.842342",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Sampling_RotorResilienceImprovement",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Sampling.tla",
+      "line_range": [
+        335,
+        340
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.847479",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Sampling_ExpectedPerformanceImprovement",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Sampling.tla",
+      "line_range": [
+        359,
+        364
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.848354",
+      "checksum": ""
+    },
+    {
+      "whitepaper_id": "assumption_1",
+      "tla_id": "Sampling_VarianceReduction",
+      "confidence": 0.7,
+      "mapping_type": "keyword_based",
+      "verification_status": {
+        "tlaps_status": "complete",
+        "tlc_status": "unknown",
+        "stateright_status": "unknown",
+        "last_verified": null,
+        "verification_time": null,
+        "proof_obligations_total": 0,
+        "proof_obligations_complete": 0,
+        "error_messages": []
+      },
+      "file_location": "Sampling.tla",
+      "line_range": [
+        380,
+        385
+      ],
+      "cross_references": [],
+      "notes": "",
+      "last_updated": "2025-09-26T17:37:42.849240",
+      "checksum": ""
     }
   ],
-  "unmapped_whitepaper": [
-    "lemma_20",
-    "lemma_shows",
-    "assumption_1",
-    "definition_1",
-    "definition_12",
-    "corollary_34"
-  ],
-  "unmapped_tla": [
-    "Votor_TypeInvariant",
-    "Votor_VotingProtocolInvariant",
-    "Votor_SafetyInvariant",
-    "Votor_ChainConsistencyInvariant",
-    "Votor_LivenessProperty",
-    "Votor_ByzantineResilienceProperty",
-    "AdaptiveTimeouts_TimeoutBoundsInvariant",
-    "AdaptiveTimeouts_TimeoutProgressionInvariant",
-    "AdaptiveTimeouts_NetworkResponsivenessInvariant",
-    "AdaptiveTimeouts_PartitionResilienceInvariant",
-    "AdaptiveTimeouts_GSTOptimizationInvariant",
-    "AdaptiveTimeouts_PerformanceImprovementInvariant",
-    "AdaptiveTimeouts_TypeInvariant",
-    "AdaptiveTimeouts_TimeoutConvergenceProperty",
-    "AdaptiveTimeouts_AdaptiveEfficiencyProperty",
-    "Resilience_Combined2020ResilienceProof",
-    "Resilience_ExactThresholdSafetyProof",
-    "Resilience_ExactThresholdLivenessProof",
-    "Resilience_MainResilienceTheorem",
-    "Resilience_StakeMonotonicity",
-    "Resilience_StakeAdditivity",
-    "Resilience_StakeArithmetic",
-    "Resilience_SplitVotingAttackLemma",
-    "Resilience_NoProgressWithoutQuorumLemma",
-    "Resilience_InsufficientStakeProof",
-    "Resilience_CertificateCompositionProof",
-    "RotorPerformanceProofs_Lemma7RotorResilience",
-    "RotorPerformanceProofs_Lemma9BandwidthOptimality",
-    "RotorPerformanceProofs_RotorPerformanceGuarantees",
-    "RotorPerformanceProofs_PerformanceCorrectness",
-    "RotorPerformanceProofs_PerformanceInvariant",
-    "EconomicModelComplete_TypeInvariant",
-    "EconomicModelComplete_EconomicRationalityInvariant",
-    "EconomicModelComplete_ValidatorSetSizeInvariant",
-    "EconomicModelComplete_DecentralizationInvariant",
-    "EconomicModelComplete_StakingRatioInvariant",
-    "Types_NoSignatureForgeInvariant",
-    "EconomicModel_TypeInvariant",
-    "EconomicModel_MinStakeInvariant",
-    "Network_EventualDeliveryProperty",
-    "Network_BoundedDeliveryProperty",
-    "Integration_IntegrationCorrectness",
-    "Integration_RecoveryProperty",
-    "VRFLeaderSelection_TypeInvariant",
-    "VRFLeaderSelection_VRFUnpredictabilityProperty",
-    "AlpenglowSimple_TypeInvariant",
-    "NetworkIntegration_NetworkSafetyIntegration",
-    "NetworkIntegration_NetworkLivenessIntegration",
-    "NetworkIntegration_NetworkIntegrationMain",
-    "Rotor_SamplingResilienceInvariant",
-    "Rotor_PartitioningValidityInvariant",
-    "Rotor_SamplingNonEquivocationInvariant",
-    "Rotor_TypeInvariant",
-    "Rotor_SamplingResilienceProperty",
-    "Sampling_SamplingCorrectness",
-    "Sampling_SamplingProgress",
-    "Crypto_CryptoInvariant",
-    "Crypto_UnforgeabilityProperty",
-    "Crypto_VRFUniquenessProperty",
-    "VRF_VRFTypeInvariant",
-    "VRF_VRFUniquenessProperty",
-    "VRF_VRFUnpredictabilityProperty",
-    "VRF_VRFVerifiabilityProperty",
-    "VRF_VRFPseudorandomnessProperty",
-    "Resilience_Combined2020ResilienceTheorem",
-    "Resilience_MaxByzantineTheorem",
-    "Resilience_ByzantineThresholdViolation",
-    "Resilience_MaxOfflineTheorem",
-    "Resilience_OfflineThresholdViolation",
-    "Resilience_PartitionRecoveryTheorem",
-    "Resilience_EconomicResilienceTheorem",
-    "Resilience_DoubleVotingResistance",
-    "Resilience_SplitVotingResistance",
-    "Resilience_WithholdingResistance",
-    "Resilience_EquivocationResistance",
-    "Resilience_ByzantineBoundaryTheorem",
-    "Resilience_OfflineBoundaryTheorem",
-    "Resilience_SlashingIncentivesTheorem",
-    "Resilience_EconomicSecurityTheorem",
-    "Resilience_RotorNonEquivocationTheorem",
-    "Resilience_HonestBlockPropagationTheorem",
-    "Resilience_VRFUniquenessTheorem",
-    "Resilience_VRFUnpredictabilityTheorem",
-    "Resilience_CombinedFaultModelTheorem",
-    "Resilience_RealisticFaultScenariosTheorem",
-    "Resilience_ExactThresholdSafety",
-    "Resilience_ExactThresholdLiveness",
-    "Resilience_ProgressUnderWorstCase",
-    "Resilience_DegradationTheorem",
-    "Resilience_SelfHealingTheorem",
-    "Resilience_SafetyFromQuorum",
-    "Resilience_SafetyViolationConstruction",
-    "Resilience_HonestSingleVoteTheorem",
-    "Resilience_ResponsiveStakeCalculation",
-    "Resilience_ByzantineAttackConstruction",
-    "Resilience_ByzantineValidatorCapability",
-    "Resilience_InsufficientStakeLemma",
-    "Resilience_CertificateCompositionLemma",
-    "Resilience_SplitVotingAttack",
-    "Resilience_HonestMajorityAssumption",
-    "Resilience_SetTheoryAxioms",
-    "Resilience_CertificateStakeRequirement",
-    "Resilience_PeanoAxioms",
-    "Resilience_MathematicalInduction",
-    "Resilience_PartitionBound",
-    "Resilience_ArithmeticInequality",
-    "Resilience_LogicalAxioms",
-    "Resilience_ValidatorPartitioning",
-    "Resilience_ValidatorId",
-    "Resilience_NaturalNumberDefinition",
-    "Resilience_StakeNonNegativity",
-    "Resilience_PartitioningPrinciple",
-    "Resilience_StakeRecalculation",
-    "Resilience_ProtocolResumption",
-    "Resilience_TransientFaultModel",
-    "Resilience_ValidatorRecovery",
-    "Resilience_ProtocolDelayTolerance",
-    "Resilience_BoundedDelayAfterGST",
-    "Resilience_MessageDeliveryAfterGST",
-    "Resilience_HonestParticipationLemma",
-    "Resilience_CertificateGenerationLemma",
-    "Resilience_ProgressFromCertificate",
-    "Resilience_FastPathThreshold",
-    "Resilience_NoProgressWithoutQuorum",
-    "Resilience_CertificateUniquenessLemma",
-    "Resilience_OfflineValidatorsPassive",
-    "Resilience_NetworkHealingAssumption",
-    "Resilience_FinalizationFromCertificate",
-    "Resilience_VoteCollectionLemma",
-    "Resilience_SlowPathTheorem",
-    "Resilience_ProgressTheorem",
-    "Resilience_SafetyTheorem",
-    "Resilience_ByzantineResilienceTheorem",
-    "Resilience_VoteMonitoring",
-    "Resilience_EconomicAnalysis",
-    "Resilience_AttackBenefitBounds",
-    "Resilience_FunctionEquality",
-    "Resilience_VRFUnpredictabilityProperty",
-    "Resilience_VRFUnpredictabilityAssumption",
-    "Resilience_TemporalLogic",
-    "Resilience_FunctionDefinition",
-    "Resilience_NaturalNumberExistence",
-    "Resilience_OfflineResilienceTheorem",
-    "Liveness_MainProgressTheorem",
-    "Liveness_MainFastPathTheorem",
-    "Liveness_MainSlowPathTheorem",
-    "Liveness_MainBoundedFinalizationTheorem",
-    "Liveness_MainTimeoutProgressTheorem",
-    "Liveness_BoundedFinalizationTheorem",
-    "Liveness_AdaptiveTimeoutLivenessTheorem",
-    "Liveness_LeaderRotationLivenessTheorem",
-    "Liveness_BoundedFinalizationWithAdaptiveTimeoutsTheorem",
-    "Liveness_TimeoutProgressTheorem",
-    "Liveness_LeaderRotationTheorem",
-    "Liveness_NetworkSynchronyLemma",
-    "Liveness_HonestParticipationProof",
-    "Liveness_VoteAggregationProof",
-    "Liveness_CertificatePropagationProof",
-    "Liveness_LeaderWindowProgressProof",
-    "Liveness_AdaptiveTimeoutGrowthProof",
-    "Liveness_ExponentialGrowth",
-    "Liveness_PigeonholePrinciple",
-    "Liveness_MessageDeliveryLemma",
-    "Liveness_PartitionRecoveryLemma",
-    "Liveness_LeaderWindowProgressLemma",
-    "Liveness_ExponentialGrowthLemma",
-    "Liveness_TimeoutSufficientLemma",
-    "Liveness_WindowProgressionLemma",
-    "Liveness_EventualProgressLemma",
-    "Liveness_ViewAdvancementLemma",
-    "Liveness_TimeoutMechanismCorrectness",
-    "Liveness_ClockProgression",
-    "Liveness_ArithmeticProgression",
-    "Liveness_PigeonholePrincipleBasic",
-    "Liveness_ResponsivenessAssumption",
-    "Liveness_HonestFinalizationBehavior",
-    "Liveness_ArithmeticInequality",
-    "Liveness_ArithmeticEquality",
-    "Liveness_SimpleArithmetic",
-    "EconomicSafety_EconomicRationalityTheorem",
-    "EconomicSafety_SlashingEffectivenessTheorem",
-    "EconomicSafety_ByzantineAttackDeterrenceTheorem",
-    "EconomicSafety_RewardFairnessTheorem",
-    "EconomicSafety_StakeProportionalityTheorem",
-    "EconomicSafety_FeeSustainabilityTheorem",
-    "EconomicSafety_FeeDistributionFairnessTheorem",
-    "EconomicSafety_NothingAtStakeResistanceTheorem",
-    "EconomicSafety_LongRangeAttackResistanceTheorem",
-    "EconomicSafety_EconomicAttackCostTheorem",
-    "EconomicSafety_EconomicSafetyTheorem",
-    "EconomicSafety_EconomicLivenessTheorem",
-    "EconomicSafety_EconomicArithmetic",
-    "EconomicSafety_StakeConservation",
-    "EconomicSafety_ByzantineStakeBound",
-    "EconomicSafety_HonestMajority",
-    "EconomicSafety_EconomicSafetyInvariant",
-    "EconomicSafety_EconomicRationalityProperty",
-    "EconomicSafety_SlashingEffectivenessProperty",
-    "EconomicSafety_ByzantineAttackDeterrenceProperty",
-    "EconomicSafety_RewardFairnessProperty",
-    "EconomicSafety_StakeProportionalityProperty",
-    "EconomicSafety_FeeSustainabilityProperty",
-    "EconomicSafety_FeeDistributionFairnessProperty",
-    "EconomicSafety_NothingAtStakeResistanceProperty",
-    "EconomicSafety_LongRangeAttackResistanceProperty",
-    "EconomicSafety_EconomicAttackCostProperty",
-    "Safety_RotorNonEquivocationTheorem",
-    "Safety_SafetyTheorem",
-    "Safety_HonestSingleVoteTheorem",
-    "Safety_ChainConsistencyTheorem",
-    "Safety_ByzantineResilienceTheorem",
-    "Safety_ExactThresholdSafety",
-    "Safety_ThresholdViolation",
-    "Safety_NoConflictingFinalizationTheorem",
-    "Safety_ByzantineToleranceTheorem",
-    "Safety_FastPathSafetyTheorem",
-    "Safety_SlowPathSafetyTheorem",
-    "Safety_VoteUniquenessTheorem",
-    "Safety_CryptographicIntegrityTheorem",
-    "Safety_CryptographicIntegrity",
-    "Safety_CertificateUniquenessLemma",
-    "Safety_PigeonholePrinciple",
-    "Safety_HonestMajorityAssumption",
-    "Safety_SimpleArithmetic",
-    "Safety_VRFUniquenessLemma",
-    "Safety_VRFLeaderSelectionDeterminism",
-    "Safety_VRFLeaderWindowConsistency",
-    "Safety_ByzantineCannotForceCertificate",
-    "Safety_EconomicSlashingEnforcement",
-    "Safety_ByzantineAttackConstruction",
-    "Safety_StakeArithmetic",
-    "Safety_StakeThresholdOverlap",
-    "Safety_FastPathThresholdImplication",
-    "Safety_ByzantineStakeBound",
-    "Safety_HonestFinalizationLemma",
-    "Safety_RequiredStakeForType",
-    "Safety_VRFLeaderWindowSafety",
-    "Safety_HonestMajorityInCertificates",
-    "Safety_StrictInequalityFromCertificateThreshold",
-    "Safety_SafetyInvariant",
-    "WhitepaperTheorems_WhitepaperTheorem2",
-    "WhitepaperTheorems_VotingProtocolInvariant",
-    "WhitepaperTheorems_StakeArithmetic",
-    "WhitepaperTheorems_ChainConnectivityLemma",
-    "WhitepaperTheorems_HonestValidatorBehavior",
-    "WhitepaperTheorems_VoteCertificationLemma",
-    "WhitepaperTheorems_FinalizationFromCertificate",
-    "WhitepaperTheorems_BlockProductionLemma",
-    "WhitepaperTheorems_SimpleArithmetic",
-    "WhitepaperTheorems_TransitiveDescendantProperty",
-    "WhitepaperTheorems_CertificatePropagation",
-    "WhitepaperTheorems_ViewSynchronizationLemma",
-    "WhitepaperTheorems_TimeoutSettingProtocol",
-    "WhitepaperTheorems_ClockProgression",
-    "WhitepaperTheorems_WhitepaperLemma20Proof",
-    "WhitepaperTheorems_WhitepaperLemma21Proof",
-    "WhitepaperTheorems_WhitepaperLemma22Proof",
-    "WhitepaperTheorems_WhitepaperLemma23Proof",
-    "WhitepaperTheorems_WhitepaperLemma24Proof",
-    "WhitepaperTheorems_WhitepaperLemma25Proof",
-    "WhitepaperTheorems_WhitepaperLemma26Proof",
-    "WhitepaperTheorems_WhitepaperLemma27Proof",
-    "WhitepaperTheorems_WhitepaperLemma28Proof",
-    "WhitepaperTheorems_WhitepaperLemma29Proof",
-    "WhitepaperTheorems_WhitepaperLemma30Proof",
-    "WhitepaperTheorems_WhitepaperLemma31Proof",
-    "WhitepaperTheorems_WhitepaperLemma32Proof",
-    "WhitepaperTheorems_WhitepaperLemma33Proof",
-    "WhitepaperTheorems_WhitepaperLemma34Proof",
-    "WhitepaperTheorems_WhitepaperLemma35Proof",
-    "WhitepaperTheorems_WhitepaperLemma36Proof",
-    "WhitepaperTheorems_WhitepaperLemma37Proof",
-    "WhitepaperTheorems_WhitepaperLemma38Proof",
-    "WhitepaperTheorems_WhitepaperLemma39Proof",
-    "WhitepaperTheorems_WhitepaperLemma40Proof",
-    "WhitepaperTheorems_WhitepaperLemma41Proof",
-    "WhitepaperTheorems_WhitepaperLemma42Proof",
-    "WhitepaperTheorems_TypeInvariant",
-    "MathHelpers_SimpleArithmetic",
-    "MathHelpers_DivisionProperties",
-    "MathHelpers_PercentageThresholds",
-    "MathHelpers_StakeArithmetic",
-    "MathHelpers_PigeonholePrinciple",
-    "MathHelpers_InequalityRelationships",
-    "MathHelpers_AlpenglowThresholds",
-    "MathHelpers_SetCardinalityArithmetic",
-    "Sampling_WhitepaperTheorem3",
-    "Sampling_SamplingResilienceTheorem",
-    "Sampling_RotorResilienceImprovement",
-    "Sampling_ExpectedPerformanceImprovement",
-    "Sampling_VarianceReduction",
-    "Sampling_PartitioningValidity",
-    "Sampling_SamplingNonEquivocation",
-    "Sampling_PS_P_vs_IID_Uniform",
-    "Sampling_TypeInvariant"
-  ],
-  "cross_references": {
-    "RotorPerformanceProofs_Lemma8RotorLatency": [
-      "Resilience_Definition",
-      "RotorPerformanceProofs_Lemma8RotorLatency",
-      "Resilience_Definition"
-    ],
-    "Resilience_Definition": [
-      "WhitepaperTheorems_WhitepaperTheorem1",
-      "Resilience_Definition",
-      "RotorPerformanceProofs_Lemma8RotorLatency",
-      "Resilience_Definition",
-      "Resilience_Definition",
-      "WhitepaperTheorems_WhitepaperTheorem1",
-      "Resilience_Definition"
-    ]
-  },
-  "statistics": {
-    "tlaps_status_distribution": {
-      "unknown": 5
-    },
-    "tlc_status_distribution": {
-      "unknown": 5
-    },
-    "stateright_status_distribution": {
-      "unknown": 5
-    },
-    "mapping_type_distribution": {
-      "name_based": 5
-    },
-    "confidence_stats": {
-      "mean": 0.8,
-      "min": 0.8,
-      "max": 0.8
-    },
-    "proof_obligations": {
-      "total": 0,
-      "complete": 0,
-      "completion_rate": 0
-    }
-  }
+  "unmapped_whitepaper": [],
+  "unmapped_tla": [],
+  "cross_references": {},
+  "statistics": {}
 }

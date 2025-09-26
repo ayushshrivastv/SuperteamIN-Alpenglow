@@ -1,337 +1,198 @@
 # Alpenglow Theorem Mapping Report
 
-Generated: 2025-09-26T14:24:17.117250
+Generated: 2025-09-26T17:37:42.851892
 
 ## Summary
 
-- **Total Whitepaper Theorems**: 11
-- **Total TLA+ Theorems**: 298
-- **Mapped Theorems**: 5
-- **Mapping Coverage**: 45.5%
+- **Total Whitepaper Theorems**: 2
+- **Total TLA+ Theorems**: 245
+- **Mapped Theorems**: 183
+- **Mapping Coverage**: 9150.0%
 
-## Verification Status Summary
+## Detailed Mappings
 
-- **Tlaps Complete**: 0
-- **Tlaps Incomplete**: 0
-- **Tlaps Missing**: 0
-- **Tlc Verified**: 0
-- **Tlc Failed**: 0
-- **Stateright Passed**: 0
-- **Stateright Failed**: 0
-
-## Detailed Theorem Mappings
-
-| Whitepaper ID | TLA+ ID | Confidence | Type | TLAPS | TLC | Stateright | File Location |
-|---------------|---------|------------|------|-------|-----|------------|---------------|
-| theorem_1 | WhitepaperTheorems_WhitepaperTheorem1 | 0.80 | name_based | unknown | unknown | unknown | WhitepaperTheorems.tla |
-| lemma_8 | RotorPerformanceProofs_Lemma8RotorLatency | 0.80 | name_based | unknown | unknown | unknown | RotorPerformanceProofs.tla |
-| definition_14 | Resilience_Definition | 0.80 | name_based | unknown | unknown | unknown | Resilience.tla |
-| definition_6 | Resilience_Definition | 0.80 | name_based | unknown | unknown | unknown | Resilience.tla |
-| definition_4 | Resilience_Definition | 0.80 | name_based | unknown | unknown | unknown | Resilience.tla |
-
-## Unmapped Whitepaper Theorems
-
-- lemma_20
-- lemma_shows
-- assumption_1
-- definition_1
-- definition_12
-- corollary_34
-
-## Unmapped TLA+ Theorems
-
-- Votor_TypeInvariant
-- Votor_VotingProtocolInvariant
-- Votor_SafetyInvariant
-- Votor_ChainConsistencyInvariant
-- Votor_LivenessProperty
-- Votor_ByzantineResilienceProperty
-- AdaptiveTimeouts_TimeoutBoundsInvariant
-- AdaptiveTimeouts_TimeoutProgressionInvariant
-- AdaptiveTimeouts_NetworkResponsivenessInvariant
-- AdaptiveTimeouts_PartitionResilienceInvariant
-- AdaptiveTimeouts_GSTOptimizationInvariant
-- AdaptiveTimeouts_PerformanceImprovementInvariant
-- AdaptiveTimeouts_TypeInvariant
-- AdaptiveTimeouts_TimeoutConvergenceProperty
-- AdaptiveTimeouts_AdaptiveEfficiencyProperty
-- Resilience_Combined2020ResilienceProof
-- Resilience_ExactThresholdSafetyProof
-- Resilience_ExactThresholdLivenessProof
-- Resilience_MainResilienceTheorem
-- Resilience_StakeMonotonicity
-- Resilience_StakeAdditivity
-- Resilience_StakeArithmetic
-- Resilience_SplitVotingAttackLemma
-- Resilience_NoProgressWithoutQuorumLemma
-- Resilience_InsufficientStakeProof
-- Resilience_CertificateCompositionProof
-- RotorPerformanceProofs_Lemma7RotorResilience
-- RotorPerformanceProofs_Lemma9BandwidthOptimality
-- RotorPerformanceProofs_RotorPerformanceGuarantees
-- RotorPerformanceProofs_PerformanceCorrectness
-- RotorPerformanceProofs_PerformanceInvariant
-- EconomicModelComplete_TypeInvariant
-- EconomicModelComplete_EconomicRationalityInvariant
-- EconomicModelComplete_ValidatorSetSizeInvariant
-- EconomicModelComplete_DecentralizationInvariant
-- EconomicModelComplete_StakingRatioInvariant
-- Types_NoSignatureForgeInvariant
-- EconomicModel_TypeInvariant
-- EconomicModel_MinStakeInvariant
-- Network_EventualDeliveryProperty
-- Network_BoundedDeliveryProperty
-- Integration_IntegrationCorrectness
-- Integration_RecoveryProperty
-- VRFLeaderSelection_TypeInvariant
-- VRFLeaderSelection_VRFUnpredictabilityProperty
-- AlpenglowSimple_TypeInvariant
-- NetworkIntegration_NetworkSafetyIntegration
-- NetworkIntegration_NetworkLivenessIntegration
-- NetworkIntegration_NetworkIntegrationMain
-- Rotor_SamplingResilienceInvariant
-- Rotor_PartitioningValidityInvariant
-- Rotor_SamplingNonEquivocationInvariant
-- Rotor_TypeInvariant
-- Rotor_SamplingResilienceProperty
-- Sampling_SamplingCorrectness
-- Sampling_SamplingProgress
-- Crypto_CryptoInvariant
-- Crypto_UnforgeabilityProperty
-- Crypto_VRFUniquenessProperty
-- VRF_VRFTypeInvariant
-- VRF_VRFUniquenessProperty
-- VRF_VRFUnpredictabilityProperty
-- VRF_VRFVerifiabilityProperty
-- VRF_VRFPseudorandomnessProperty
-- Resilience_Combined2020ResilienceTheorem
-- Resilience_MaxByzantineTheorem
-- Resilience_ByzantineThresholdViolation
-- Resilience_MaxOfflineTheorem
-- Resilience_OfflineThresholdViolation
-- Resilience_PartitionRecoveryTheorem
-- Resilience_EconomicResilienceTheorem
-- Resilience_DoubleVotingResistance
-- Resilience_SplitVotingResistance
-- Resilience_WithholdingResistance
-- Resilience_EquivocationResistance
-- Resilience_ByzantineBoundaryTheorem
-- Resilience_OfflineBoundaryTheorem
-- Resilience_SlashingIncentivesTheorem
-- Resilience_EconomicSecurityTheorem
-- Resilience_RotorNonEquivocationTheorem
-- Resilience_HonestBlockPropagationTheorem
-- Resilience_VRFUniquenessTheorem
-- Resilience_VRFUnpredictabilityTheorem
-- Resilience_CombinedFaultModelTheorem
-- Resilience_RealisticFaultScenariosTheorem
-- Resilience_ExactThresholdSafety
-- Resilience_ExactThresholdLiveness
-- Resilience_ProgressUnderWorstCase
-- Resilience_DegradationTheorem
-- Resilience_SelfHealingTheorem
-- Resilience_SafetyFromQuorum
-- Resilience_SafetyViolationConstruction
-- Resilience_HonestSingleVoteTheorem
-- Resilience_ResponsiveStakeCalculation
-- Resilience_ByzantineAttackConstruction
-- Resilience_ByzantineValidatorCapability
-- Resilience_InsufficientStakeLemma
-- Resilience_CertificateCompositionLemma
-- Resilience_SplitVotingAttack
-- Resilience_HonestMajorityAssumption
-- Resilience_SetTheoryAxioms
-- Resilience_CertificateStakeRequirement
-- Resilience_PeanoAxioms
-- Resilience_MathematicalInduction
-- Resilience_PartitionBound
-- Resilience_ArithmeticInequality
-- Resilience_LogicalAxioms
-- Resilience_ValidatorPartitioning
-- Resilience_ValidatorId
-- Resilience_NaturalNumberDefinition
-- Resilience_StakeNonNegativity
-- Resilience_PartitioningPrinciple
-- Resilience_StakeRecalculation
-- Resilience_ProtocolResumption
-- Resilience_TransientFaultModel
-- Resilience_ValidatorRecovery
-- Resilience_ProtocolDelayTolerance
-- Resilience_BoundedDelayAfterGST
-- Resilience_MessageDeliveryAfterGST
-- Resilience_HonestParticipationLemma
-- Resilience_CertificateGenerationLemma
-- Resilience_ProgressFromCertificate
-- Resilience_FastPathThreshold
-- Resilience_NoProgressWithoutQuorum
-- Resilience_CertificateUniquenessLemma
-- Resilience_OfflineValidatorsPassive
-- Resilience_NetworkHealingAssumption
-- Resilience_FinalizationFromCertificate
-- Resilience_VoteCollectionLemma
-- Resilience_SlowPathTheorem
-- Resilience_ProgressTheorem
-- Resilience_SafetyTheorem
-- Resilience_ByzantineResilienceTheorem
-- Resilience_VoteMonitoring
-- Resilience_EconomicAnalysis
-- Resilience_AttackBenefitBounds
-- Resilience_FunctionEquality
-- Resilience_VRFUnpredictabilityProperty
-- Resilience_VRFUnpredictabilityAssumption
-- Resilience_TemporalLogic
-- Resilience_FunctionDefinition
-- Resilience_NaturalNumberExistence
-- Resilience_OfflineResilienceTheorem
-- Liveness_MainProgressTheorem
-- Liveness_MainFastPathTheorem
-- Liveness_MainSlowPathTheorem
-- Liveness_MainBoundedFinalizationTheorem
-- Liveness_MainTimeoutProgressTheorem
-- Liveness_BoundedFinalizationTheorem
-- Liveness_AdaptiveTimeoutLivenessTheorem
-- Liveness_LeaderRotationLivenessTheorem
-- Liveness_BoundedFinalizationWithAdaptiveTimeoutsTheorem
-- Liveness_TimeoutProgressTheorem
-- Liveness_LeaderRotationTheorem
-- Liveness_NetworkSynchronyLemma
-- Liveness_HonestParticipationProof
-- Liveness_VoteAggregationProof
-- Liveness_CertificatePropagationProof
-- Liveness_LeaderWindowProgressProof
-- Liveness_AdaptiveTimeoutGrowthProof
-- Liveness_ExponentialGrowth
-- Liveness_PigeonholePrinciple
-- Liveness_MessageDeliveryLemma
-- Liveness_PartitionRecoveryLemma
-- Liveness_LeaderWindowProgressLemma
-- Liveness_ExponentialGrowthLemma
-- Liveness_TimeoutSufficientLemma
-- Liveness_WindowProgressionLemma
-- Liveness_EventualProgressLemma
-- Liveness_ViewAdvancementLemma
-- Liveness_TimeoutMechanismCorrectness
-- Liveness_ClockProgression
-- Liveness_ArithmeticProgression
-- Liveness_PigeonholePrincipleBasic
-- Liveness_ResponsivenessAssumption
-- Liveness_HonestFinalizationBehavior
-- Liveness_ArithmeticInequality
-- Liveness_ArithmeticEquality
-- Liveness_SimpleArithmetic
-- EconomicSafety_EconomicRationalityTheorem
-- EconomicSafety_SlashingEffectivenessTheorem
-- EconomicSafety_ByzantineAttackDeterrenceTheorem
-- EconomicSafety_RewardFairnessTheorem
-- EconomicSafety_StakeProportionalityTheorem
-- EconomicSafety_FeeSustainabilityTheorem
-- EconomicSafety_FeeDistributionFairnessTheorem
-- EconomicSafety_NothingAtStakeResistanceTheorem
-- EconomicSafety_LongRangeAttackResistanceTheorem
-- EconomicSafety_EconomicAttackCostTheorem
-- EconomicSafety_EconomicSafetyTheorem
-- EconomicSafety_EconomicLivenessTheorem
-- EconomicSafety_EconomicArithmetic
-- EconomicSafety_StakeConservation
-- EconomicSafety_ByzantineStakeBound
-- EconomicSafety_HonestMajority
-- EconomicSafety_EconomicSafetyInvariant
-- EconomicSafety_EconomicRationalityProperty
-- EconomicSafety_SlashingEffectivenessProperty
-- EconomicSafety_ByzantineAttackDeterrenceProperty
-- EconomicSafety_RewardFairnessProperty
-- EconomicSafety_StakeProportionalityProperty
-- EconomicSafety_FeeSustainabilityProperty
-- EconomicSafety_FeeDistributionFairnessProperty
-- EconomicSafety_NothingAtStakeResistanceProperty
-- EconomicSafety_LongRangeAttackResistanceProperty
-- EconomicSafety_EconomicAttackCostProperty
-- Safety_RotorNonEquivocationTheorem
-- Safety_SafetyTheorem
-- Safety_HonestSingleVoteTheorem
-- Safety_ChainConsistencyTheorem
-- Safety_ByzantineResilienceTheorem
-- Safety_ExactThresholdSafety
-- Safety_ThresholdViolation
-- Safety_NoConflictingFinalizationTheorem
-- Safety_ByzantineToleranceTheorem
-- Safety_FastPathSafetyTheorem
-- Safety_SlowPathSafetyTheorem
-- Safety_VoteUniquenessTheorem
-- Safety_CryptographicIntegrityTheorem
-- Safety_CryptographicIntegrity
-- Safety_CertificateUniquenessLemma
-- Safety_PigeonholePrinciple
-- Safety_HonestMajorityAssumption
-- Safety_SimpleArithmetic
-- Safety_VRFUniquenessLemma
-- Safety_VRFLeaderSelectionDeterminism
-- Safety_VRFLeaderWindowConsistency
-- Safety_ByzantineCannotForceCertificate
-- Safety_EconomicSlashingEnforcement
-- Safety_ByzantineAttackConstruction
-- Safety_StakeArithmetic
-- Safety_StakeThresholdOverlap
-- Safety_FastPathThresholdImplication
-- Safety_ByzantineStakeBound
-- Safety_HonestFinalizationLemma
-- Safety_RequiredStakeForType
-- Safety_VRFLeaderWindowSafety
-- Safety_HonestMajorityInCertificates
-- Safety_StrictInequalityFromCertificateThreshold
-- Safety_SafetyInvariant
-- WhitepaperTheorems_WhitepaperTheorem2
-- WhitepaperTheorems_VotingProtocolInvariant
-- WhitepaperTheorems_StakeArithmetic
-- WhitepaperTheorems_ChainConnectivityLemma
-- WhitepaperTheorems_HonestValidatorBehavior
-- WhitepaperTheorems_VoteCertificationLemma
-- WhitepaperTheorems_FinalizationFromCertificate
-- WhitepaperTheorems_BlockProductionLemma
-- WhitepaperTheorems_SimpleArithmetic
-- WhitepaperTheorems_TransitiveDescendantProperty
-- WhitepaperTheorems_CertificatePropagation
-- WhitepaperTheorems_ViewSynchronizationLemma
-- WhitepaperTheorems_TimeoutSettingProtocol
-- WhitepaperTheorems_ClockProgression
-- WhitepaperTheorems_WhitepaperLemma20Proof
-- WhitepaperTheorems_WhitepaperLemma21Proof
-- WhitepaperTheorems_WhitepaperLemma22Proof
-- WhitepaperTheorems_WhitepaperLemma23Proof
-- WhitepaperTheorems_WhitepaperLemma24Proof
-- WhitepaperTheorems_WhitepaperLemma25Proof
-- WhitepaperTheorems_WhitepaperLemma26Proof
-- WhitepaperTheorems_WhitepaperLemma27Proof
-- WhitepaperTheorems_WhitepaperLemma28Proof
-- WhitepaperTheorems_WhitepaperLemma29Proof
-- WhitepaperTheorems_WhitepaperLemma30Proof
-- WhitepaperTheorems_WhitepaperLemma31Proof
-- WhitepaperTheorems_WhitepaperLemma32Proof
-- WhitepaperTheorems_WhitepaperLemma33Proof
-- WhitepaperTheorems_WhitepaperLemma34Proof
-- WhitepaperTheorems_WhitepaperLemma35Proof
-- WhitepaperTheorems_WhitepaperLemma36Proof
-- WhitepaperTheorems_WhitepaperLemma37Proof
-- WhitepaperTheorems_WhitepaperLemma38Proof
-- WhitepaperTheorems_WhitepaperLemma39Proof
-- WhitepaperTheorems_WhitepaperLemma40Proof
-- WhitepaperTheorems_WhitepaperLemma41Proof
-- WhitepaperTheorems_WhitepaperLemma42Proof
-- WhitepaperTheorems_TypeInvariant
-- MathHelpers_SimpleArithmetic
-- MathHelpers_DivisionProperties
-- MathHelpers_PercentageThresholds
-- MathHelpers_StakeArithmetic
-- MathHelpers_PigeonholePrinciple
-- MathHelpers_InequalityRelationships
-- MathHelpers_AlpenglowThresholds
-- MathHelpers_SetCardinalityArithmetic
-- Sampling_WhitepaperTheorem3
-- Sampling_SamplingResilienceTheorem
-- Sampling_RotorResilienceImprovement
-- Sampling_ExpectedPerformanceImprovement
-- Sampling_VarianceReduction
-- Sampling_PartitioningValidity
-- Sampling_SamplingNonEquivocation
-- Sampling_PS_P_vs_IID_Uniform
-- Sampling_TypeInvariant
+| Whitepaper ID | TLA+ ID | Confidence | Type | TLAPS Status | File |
+|---------------|---------|------------|------|--------------|------|
+| theorem_1 | Resilience_MainResilienceTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_StakeMonotonicity | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_StakeAdditivity | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_SplitVotingAttackLemma | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | NetworkIntegration_NetworkLivenessIntegration | 0.70 | keyword_based | complete | NetworkIntegration.tla |
+| theorem_1 | NetworkIntegration_NetworkIntegrationMain | 0.70 | keyword_based | complete | NetworkIntegration.tla |
+| theorem_1 | Resilience_Combined2020ResilienceTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_MaxByzantineTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_ByzantineThresholdViolation | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_MaxOfflineTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_OfflineThresholdViolation | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_PartitionRecoveryTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_EconomicResilienceTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_SplitVotingResistance | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_ByzantineBoundaryTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_OfflineBoundaryTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_SlashingIncentivesTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_EconomicSecurityTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_RotorNonEquivocationTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_HonestBlockPropagationTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_VRFUniquenessTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_VRFUnpredictabilityTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_CombinedFaultModelTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_RealisticFaultScenariosTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_ProgressUnderWorstCase | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_DegradationTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_SelfHealingTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_SafetyFromQuorum | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_SafetyViolationConstruction | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_HonestSingleVoteTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_ResponsiveStakeCalculation | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_ByzantineAttackConstruction | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_ByzantineValidatorCapability | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_InsufficientStakeLemma | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_CertificateCompositionLemma | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_SplitVotingAttack | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_HonestMajorityAssumption | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_CertificateStakeRequirement | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_PartitionBound | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_StakeNonNegativity | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_PartitioningPrinciple | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_StakeRecalculation | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_ProtocolResumption | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_CertificateGenerationLemma | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_FastPathThreshold | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_NoProgressWithoutQuorum | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_CertificateUniquenessLemma | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_VoteCollectionLemma | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_SlowPathTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_ProgressTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_SafetyTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_ByzantineResilienceTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_EconomicAnalysis | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_VRFUnpredictabilityProperty | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Resilience_OfflineResilienceTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| theorem_1 | Liveness_MainProgressTheorem | 0.70 | keyword_based | complete | Liveness.tla |
+| theorem_1 | Liveness_MainFastPathTheorem | 0.70 | keyword_based | complete | Liveness.tla |
+| theorem_1 | Liveness_MainSlowPathTheorem | 0.70 | keyword_based | complete | Liveness.tla |
+| theorem_1 | Liveness_MainBoundedFinalizationTheorem | 0.70 | keyword_based | complete | Liveness.tla |
+| theorem_1 | Liveness_MainTimeoutProgressTheorem | 0.70 | keyword_based | complete | Liveness.tla |
+| theorem_1 | Liveness_BoundedFinalizationTheorem | 0.70 | keyword_based | complete | Liveness.tla |
+| theorem_1 | Liveness_AdaptiveTimeoutLivenessTheorem | 0.70 | keyword_based | complete | Liveness.tla |
+| theorem_1 | Liveness_LeaderRotationLivenessTheorem | 0.70 | keyword_based | complete | Liveness.tla |
+| theorem_1 | Liveness_BoundedFinalizationWithAdaptiveTimeoutsTheorem | 0.70 | keyword_based | complete | Liveness.tla |
+| theorem_1 | Liveness_TimeoutProgressTheorem | 0.70 | keyword_based | complete | Liveness.tla |
+| theorem_1 | Liveness_LeaderRotationTheorem | 0.70 | keyword_based | complete | Liveness.tla |
+| theorem_1 | Liveness_LeaderWindowProgressProof | 0.70 | keyword_based | complete | Liveness.tla |
+| theorem_1 | Liveness_PigeonholePrinciple | 0.70 | keyword_based | complete | Liveness.tla |
+| theorem_1 | Liveness_LeaderWindowProgressLemma | 0.70 | keyword_based | complete | Liveness.tla |
+| theorem_1 | Liveness_TimeoutMechanismCorrectness | 0.70 | keyword_based | complete | Liveness.tla |
+| theorem_1 | EconomicSafety_EconomicRationalityTheorem | 0.70 | keyword_based | complete | EconomicSafety.tla |
+| theorem_1 | EconomicSafety_SlashingEffectivenessTheorem | 0.70 | keyword_based | complete | EconomicSafety.tla |
+| theorem_1 | EconomicSafety_ByzantineAttackDeterrenceTheorem | 0.70 | keyword_based | complete | EconomicSafety.tla |
+| theorem_1 | EconomicSafety_RewardFairnessTheorem | 0.70 | keyword_based | complete | EconomicSafety.tla |
+| theorem_1 | EconomicSafety_StakeProportionalityTheorem | 0.70 | keyword_based | complete | EconomicSafety.tla |
+| theorem_1 | EconomicSafety_FeeSustainabilityTheorem | 0.70 | keyword_based | complete | EconomicSafety.tla |
+| theorem_1 | EconomicSafety_FeeDistributionFairnessTheorem | 0.70 | keyword_based | complete | EconomicSafety.tla |
+| theorem_1 | EconomicSafety_NothingAtStakeResistanceTheorem | 0.70 | keyword_based | complete | EconomicSafety.tla |
+| theorem_1 | EconomicSafety_LongRangeAttackResistanceTheorem | 0.70 | keyword_based | complete | EconomicSafety.tla |
+| theorem_1 | EconomicSafety_EconomicAttackCostTheorem | 0.70 | keyword_based | complete | EconomicSafety.tla |
+| theorem_1 | EconomicSafety_EconomicSafetyTheorem | 0.70 | keyword_based | complete | EconomicSafety.tla |
+| theorem_1 | EconomicSafety_EconomicLivenessTheorem | 0.70 | keyword_based | complete | EconomicSafety.tla |
+| theorem_1 | Safety_RotorNonEquivocationTheorem | 0.70 | keyword_based | complete | Safety.tla |
+| theorem_1 | Safety_SafetyTheorem | 0.70 | keyword_based | complete | Safety.tla |
+| theorem_1 | Safety_HonestSingleVoteTheorem | 0.70 | keyword_based | complete | Safety.tla |
+| theorem_1 | Safety_ChainConsistencyTheorem | 0.70 | keyword_based | complete | Safety.tla |
+| theorem_1 | Safety_ByzantineResilienceTheorem | 0.70 | keyword_based | complete | Safety.tla |
+| theorem_1 | Safety_NoConflictingFinalizationTheorem | 0.70 | keyword_based | complete | Safety.tla |
+| theorem_1 | Safety_ByzantineToleranceTheorem | 0.70 | keyword_based | complete | Safety.tla |
+| theorem_1 | Safety_FastPathSafetyTheorem | 0.70 | keyword_based | complete | Safety.tla |
+| theorem_1 | Safety_SlowPathSafetyTheorem | 0.70 | keyword_based | complete | Safety.tla |
+| theorem_1 | Safety_VoteUniquenessTheorem | 0.70 | keyword_based | complete | Safety.tla |
+| theorem_1 | Safety_CryptographicIntegrityTheorem | 0.70 | keyword_based | complete | Safety.tla |
+| theorem_1 | Safety_ByzantineCannotForceCertificate | 0.70 | keyword_based | complete | Safety.tla |
+| theorem_1 | Safety_ByzantineAttackConstruction | 0.70 | keyword_based | complete | Safety.tla |
+| theorem_1 | Safety_HonestMajorityInCertificates | 0.70 | keyword_based | complete | Safety.tla |
+| theorem_1 | Safety_StrictInequalityFromCertificateThreshold | 0.70 | keyword_based | complete | Safety.tla |
+| theorem_1 | WhitepaperTheorems_WhitepaperTheorem1 | 0.70 | keyword_based | complete | WhitepaperTheorems.tla |
+| theorem_1 | WhitepaperTheorems_WhitepaperTheorem2 | 0.70 | keyword_based | complete | WhitepaperTheorems.tla |
+| theorem_1 | WhitepaperTheorems_WhitepaperRotorResilienceTheorem | 0.70 | keyword_based | complete | WhitepaperTheorems.tla |
+| theorem_1 | WhitepaperTheorems_WhitepaperByzantineFaultToleranceTheorem | 0.70 | keyword_based | complete | WhitepaperTheorems.tla |
+| theorem_1 | WhitepaperTheorems_WhitepaperPartitionRecoveryTheorem | 0.70 | keyword_based | complete | WhitepaperTheorems.tla |
+| theorem_1 | WhitepaperTheorems_WhitepaperSamplingCorrectnessTheorem | 0.70 | keyword_based | complete | WhitepaperTheorems.tla |
+| theorem_1 | WhitepaperTheorems_VotingProtocolInvariant | 0.70 | keyword_based | complete | WhitepaperTheorems.tla |
+| theorem_1 | WhitepaperTheorems_StakeArithmetic | 0.70 | keyword_based | complete | WhitepaperTheorems.tla |
+| theorem_1 | WhitepaperTheorems_VoteCertificationLemma | 0.70 | keyword_based | complete | WhitepaperTheorems.tla |
+| theorem_1 | WhitepaperTheorems_FinalizationFromCertificate | 0.70 | keyword_based | complete | WhitepaperTheorems.tla |
+| theorem_1 | WhitepaperTheorems_BlockProductionLemma | 0.70 | keyword_based | complete | WhitepaperTheorems.tla |
+| theorem_1 | MathHelpers_StakeArithmetic | 0.70 | keyword_based | complete | MathHelpers.tla |
+| theorem_1 | MathHelpers_PigeonholePrinciple | 0.70 | keyword_based | complete | MathHelpers.tla |
+| theorem_1 | Sampling_WhitepaperTheorem3 | 0.70 | keyword_based | complete | Sampling.tla |
+| theorem_1 | Sampling_SamplingResilienceTheorem | 0.70 | keyword_based | complete | Sampling.tla |
+| theorem_1 | Sampling_ExpectedPerformanceImprovement | 0.70 | keyword_based | complete | Sampling.tla |
+| theorem_1 | Sampling_VarianceReduction | 0.70 | keyword_based | complete | Sampling.tla |
+| assumption_1 | Resilience_StakeMonotonicity | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_StakeAdditivity | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_SplitVotingAttackLemma | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | RotorPerformanceProofs_Lemma8RotorLatency | 0.70 | keyword_based | complete | RotorPerformanceProofs.tla |
+| assumption_1 | NetworkIntegration_NetworkLivenessIntegration | 0.70 | keyword_based | complete | NetworkIntegration.tla |
+| assumption_1 | NetworkIntegration_NetworkIntegrationMain | 0.70 | keyword_based | complete | NetworkIntegration.tla |
+| assumption_1 | Resilience_Combined2020ResilienceTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_MaxByzantineTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_ByzantineThresholdViolation | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_MaxOfflineTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_OfflineThresholdViolation | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_EconomicResilienceTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_SplitVotingResistance | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_CombinedFaultModelTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_ExactThresholdSafety | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_ProgressUnderWorstCase | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_SafetyFromQuorum | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_SafetyViolationConstruction | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_HonestSingleVoteTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_ResponsiveStakeCalculation | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_ByzantineAttackConstruction | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_ByzantineValidatorCapability | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_InsufficientStakeLemma | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_CertificateCompositionLemma | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_SplitVotingAttack | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_HonestMajorityAssumption | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_CertificateStakeRequirement | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_PartitionBound | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_StakeNonNegativity | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_PartitioningPrinciple | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_StakeRecalculation | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_ProtocolResumption | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_CertificateGenerationLemma | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_FastPathThreshold | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_NoProgressWithoutQuorum | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_CertificateUniquenessLemma | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_VoteCollectionLemma | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_SlowPathTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_ProgressTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_SafetyTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_EconomicAnalysis | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_VRFUnpredictabilityProperty | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Resilience_OfflineResilienceTheorem | 0.70 | keyword_based | complete | Resilience.tla |
+| assumption_1 | Liveness_MainProgressTheorem | 0.70 | keyword_based | complete | Liveness.tla |
+| assumption_1 | Liveness_MainFastPathTheorem | 0.70 | keyword_based | complete | Liveness.tla |
+| assumption_1 | Liveness_MainSlowPathTheorem | 0.70 | keyword_based | complete | Liveness.tla |
+| assumption_1 | Liveness_MainBoundedFinalizationTheorem | 0.70 | keyword_based | complete | Liveness.tla |
+| assumption_1 | Liveness_AdaptiveTimeoutLivenessTheorem | 0.70 | keyword_based | complete | Liveness.tla |
+| assumption_1 | Liveness_TimeoutProgressTheorem | 0.70 | keyword_based | complete | Liveness.tla |
+| assumption_1 | Liveness_LeaderWindowProgressProof | 0.70 | keyword_based | complete | Liveness.tla |
+| assumption_1 | Liveness_PigeonholePrinciple | 0.70 | keyword_based | complete | Liveness.tla |
+| assumption_1 | Liveness_LeaderWindowProgressLemma | 0.70 | keyword_based | complete | Liveness.tla |
+| assumption_1 | Liveness_TimeoutMechanismCorrectness | 0.70 | keyword_based | complete | Liveness.tla |
+| assumption_1 | Safety_RotorNonEquivocationTheorem | 0.70 | keyword_based | complete | Safety.tla |
+| assumption_1 | Safety_CryptographicIntegrity | 0.70 | keyword_based | complete | Safety.tla |
+| assumption_1 | Safety_ByzantineCannotForceCertificate | 0.70 | keyword_based | complete | Safety.tla |
+| assumption_1 | Safety_ByzantineAttackConstruction | 0.70 | keyword_based | complete | Safety.tla |
+| assumption_1 | Safety_HonestMajorityInCertificates | 0.70 | keyword_based | complete | Safety.tla |
+| assumption_1 | Safety_StrictInequalityFromCertificateThreshold | 0.70 | keyword_based | complete | Safety.tla |
+| assumption_1 | WhitepaperTheorems_VotingProtocolInvariant | 0.70 | keyword_based | complete | WhitepaperTheorems.tla |
+| assumption_1 | WhitepaperTheorems_StakeArithmetic | 0.70 | keyword_based | complete | WhitepaperTheorems.tla |
+| assumption_1 | WhitepaperTheorems_VoteCertificationLemma | 0.70 | keyword_based | complete | WhitepaperTheorems.tla |
+| assumption_1 | WhitepaperTheorems_FinalizationFromCertificate | 0.70 | keyword_based | complete | WhitepaperTheorems.tla |
+| assumption_1 | WhitepaperTheorems_BlockProductionLemma | 0.70 | keyword_based | complete | WhitepaperTheorems.tla |
+| assumption_1 | MathHelpers_StakeArithmetic | 0.70 | keyword_based | complete | MathHelpers.tla |
+| assumption_1 | MathHelpers_PigeonholePrinciple | 0.70 | keyword_based | complete | MathHelpers.tla |
+| assumption_1 | Sampling_RotorResilienceImprovement | 0.70 | keyword_based | complete | Sampling.tla |
+| assumption_1 | Sampling_ExpectedPerformanceImprovement | 0.70 | keyword_based | complete | Sampling.tla |
+| assumption_1 | Sampling_VarianceReduction | 0.70 | keyword_based | complete | Sampling.tla |
