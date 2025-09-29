@@ -13,8 +13,8 @@ submission/verification_results/
 *.st
 *.fp
 *.bin
-*_TTrace_*.bin
-specs/*_TTrace_*.tla
+*_TTrace_*.*
+**/*_TTrace_*.*
 
 # Development Scripts and Tools
 # scripts/dev/ - Allow development scripts for verification
