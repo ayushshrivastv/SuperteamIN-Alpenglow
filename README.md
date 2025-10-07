@@ -12,15 +12,11 @@ Mathematical rigor meets blockchain innovation. This project transforms the theo
 
 Traditional blockchain consensus protocols rely on informal arguments and empirical testing. Alpenglow demands more. By applying formal verification techniques including TLA+ specifications and Stateright model checking, this project provides mathematical guarantees about the protocol's safety, liveness, and resilience properties.
 
+[![Alpenglow Formal Verification](https://img.youtube.com/vi/nLAxTzorDZE/0.jpg)](https://youtu.be/nLAxTzorDZE?si=anxjiUg4fGaUVoFk)
+
 No more crossing fingers and hoping the consensus works correctly. Every theorem from the Alpenglow whitepaper is now backed by machine-verified proofs that can be independently validated and extended. This represents a new standard for consensus protocol verification in the blockchain industry.
 
 For detailed technical understanding of the formal specifications, refer to the [Specifications Documentation](./docs/specifications.md). For implementation details, see [Architecture Guide](./docs/architecture.md).
-
-## Project Demonstration
-
-Watch the comprehensive project walkthrough and formal verification demonstration:
-
-[![Alpenglow Formal Verification](https://img.youtube.com/vi/nLAxTzorDZE/0.jpg)](https://youtu.be/nLAxTzorDZE?si=anxjiUg4fGaUVoFk)
 
 ### Your Gateway to Mathematically Proven Consensus
 
@@ -39,38 +35,6 @@ The Alpenglow consensus protocol operates through two distinct voting paths with
 **Rotor (Relay Component)**: Implements erasure-coded block propagation with stake-weighted sampling, ensuring efficient and secure block distribution across the network.
 
 **Certificate Management**: Handles aggregation, uniqueness verification, and timeout mechanisms with mathematically proven properties for non-equivocation and bounded finalization time.
-
-## The Technology Stack
-
-**Formal Specification Layer**
-
-TLA+ specifications provide comprehensive protocol modeling with over 36 formal specifications covering all aspects of the Alpenglow consensus mechanism. Mathematical theorems with machine-verified proofs establish safety, liveness, and resilience properties through rigorous formal verification. Stateright integration enables Rust-based model checking that bridges abstract specifications with concrete implementations.
-
-**Verification Infrastructure**
-
-Exhaustive model checking validates protocol correctness across all possible execution paths for small configurations. Statistical model checking scales verification to realistic network sizes while maintaining rigorous correctness guarantees. Continuous integration pipeline provides automated verification through comprehensive test suites and validation scripts.
-
-**Implementation Validation**
-
-Property-based testing ensures formal specification alignment with implementation behavior across all protocol components. Byzantine fault injection validates protocol resilience under adversarial conditions with systematic fault introduction. Performance benchmarking confirms theoretical bounds against empirical measurements using integrated analysis tools.
-
-## Key Features
-
-**Complete Formal Specification**
-
-Protocol modeling covers Votor's dual voting paths with fast 80% and slow 60% finalization thresholds, ensuring both rapid consensus under optimal conditions and guaranteed progress under adversarial scenarios. Rotor's erasure-coded block propagation includes stake-weighted relay sampling for efficient network distribution. Certificate generation, aggregation, and uniqueness properties maintain consensus integrity across all network conditions. Timeout mechanisms and skip certificate logic provide robustness under network partitions and asynchronous conditions. Leader rotation and window management guarantee fair participation across all network participants.
-
-**Machine-Verified Safety Properties**
-
-No two conflicting blocks can be finalized in the same slot, ensuring fundamental consensus safety through mathematical proof verification. Chain consistency is maintained under up to 20% Byzantine stake through formal verification of fault tolerance mechanisms. Certificate uniqueness and non-equivocation guarantees prevent double-voting and maintain protocol integrity across all possible execution scenarios.
-
-**Proven Liveness Properties**
-
-Progress guarantee under partial synchrony with greater than 60% honest participation ensures forward progress even under adverse network conditions. Fast path completion in one round with greater than 80% responsive stake enables rapid consensus under optimal network conditions. Bounded finalization time follows the minimum of δ₈₀% and 2δ₆₀% as formally proven in the whitepaper specifications.
-
-**Resilience Guarantees**
-
-Safety is maintained with up to 20% Byzantine stake under worst-case adversarial scenarios through comprehensive formal verification. Liveness continues with up to 20% non-responsive stake ensuring continued operation under network stress conditions. Network partition recovery provides mathematical guarantees about protocol behavior during and after network splits with formal correctness proofs.
 
 ## Getting Started
 
@@ -145,8 +109,6 @@ Build and run the verification environment:
 # Run the verification environment
 docker run --rm alpenglow-verification
 ```
-
-
 ## Project Structure
 
 ```
@@ -202,7 +164,37 @@ docker run --rm alpenglow-verification
 ├── build_verification.sh          # Build verification tools
 └── quick_local_test.sh            # Quick verification test
 ```
----
+## The Technology Stack
+
+**Formal Specification Layer**
+
+TLA+ specifications provide comprehensive protocol modeling with over 36 formal specifications covering all aspects of the Alpenglow consensus mechanism. Mathematical theorems with machine-verified proofs establish safety, liveness, and resilience properties through rigorous formal verification. Stateright integration enables Rust-based model checking that bridges abstract specifications with concrete implementations.
+
+**Verification Infrastructure**
+
+Exhaustive model checking validates protocol correctness across all possible execution paths for small configurations. Statistical model checking scales verification to realistic network sizes while maintaining rigorous correctness guarantees. Continuous integration pipeline provides automated verification through comprehensive test suites and validation scripts.
+
+**Implementation Validation**
+
+Property-based testing ensures formal specification alignment with implementation behavior across all protocol components. Byzantine fault injection validates protocol resilience under adversarial conditions with systematic fault introduction. Performance benchmarking confirms theoretical bounds against empirical measurements using integrated analysis tools.
+
+## Key Features
+
+**Complete Formal Specification**
+
+Protocol modeling covers Votor's dual voting paths with fast 80% and slow 60% finalization thresholds, ensuring both rapid consensus under optimal conditions and guaranteed progress under adversarial scenarios. Rotor's erasure-coded block propagation includes stake-weighted relay sampling for efficient network distribution. Certificate generation, aggregation, and uniqueness properties maintain consensus integrity across all network conditions. Timeout mechanisms and skip certificate logic provide robustness under network partitions and asynchronous conditions. Leader rotation and window management guarantee fair participation across all network participants.
+
+**Machine-Verified Safety Properties**
+
+No two conflicting blocks can be finalized in the same slot, ensuring fundamental consensus safety through mathematical proof verification. Chain consistency is maintained under up to 20% Byzantine stake through formal verification of fault tolerance mechanisms. Certificate uniqueness and non-equivocation guarantees prevent double-voting and maintain protocol integrity across all possible execution scenarios.
+
+**Proven Liveness Properties**
+
+Progress guarantee under partial synchrony with greater than 60% honest participation ensures forward progress even under adverse network conditions. Fast path completion in one round with greater than 80% responsive stake enables rapid consensus under optimal network conditions. Bounded finalization time follows the minimum of δ₈₀% and 2δ₆₀% as formally proven in the whitepaper specifications.
+
+**Resilience Guarantees**
+
+Safety is maintained with up to 20% Byzantine stake under worst-case adversarial scenarios through comprehensive formal verification. Liveness continues with up to 20% non-responsive stake ensuring continued operation under network stress conditions. Network partition recovery provides mathematical guarantees about protocol behavior during and after network splits with formal correctness proofs.
 
 **License**: This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
 
