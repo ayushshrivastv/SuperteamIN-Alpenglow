@@ -1,13 +1,10 @@
-# Alpenglow Formal Verification
-
-> **Enterprise-grade formal verification framework for Solana's Alpenglow consensus protocol**
+# Formal Verification of Solana Alpenglow Consensus Protocol
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TLA+](https://img.shields.io/badge/TLA+-1.8.0-blue)](https://lamport.azurewebsites.net/tla/tla.html)
 [![Stateright](https://img.shields.io/badge/Stateright-0.29.0-green)](https://github.com/stateright/stateright)
 [![Java](https://img.shields.io/badge/Java-11+-orange)](https://adoptopenjdk.net/)
 [![Rust](https://img.shields.io/badge/Rust-1.70+-red)](https://rustlang.org/)
-[![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-blue)](https://github.com/ayushshrivastv/SuperteamIN-Alpenglow/actions)
 [![Docker](https://img.shields.io/badge/Docker-Supported-blue)](https://www.docker.com/)
 
 ## Overview
@@ -212,34 +209,6 @@ Progress guarantee under partial synchrony with greater than 60% honest particip
 
 Safety is maintained with up to 20% Byzantine stake under worst-case adversarial scenarios through comprehensive formal verification. Liveness continues with up to 20% non-responsive stake ensuring continued operation under network stress conditions. Network partition recovery provides mathematical guarantees about protocol behavior during and after network splits with formal correctness proofs.
 
-## Contributing
-
-We welcome contributions from the community! Please follow these guidelines:
-
-### Development Process
-
-1. **Fork** the repository and create your feature branch from `main`
-2. **Install** dependencies and ensure your development environment is set up
-3. **Make** your changes with appropriate tests and documentation
-4. **Run** the verification suite to ensure all tests pass
-5. **Submit** a pull request with a clear description of your changes
-
-### Code Standards
-
-- Follow the existing code style and formatting conventions
-- Include comprehensive tests for new functionality
-- Update documentation for any API changes
-- Ensure all formal verification checks pass
-
-### Reporting Issues
-
-Please use the [GitHub Issues](https://github.com/ayushshrivastv/SuperteamIN-Alpenglow/issues) page to report bugs or request features. Include:
-
-- Clear description of the issue or feature request
-- Steps to reproduce (for bugs)
-- Expected vs actual behavior
-- System environment details
-
 ## Support
 
 ### Documentation
@@ -255,21 +224,11 @@ Please use the [GitHub Issues](https://github.com/ayushshrivastv/SuperteamIN-Alp
 - **Discussions**: [GitHub Discussions](https://github.com/ayushshrivastv/SuperteamIN-Alpenglow/discussions)
 - **Email**: For security-related issues, contact the maintainers directly
 
-### Commercial Support
-
-For enterprise support, consulting, or custom development, please contact our team through the repository or email.
-
 ## License
 
 This project is licensed under the **MIT License** - see the [LICENSE](./LICENSE) file for complete details.
 
-### Third-Party Licenses
-
-This project includes third-party software. See [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md) for details.
-
 ---
-
-**Made with ❤️ by the Alpenglow Verification Team**
 
 *Advancing blockchain security through mathematical rigor and formal verification.*
 
