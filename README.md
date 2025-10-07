@@ -1,32 +1,30 @@
 # Alpenglow Formal Verification
 
+> **Enterprise-grade formal verification framework for Solana's Alpenglow consensus protocol**
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TLA+](https://img.shields.io/badge/TLA+-1.8.0-blue)](https://lamport.azurewebsites.net/tla/tla.html)
 [![Stateright](https://img.shields.io/badge/Stateright-0.29.0-green)](https://github.com/stateright/stateright)
 [![Java](https://img.shields.io/badge/Java-11+-orange)](https://adoptopenjdk.net/)
 [![Rust](https://img.shields.io/badge/Rust-1.70+-red)](https://rustlang.org/)
+[![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-blue)](https://github.com/ayushshrivastv/SuperteamIN-Alpenglow/actions)
+[![Docker](https://img.shields.io/badge/Docker-Supported-blue)](https://www.docker.com/)
 
-## Formal Verification of Solana Alpenglow Consensus Protocol
+## Overview
 
 Mathematical rigor meets blockchain innovation. This project transforms the theoretical foundations of Solana's Alpenglow consensus protocol into machine-verified mathematical proofs using formal methods.
 
 Traditional blockchain consensus protocols rely on informal arguments and empirical testing. Alpenglow demands more. By applying formal verification techniques including TLA+ specifications and Stateright model checking, this project provides mathematical guarantees about the protocol's safety, liveness, and resilience properties.
 
+### Project Demonstration
+
 [![Alpenglow Formal Verification](https://img.youtube.com/vi/nLAxTzorDZE/0.jpg)](https://youtu.be/nLAxTzorDZE?si=anxjiUg4fGaUVoFk)
 
-No more crossing fingers and hoping the consensus works correctly. Every theorem from the Alpenglow whitepaper is now backed by machine-verified proofs that can be independently validated and extended. This represents a new standard for consensus protocol verification in the blockchain industry.
+Every theorem from the Alpenglow whitepaper is now backed by machine-verified proofs that can be independently validated and extended. This represents a new standard for consensus protocol verification in the blockchain industry.
 
 For detailed technical understanding of the formal specifications, refer to the [Specifications Documentation](./docs/specifications.md). For implementation details, see [Architecture Guide](./docs/architecture.md).
 
-### Your Gateway to Mathematically Proven Consensus
-
-<img src="docs/assets/alpenglow-architecture.png" width="700" alt="Alpenglow Consensus Architecture"/>
-
-### Formal Methods: Proving Consensus Correctness at Scale
-
-<img src="docs/assets/formal-verification-pipeline.png" width="700" alt="Formal Verification Pipeline"/>
-
-## How It Actually Works
+## Architecture
 
 The Alpenglow consensus protocol operates through two distinct voting paths with different finalization thresholds. This dual-path approach enables both fast consensus under optimal conditions and robust consensus under adversarial conditions.
 
@@ -60,7 +58,7 @@ cd stateright && cargo build --release && cd ..
 cd implementation && cargo build --release && cd ..
 ```
 
-## Verification Commands
+## Usage
 
 ### Core Protocol Verification
 
@@ -98,7 +96,25 @@ java -XX:+UseParallelGC -jar tools/tla2tools.jar -config models/VotorCore.cfg sp
 java -XX:+UseParallelGC -jar tools/tla2tools.jar -config models/ResilienceTest.cfg specs/ResilienceSimple.tla
 ```
 
-## Docker Deployment
+## Testing
+
+The project includes comprehensive testing infrastructure for formal verification validation.
+
+### Automated Test Suite
+
+Run the complete verification test suite:
+```bash
+./localverify.sh --full
+```
+
+Quick verification test:
+```bash
+./localverify.sh --quick
+```
+
+## Deployment
+
+### Docker Deployment
 
 Build and run the verification environment:
 
@@ -178,7 +194,7 @@ Exhaustive model checking validates protocol correctness across all possible exe
 
 Property-based testing ensures formal specification alignment with implementation behavior across all protocol components. Byzantine fault injection validates protocol resilience under adversarial conditions with systematic fault introduction. Performance benchmarking confirms theoretical bounds against empirical measurements using integrated analysis tools.
 
-## Key Features
+## Features
 
 **Complete Formal Specification**
 
@@ -196,6 +212,65 @@ Progress guarantee under partial synchrony with greater than 60% honest particip
 
 Safety is maintained with up to 20% Byzantine stake under worst-case adversarial scenarios through comprehensive formal verification. Liveness continues with up to 20% non-responsive stake ensuring continued operation under network stress conditions. Network partition recovery provides mathematical guarantees about protocol behavior during and after network splits with formal correctness proofs.
 
-**License**: This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+## Contributing
+
+We welcome contributions from the community! Please follow these guidelines:
+
+### Development Process
+
+1. **Fork** the repository and create your feature branch from `main`
+2. **Install** dependencies and ensure your development environment is set up
+3. **Make** your changes with appropriate tests and documentation
+4. **Run** the verification suite to ensure all tests pass
+5. **Submit** a pull request with a clear description of your changes
+
+### Code Standards
+
+- Follow the existing code style and formatting conventions
+- Include comprehensive tests for new functionality
+- Update documentation for any API changes
+- Ensure all formal verification checks pass
+
+### Reporting Issues
+
+Please use the [GitHub Issues](https://github.com/ayushshrivastv/SuperteamIN-Alpenglow/issues) page to report bugs or request features. Include:
+
+- Clear description of the issue or feature request
+- Steps to reproduce (for bugs)
+- Expected vs actual behavior
+- System environment details
+
+## Support
+
+### Documentation
+
+- [Specifications Documentation](./docs/specifications.md)
+- [Architecture Guide](./docs/architecture.md)
+- [API Reference](./docs/api.md)
+- [FAQ](./docs/faq.md)
+
+### Community
+
+- **Issues**: [GitHub Issues](https://github.com/ayushshrivastv/SuperteamIN-Alpenglow/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/ayushshrivastv/SuperteamIN-Alpenglow/discussions)
+- **Email**: For security-related issues, contact the maintainers directly
+
+### Commercial Support
+
+For enterprise support, consulting, or custom development, please contact our team through the repository or email.
+
+## License
+
+This project is licensed under the **MIT License** - see the [LICENSE](./LICENSE) file for complete details.
+
+### Third-Party Licenses
+
+This project includes third-party software. See [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md) for details.
+
+---
+
+**Made with ❤️ by the Alpenglow Verification Team**
+
+*Advancing blockchain security through mathematical rigor and formal verification.*
 
 
