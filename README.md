@@ -7,13 +7,11 @@
 [![Rust](https://img.shields.io/badge/Rust-1.70+-red)](https://rustlang.org/)
 [![Docker](https://img.shields.io/badge/Docker-Supported-blue)](https://www.docker.com/)
 
-## Overview
-
 Mathematical rigor meets blockchain innovation. This project transforms the theoretical foundations of Solana's Alpenglow consensus protocol into machine-verified mathematical proofs using formal methods.
 
 Traditional blockchain consensus protocols rely on informal arguments and empirical testing. Alpenglow demands more. By applying formal verification techniques including TLA+ specifications and Stateright model checking, this project provides mathematical guarantees about the protocol's safety, liveness, and resilience properties.
 
-### Project Demonstration
+### Project 
 
 [![Alpenglow Formal Verification](https://img.youtube.com/vi/nLAxTzorDZE/0.jpg)](https://youtu.be/nLAxTzorDZE?si=anxjiUg4fGaUVoFk)
 
@@ -21,7 +19,7 @@ Every theorem from the Alpenglow whitepaper is now backed by machine-verified pr
 
 For detailed technical understanding of the formal specifications, refer to the [Specifications Documentation](./docs/specifications.md). For implementation details, see [Architecture Guide](./docs/architecture.md).
 
-## Architecture
+#### Architecture
 
 The Alpenglow consensus protocol operates through two distinct voting paths with different finalization thresholds. This dual-path approach enables both fast consensus under optimal conditions and robust consensus under adversarial conditions.
 
@@ -31,15 +29,15 @@ The Alpenglow consensus protocol operates through two distinct voting paths with
 
 **Certificate Management**: Handles aggregation, uniqueness verification, and timeout mechanisms with mathematically proven properties for non-equivocation and bounded finalization time.
 
-## Getting Started
+### Getting Started
 
-### Prerequisites
+#### Prerequisites
 
 Ensure you have the following installed:
 
 **Java 11+** for TLA+ tools execution and model checking operations. **TLA+ Tools** including TLC model checker and TLAPS proof system for formal verification. **Rust 1.70+** for Stateright integration and implementation verification. **Python 3.8+** for analysis and visualization tools. **Docker** (optional) for containerized verification environment.
 
-### Installation
+#### Installation
 
 ```bash
 # Clone the repository
@@ -55,9 +53,11 @@ cd stateright && cargo build --release && cd ..
 cd implementation && cargo build --release && cd ..
 ```
 
-## Usage
+#### Testing
 
-### Core Protocol Verification
+The project includes comprehensive testing infrastructure for formal verification validation.
+
+#### Core Protocol Verification
 
 **Votor (Voting Component)**
 ```bash
@@ -69,7 +69,7 @@ java -XX:+UseParallelGC -cp tools/tla2tools.jar tlc2.TLC specs/Votor.tla -config
 java -XX:+UseParallelGC -cp tools/tla2tools.jar tlc2.TLC specs/RotorSimple.tla -config models/RotorSimpleTest.cfg
 ```
 
-### Property Verification
+#### Property Verification
 
 **Safety and Liveness Properties**
 ```bash
@@ -93,23 +93,7 @@ java -XX:+UseParallelGC -jar tools/tla2tools.jar -config models/VotorCore.cfg sp
 java -XX:+UseParallelGC -jar tools/tla2tools.jar -config models/ResilienceTest.cfg specs/ResilienceSimple.tla
 ```
 
-## Testing
-
-The project includes comprehensive testing infrastructure for formal verification validation.
-
-### Automated Test Suite
-
-Run the complete verification test suite:
-```bash
-./localverify.sh --full
-```
-
-Quick verification test:
-```bash
-./localverify.sh --quick
-```
-
-## Deployment
+#### Deployment
 
 ### Docker Deployment
 
@@ -122,7 +106,7 @@ Build and run the verification environment:
 # Run the verification environment
 docker run --rm alpenglow-verification
 ```
-## Project Structure
+#### Project Structure
 
 ```
 ├── specs/                          # TLA+ formal specifications (36 files)
@@ -177,7 +161,7 @@ docker run --rm alpenglow-verification
 ├── build_verification.sh          # Build verification tools
 └── quick_local_test.sh            # Quick verification test
 ```
-## The Technology Stack
+#### The Technology Stack
 
 **Formal Specification Layer**
 
@@ -191,7 +175,7 @@ Exhaustive model checking validates protocol correctness across all possible exe
 
 Property-based testing ensures formal specification alignment with implementation behavior across all protocol components. Byzantine fault injection validates protocol resilience under adversarial conditions with systematic fault introduction. Performance benchmarking confirms theoretical bounds against empirical measurements using integrated analysis tools.
 
-## Features
+#### Features
 
 **Complete Formal Specification**
 
@@ -209,7 +193,7 @@ Progress guarantee under partial synchrony with greater than 60% honest particip
 
 Safety is maintained with up to 20% Byzantine stake under worst-case adversarial scenarios through comprehensive formal verification. Liveness continues with up to 20% non-responsive stake ensuring continued operation under network stress conditions. Network partition recovery provides mathematical guarantees about protocol behavior during and after network splits with formal correctness proofs.
 
-## Support
+#### Support
 
 ### Documentation
 
@@ -218,13 +202,13 @@ Safety is maintained with up to 20% Byzantine stake under worst-case adversarial
 - [API Reference](./docs/api.md)
 - [FAQ](./docs/faq.md)
 
-### Community
+#### Community
 
 - **Issues**: [GitHub Issues](https://github.com/ayushshrivastv/SuperteamIN-Alpenglow/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/ayushshrivastv/SuperteamIN-Alpenglow/discussions)
 - **Email**: For security-related issues, contact the maintainers directly
 
-## License
+#### License
 
 This project is licensed under the **MIT License** - see the [LICENSE](./LICENSE) file for complete details.
 
