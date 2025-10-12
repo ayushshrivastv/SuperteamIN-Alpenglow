@@ -29,13 +29,18 @@ The Alpenglow consensus protocol operates through two distinct voting paths with
 
 **Certificate Management**: Handles aggregation, uniqueness verification, and timeout mechanisms with mathematically proven properties for non-equivocation and bounded finalization time.
 
+Research reference implementation of the Alpenglow consensus protocol.
+
+<img width="600" height="600" alt="image" src="https://github.com/user-attachments/assets/c3d61dc5-bd2c-43ee-b8d0-b303c6ddb98b" />
+
+
 ### Getting Started
 
 #### Prerequisites
 
 Ensure you have the following installed:
 
-**Java 11+** for TLA+ tools execution and model checking operations. **TLA+ Tools** including TLC model checker and TLAPS proof system for formal verification. **Rust 1.70+** for Stateright integration and implementation verification. **Python 3.8+** for analysis and visualization tools. **Docker** (optional) for containerized verification environment.
+**Java 11+** for TLA+ tools execution and model checking operations. **TLA+ Tools** including TLC model checker and TLAPS proof system for formal verification. **Rust 1.70+** for Stateright integration and implementation verification. **Docker** (optional) for containerized verification environment.
 
 #### Installation
 
@@ -76,19 +81,19 @@ java -XX:+UseParallelGC -cp tools/tla2tools.jar tlc2.TLC specs/RotorSimple.tla -
 java -XX:+UseParallelGC -Xmx2g -cp tools/tla2tools.jar tlc2.TLC specs/LivenessProperties.tla -config specs/LivenessProperties.cfg
 ```
 
-### Multi-Node Configuration Testing
+### Multi Node Configuration Testing
 
-**3-Node Configuration**
+**3 Node Configuration**
 ```bash
 java -XX:+UseParallelGC -jar tools/tla2tools.jar -config specs/LivenessProperties.cfg specs/LivenessProperties.tla
 ```
 
-**5-Node Configuration**
+**5 Node Configuration**
 ```bash
 java -XX:+UseParallelGC -jar tools/tla2tools.jar -config models/VotorCore.cfg specs/Votor.tla
 ```
 
-**7-Node Resilience Testing**
+**7 Node Resilience Testing**
 ```bash
 java -XX:+UseParallelGC -jar tools/tla2tools.jar -config models/ResilienceTest.cfg specs/ResilienceSimple.tla
 ```
@@ -205,7 +210,6 @@ Safety is maintained with up to 20% Byzantine stake under worst-case adversarial
 #### Community
 
 - **Issues**: [GitHub Issues](https://github.com/ayushshrivastv/SuperteamIN-Alpenglow/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/ayushshrivastv/SuperteamIN-Alpenglow/discussions)
 - **Email**: For security-related issues, contact the maintainers directly
 
 #### License
