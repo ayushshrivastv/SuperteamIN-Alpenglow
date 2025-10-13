@@ -11,7 +11,7 @@ Mathematical rigor meets blockchain innovation. This project transforms the theo
 
 Traditional blockchain consensus protocols rely on informal arguments and empirical testing. Alpenglow demands more. By applying formal verification techniques including TLA+ specifications and Stateright model checking, this project provides mathematical guarantees about the protocol's safety, liveness, and resilience properties.
 
-### Project 
+### Project {Youtube}
 
 [![Alpenglow Formal Verification](https://img.youtube.com/vi/nLAxTzorDZE/0.jpg)](https://youtu.be/nLAxTzorDZE?si=anxjiUg4fGaUVoFk)
 
@@ -25,9 +25,16 @@ The Alpenglow consensus protocol operates through two distinct voting paths with
 
 **Votor (Voting Component)**: Manages the dual voting mechanisms with fast path (80% threshold) for rapid finalization and slow path (60% threshold) for guaranteed progress under partial synchrony.
 
+<img width="6000" height="1671" alt="votor_codemap_dark_ultra_hq" src="https://github.com/user-attachments/assets/e4281770-da6c-4b72-8e88-3b808d12951a" />
+
 **Rotor (Relay Component)**: Implements erasure-coded block propagation with stake-weighted sampling, ensuring efficient and secure block distribution across the network.
 
+<img width="6000" height="1606" alt="rotor_codemap_dark_ultra_hq" src="https://github.com/user-attachments/assets/9aec0756-1aa0-4cb0-8d34-68744054bd9c" />
+
 **Certificate Management**: Handles aggregation, uniqueness verification, and timeout mechanisms with mathematically proven properties for non-equivocation and bounded finalization time.
+
+<img width="6000" height="1720" alt="alpenglow_main_codemap_dark_ultra_hq" src="https://github.com/user-attachments/assets/6ee924a1-db04-467e-a081-43c058c45198" />
+
 
 Research reference implementation of the Alpenglow consensus protocol.
 
