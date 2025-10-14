@@ -17,23 +17,23 @@ Traditional blockchain consensus protocols rely on informal arguments and empiri
 
 Every theorem from the Alpenglow whitepaper is now backed by machine-verified proofs that can be independently validated and extended. This represents a new standard for consensus protocol verification in the blockchain industry.
 
-For detailed technical understanding of the formal specifications, refer to the [Specifications Documentation](./docs/specifications.md). For implementation details, see [Architecture Guide](./docs/architecture.md).
-
 #### Architecture
 
 The Alpenglow consensus protocol operates through two distinct voting paths with different finalization thresholds. This dual-path approach enables both fast consensus under optimal conditions and robust consensus under adversarial conditions.
 
 **Votor (Voting Component)**: Manages the dual voting mechanisms with fast path (80% threshold) for rapid finalization and slow path (60% threshold) for guaranteed progress under partial synchrony.
 
-<img width="6000" height="1671" alt="votor_codemap_dark_ultra_hq" src="https://github.com/user-attachments/assets/e4281770-da6c-4b72-8e88-3b808d12951a" />
+<img width="10984" height="3059" alt="votor" src="https://github.com/user-attachments/assets/e07b55aa-c38d-4115-8797-56e94c18888e" />
 
 **Rotor (Relay Component)**: Implements erasure-coded block propagation with stake-weighted sampling, ensuring efficient and secure block distribution across the network.
 
-<img width="6000" height="1606" alt="rotor_codemap_dark_ultra_hq" src="https://github.com/user-attachments/assets/9aec0756-1aa0-4cb0-8d34-68744054bd9c" />
+<img width="13142" height="3517" alt="rotor" src="https://github.com/user-attachments/assets/4d5bc71a-11ab-482a-ac15-179bc2c003ac" />
+
 
 **Certificate Management**: Handles aggregation, uniqueness verification, and timeout mechanisms with mathematically proven properties for non-equivocation and bounded finalization time.
 
-<img width="6000" height="1720" alt="alpenglow_main_codemap_dark_ultra_hq" src="https://github.com/user-attachments/assets/6ee924a1-db04-467e-a081-43c058c45198" />
+
+<img width="14671" height="4205" alt="alpenglow" src="https://github.com/user-attachments/assets/78b01864-4005-497a-919d-216bb10a7641" />
 
 
 Research reference implementation of the Alpenglow consensus protocol.
@@ -117,61 +117,6 @@ Build and run the verification environment:
 
 # Run the verification environment
 docker run --rm alpenglow-verification
-```
-#### Project Structure
-
-```
-├── specs/                          # TLA+ formal specifications (36 files)
-│   ├── Alpenglow.tla              # Complete protocol specification
-│   ├── Votor.tla                  # Voting protocol specification
-│   ├── Rotor.tla                  # Block propagation specification
-│   ├── RotorSimple.tla            # Simplified Rotor model
-│   ├── LivenessProperties.tla     # Liveness theorem proofs
-│   ├── SafetyCore.tla             # Safety property proofs
-│   ├── ResilienceSimple.tla       # Byzantine resilience testing
-│   ├── AdaptiveTimeouts.tla       # Timeout mechanism verification
-│   ├── EconomicModel.tla          # Economic incentive modeling
-│   └── foundation/                # Foundational specifications
-├── models/                        # TLA+ configuration files (43 files)
-│   ├── VotorCore.cfg              # Core voting configuration
-│   ├── RotorSimpleTest.cfg        # Block propagation test config
-│   ├── ResilienceTest.cfg         # Byzantine resilience testing
-│   ├── LivenessProperties.cfg     # Liveness property verification
-│   ├── EndToEnd.cfg               # Complete protocol testing
-│   ├── LargeScale.cfg             # Large-scale network testing
-│   └── WhitepaperValidation.cfg   # Whitepaper theorem validation
-├── stateright/                    # Stateright model checker (26 files)
-│   ├── src/                       # Rust implementation models
-│   ├── tests/                     # Model checking tests
-│   └── Cargo.toml                 # Rust dependencies
-├── implementation/                # Production Rust implementation (5 files)
-│   ├── consensus/                 # Core consensus algorithms
-│   ├── networking/                # P2P networking layer
-│   └── benchmarks/                # Performance benchmarking
-├── proofs/                        # Mathematical theorem proofs (17 files)
-│   ├── safety/                    # Safety property proofs
-│   ├── liveness/                  # Liveness property proofs
-│   └── resilience/                # Byzantine resilience proofs
-├── tools/                         # Verification tools
-│   └── tla2tools.jar              # TLA+ model checker v1.8.0
-├── scripts/                       # Automation scripts (12 files)
-│   ├── ci/                        # CI/CD pipeline scripts
-│   └── dev/                       # Development utilities
-├── reports/                       # Verification reports (8 files)
-├── theorem_mapping_reports/       # Theorem validation reports (5 files)
-├── submission/                    # Formal submission package (10 files)
-├── conformance/                   # Conformance testing (3 files)
-├── cross-validation/              # Cross-validation testing (4 files)
-├── tests/                         # Additional test suites (5 files)
-├── ci/                           # CI/CD configuration
-├── ci-cd/                        # Extended CI/CD setup (10 files)
-├── explorations/                  # Research explorations (3 files)
-├── examples/                      # Usage examples
-├── Dockerfile                     # Containerized verification environment
-├── Dockerfile.quick               # Quick verification setup
-├── localverify.sh                 # Comprehensive local verification script
-├── build_verification.sh          # Build verification tools
-└── quick_local_test.sh            # Quick verification test
 ```
 #### The Technology Stack
 
