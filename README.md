@@ -3,9 +3,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TLA+](https://img.shields.io/badge/TLA+-1.8.0-blue)](https://lamport.azurewebsites.net/tla/tla.html)
 [![Stateright](https://img.shields.io/badge/Stateright-0.29.0-green)](https://github.com/stateright/stateright)
-[![Java](https://img.shields.io/badge/Java-11+-orange)](https://adoptopenjdk.net/)
 [![Rust](https://img.shields.io/badge/Rust-1.70+-red)](https://rustlang.org/)
 [![Docker](https://img.shields.io/badge/Docker-Supported-blue)](https://www.docker.com/)
+[![Superteam](https://img.shields.io/badge/Superteam-Community-purple)](https://superteam.fun/)
 
 Mathematical rigor meets blockchain innovation. This project transforms the theoretical foundations of Solana's Alpenglow consensus protocol into machine-verified mathematical proofs using formal methods.
 
